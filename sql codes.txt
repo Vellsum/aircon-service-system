@@ -1,0 +1,151 @@
+## currently user3 schema is most updated with below codes, make new schema for all these
+current schemas to be used;
+- user3
+-new_jobBooking
+
+//testing for making child without valid parent;=----------------
+
+-- Attempt to insert a customer linked to non-existent user_ID 99999
+INSERT INTO user3.newCustomer (customer_name, customer_aircons, loyaltyPoints, customer_address, bought_packages, user_ID)
+VALUES ('Test User', 1, 0, '123 Test St', 1, 99999);
+
+
+
+//test if killing parent will kill child--------------------------------
+INSERT INTO user3.topUser (username, salt, hash, accountType, isDeleted) --make parent
+VALUES ('test_delete_user', 'salt123', 'hash123', 'Customer', 0);
+
+INSERT INTO user3.newCustomer (customer_name, customer_aircons, loyaltyPoints, customer_address, bought_packages, user_ID)
+VALUES ('Delete Test Customer', 2, 10, '456 Sample Rd', 1, X); -- //where X is the userID in parent
+
+DELETE FROM user3.topUser WHERE user_ID = X;-- //delete parent n check if child is still alive
+--if correct, child is not there
+--note that the pk id will settle itself
+
+
+
+
+
+
+//made the table with pk and fk, data constraints;--------------------------
+
+--make user parent table
+CREATE TABLE user3.topUser (
+    user_ID INT IDENTITY(1,1) PRIMARY KEY,
+    username VARCHAR(100) NOT NULL CONSTRAINT UQ_user_username UNIQUE,
+    salt VARCHAR(100) NOT NULL,
+    hash VARCHAR(100) NOT NULL,
+    accountType VARCHAR(100) NOT NULL CONSTRAINT CHK_user_accountType CHECK (accountType IN ('Customer', 'Admin', 'Technician')),  --ensure the account type wont get spelling errors
+    isDeleted BIT NOT NULL CONSTRAINT DF_user_isDeleted DEFAULT 0
+);
+
+
+--make customer child table
+CREATE TABLE user3.newCustomer (
+    customer_ID INT IDENTITY(1,1) PRIMARY KEY,
+    customer_name VARCHAR(100) NOT NULL,
+    customer_aircons INT NOT NULL CONSTRAINT CHK_Customer_aircons CHECK (customer_aircons >= 0),
+    loyaltyPoints INT NOT NULL CONSTRAINT DF_Customer_loyaltyPoints DEFAULT 0 CONSTRAINT CHK_Customer_loyaltyPoints CHECK (loyaltyPoints >= 0),
+    customer_address VARCHAR(100) NOT NULL,
+    bought_packages INT NOT NULL CONSTRAINT CHK_Customer_bought_packages CHECK (bought_packages >= 0),
+    user_ID INT NOT NULL CONSTRAINT UQ_Customer_userID UNIQUE,
+
+
+    CONSTRAINT FK_Customer_User FOREIGN KEY (user_ID)-- //make custom name to use
+        REFERENCES user3.topUser(user_ID)            -- //this child table reference the parent table by which PK. use the parents pk
+        ON DELETE CASCADE				--//if parent dies, child dies
+        ON UPDATE CASCADE				--if parent updates, child updates, but if the key is the pk then need not have
+);
+
+
+//create admin n techni table -==================================
+CREATE TABLE user3.admin (
+    admin_id INT IDENTITY(1,1) PRIMARY KEY,
+    admin_name VARCHAR(100) NOT NULL,
+    authorityKey INT NOT NULL CONSTRAINT CHK_admin_authorityKey CHECK (authorityKey >= 0),
+    user_ID INT NOT NULL CONSTRAINT UQ_admin_userID UNIQUE,
+
+    CONSTRAINT FK_admin_topUser FOREIGN KEY (user_ID) --//the constraints to parent table
+        REFERENCES user3.topUser(user_ID)
+        ON DELETE CASCADE
+);
+
+
+CREATE TABLE user3.technician (
+    technician_ID INT IDENTITY(1,1) PRIMARY KEY,
+    technician_name VARCHAR(100) NOT NULL,
+    technician_rating INT NOT NULL CONSTRAINT CHK_technician_rating CHECK (technician_rating >= 0),
+    user_ID INT NOT NULL CONSTRAINT UQ_technician_userID UNIQUE,
+
+
+    CONSTRAINT FK_technician_topUser FOREIGN KEY (user_ID)  --//the constraint
+        REFERENCES user3.topUser(user_ID)
+        ON DELETE CASCADE
+);
+
+
+
+
+
+//booking, work, job, service report table =========================================================
+-- 1. Create Independent Parent/Base Table: serviceReport
+CREATE TABLE new_jobBooking.serviceReport (
+    reportID INT IDENTITY(1,1) PRIMARY KEY,
+    description VARCHAR(100) NOT NULL,
+    technicianID INT NOT NULL,
+    isFollowup BIT NOT NULL DEFAULT 0,
+
+    -- Foreign Key link to technician table
+    CONSTRAINT FK_serviceReport_technician FOREIGN KEY (technicianID)
+        REFERENCES user3.technician(technician_ID)
+);
+
+-- 2. Create Parent Table: Booking
+CREATE TABLE new_jobBooking.Booking (
+    booking_ID INT IDENTITY(1,1) PRIMARY KEY,
+    customer_ID INT NOT NULL,
+    technician_ID INT NOT NULL,
+    date DATE NOT NULL,
+    time TIME NOT NULL,
+    isFollowup BIT NOT NULL DEFAULT 0,
+    location VARCHAR(100) NOT NULL,
+    status VARCHAR(100) NOT NULL,
+
+    -- Foreign Key links
+    CONSTRAINT FK_Booking_Customer FOREIGN KEY (customer_ID)
+        REFERENCES user3.newCustomer(customer_ID),
+    CONSTRAINT FK_Booking_Technician FOREIGN KEY (technician_ID)
+        REFERENCES user3.technician(technician_ID)
+);
+
+-- 3. Create Child Table: job (References serviceReport)
+CREATE TABLE new_jobBooking.job (
+    job_ID INT IDENTITY(1,1) PRIMARY KEY,
+    job_status VARCHAR(100) NOT NULL,
+    isFollowup BIT NOT NULL DEFAULT 0,
+    serviceReport INT NOT NULL,
+    serviceID INT NOT NULL,
+
+    -- Foreign Key link to serviceReport
+    CONSTRAINT FK_job_serviceReport FOREIGN KEY (serviceReport)
+        REFERENCES new_jobBooking.serviceReport(reportID)
+);
+
+-- 4. Create Junction Table: work (Bridge between job and Booking)
+CREATE TABLE new_jobBooking.work (
+    job_ID INT NOT NULL,
+    booking_ID INT NOT NULL,
+
+    -- Composite Primary Key to ensure unique job-booking pairs
+    PRIMARY KEY (job_ID, booking_ID),
+
+    -- Foreign Key links
+    CONSTRAINT FK_work_job FOREIGN KEY (job_ID)
+        REFERENCES new_jobBooking.job(job_ID)
+        ON DELETE CASCADE,
+    CONSTRAINT FK_work_Booking FOREIGN KEY (booking_ID)
+        REFERENCES new_jobBooking.Booking(booking_ID)
+        ON DELETE CASCADE
+);
+GO
+
