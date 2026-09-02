@@ -1,0 +1,20 @@
+//testing for making child without valid parent;=----------------
+
+-- Attempt to insert a customer linked to non-existent user_ID 99999
+INSERT INTO user3.newCustomer (customer_name, customer_aircons, loyaltyPoints, customer_address, bought_packages, user_ID)
+VALUES ('Test User', 1, 0, '123 Test St', 1, 99999);
+
+
+
+//test if killing parent will kill child--------------------------------
+INSERT INTO user3.topUser (username, salt, hash, accountType, isDeleted) --make parent
+VALUES ('test_delete_user', 'salt123', 'hash123', 'Customer', 0);
+
+INSERT INTO user3.newCustomer (customer_name, customer_aircons, loyaltyPoints, customer_address, bought_packages, user_ID)
+VALUES ('Delete Test Customer', 2, 10, '456 Sample Rd', 1, X); -- //where X is the userID in parent
+
+DELETE FROM user3.topUser WHERE user_ID = X;-- //delete parent n check if child is still alive
+--if correct, child is not there
+--note that the pk id will settle itself
+
+

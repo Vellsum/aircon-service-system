@@ -1,0 +1,22 @@
+#check keys-------------------------
+SELECT 
+    fk.name AS FK_Name,
+    OBJECT_SCHEMA_NAME(fk.parent_object_id) + '.' + OBJECT_NAME(fk.parent_object_id) AS ChildTable,
+    OBJECT_SCHEMA_NAME(fk.referenced_object_id) + '.' + OBJECT_NAME(fk.referenced_object_id) AS ParentTable
+FROM sys.foreign_keys AS fk;
+
+
+//drop contraint--------
+alter table inventory.airconPart DROP CONSTRAINT FK_airconPart_aircon
+
+//make  user data------------------------------------
+--make parent
+INSERT INTO user3.topUser (username, salt, hash, accountType, isDeleted)
+VALUES ('john_doe_99923', 'randomsalt123', 'hashedpassword456', 'Customer', 0);
+
+-- SCOPE_IDENTITY() grabs the user_ID created in Step 1
+DECLARE @NewUserID INT = SCOPE_IDENTITY();
+
+--make child , its pk id is from the scope identity
+INSERT into user3.newCustomer(customer_name,customer_aircons, loyaltyPoints,customer_address,bought_packages,user_ID)
+values ('newcus', 0,0,'place',0,@NewUserID);
