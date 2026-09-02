@@ -1,0 +1,877 @@
+/* ==========================================================================
+   Layout Shell
+   ========================================================================== */
+
+.technician-portal-wrapper {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* ---- Sidebar ---- */
+.technician-sidebar {
+  width: 260px;
+  background-color: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 1040;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 991.98px) {
+  .technician-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  }
+  .technician-sidebar.show {
+    transform: translateX(0);
+  }
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(3px);
+    z-index: 1030;
+  }
+}
+
+/* Brand */
+.sidebar-brand-header {
+  padding: 1.45rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+
+.brand-logo-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--primary-600);
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.3px;
+}
+
+.brand-subtitle {
+  font-size: 0.68rem;
+  color: #60a5fa;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* Nav Items */
+.sidebar-nav-menu {
+  flex-grow: 1;
+  padding: 1.15rem 0.7rem;
+  overflow-y: auto;
+}
+
+.sidebar-nav-menu .nav-item {
+  margin-bottom: 2px;
+}
+
+.sidebar-nav-menu .nav-link {
+  color: var(--sidebar-text);
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  position: relative;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.sidebar-nav-menu .nav-link:hover {
+  color: #e2e8f0;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-nav-menu .nav-link.active {
+  color: #ffffff;
+  background-color: rgba(37, 99, 235, 0.2);
+  font-weight: 600;
+}
+
+.sidebar-nav-menu .nav-link.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 3px;
+  background-color: var(--primary-500);
+  border-radius: 0 3px 3px 0;
+}
+
+.sidebar-nav-menu .nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--sidebar-border);
+}
+
+.sidebar-profile-card {
+  padding: 0.55rem 0.65rem;
+  background-color: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+}
+
+.tech-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--primary-600);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+
+.tech-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.tech-role {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.duty-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.duty-dot-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  animation: pulse-dot 2.5s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ==========================================================================
+   Main Content & Topbar
+   ========================================================================== */
+
+.technician-main-container {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background-color: var(--bg-app);
+}
+
+.technician-topbar {
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+}
+
+.topbar-portal-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: transparent;
+  border: 0;
+  padding: 4px 0;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.topbar-date-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  padding: 4px 0;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.topbar-alert-btn {
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background-color: #ffffff;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease;
+}
+
+.topbar-alert-btn:hover {
+  background-color: var(--surface-muted);
+}
+
+.technician-content-area {
+  max-width: 1320px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ==========================================================================
+   Page Headers — Clear Typographic Scale
+   ========================================================================== */
+
+.page-kicker {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--primary-600);
+  margin-bottom: 2px;
+}
+
+.page-title {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.15rem;
+  letter-spacing: -0.5px;
+  line-height: 1.25;
+}
+
+.page-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   KPI Metric Cards — Clean, Minimal
+   ========================================================================== */
+
+.kpi-card-wrapper {
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 1.15rem 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.kpi-card-wrapper:hover {
+  border-color: var(--border-default);
+}
+
+/* Keep KPI cards neutral so status colours remain meaningful elsewhere. */
+.kpi-card-wrapper::before {
+  display: none;
+}
+
+.kpi-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kpi-icon-today,
+.kpi-icon-progress,
+.kpi-icon-upcoming,
+.kpi-icon-completed,
+.kpi-icon-rating {
+  background-color: var(--primary-50);
+  color: var(--primary-600);
+}
+
+.kpi-stat-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.15;
+  letter-spacing: -0.3px;
+}
+
+.kpi-stat-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 1px;
+}
+
+/* ==========================================================================
+   Dashboard Components
+   ========================================================================== */
+
+/* Schedule Job Card — simplified, no nested boxes */
+.dashboard-schedule-card {
+  background-color: transparent;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  border-radius: 0;
+  padding: 1.3rem 0 1.25rem 1rem;
+  margin-bottom: 0;
+  border-left: 2px solid var(--primary-200);
+  transition: border-color 0.15s ease;
+}
+
+.dashboard-schedule-card:first-child {
+  border-top: 0;
+  padding-top: 0.25rem;
+}
+
+.dashboard-schedule-card:last-child {
+  margin-bottom: 0;
+}
+
+.dashboard-schedule-card.in-progress-border {
+  border-left-color: #f59e0b;
+}
+
+.dashboard-schedule-card.upcoming-border {
+  border-left-color: var(--primary-500);
+}
+
+.dashboard-schedule-card:hover {
+  border-color: var(--border-subtle);
+  border-left-color: var(--primary-500);
+}
+
+.dashboard-schedule-card.in-progress-border:hover {
+  border-left-color: #f59e0b;
+}
+
+.dashboard-schedule-card .bg-light {
+  background-color: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0.2rem 0 !important;
+}
+
+.dashboard-schedule-card .small {
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.dashboard-schedule-card .text-danger {
+  color: var(--primary-600) !important;
+}
+
+.schedule-service-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  background-color: var(--primary-50);
+  color: var(--primary-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Panel Card (Quick Actions, Performance) */
+.dashboard-panel-card {
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.dashboard-panel-header {
+  padding: 1.05rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.dashboard-panel-body {
+  padding: 1.25rem;
+}
+
+/* Quick Action Buttons */
+.quick-action-primary-btn {
+  background-color: var(--primary-600);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.quick-action-primary-btn:hover {
+  background-color: var(--primary-700);
+  color: #ffffff;
+}
+
+.quick-action-outline-btn {
+  background-color: var(--surface-muted);
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.quick-action-outline-btn:hover {
+  background-color: var(--primary-50);
+  border-color: transparent;
+  color: var(--text-primary);
+}
+
+/* Performance Stats */
+.performance-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.performance-stat-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.performance-progress-bar {
+  height: 5px;
+  background-color: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.performance-progress-fill {
+  height: 100%;
+  background-color: var(--primary-500);
+  border-radius: 9999px;
+}
+
+/* ==========================================================================
+   Assigned Jobs Card & Toolbar
+   ========================================================================== */
+
+.jobs-main-card {
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* Filter Tabs — Segmented Control */
+.filter-tabs-container {
+  display: inline-flex;
+  background-color: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.filter-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.filter-tab-btn.active {
+  background-color: #ffffff;
+  color: var(--primary-600);
+  box-shadow: none;
+}
+
+.tab-count-badge {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background-color: #e2e8f0;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.tab-count-badge.active {
+  background-color: var(--primary-50);
+  color: var(--primary-600);
+}
+
+/* Search & Filters */
+.search-input-wrapper {
+  position: relative;
+  min-width: 240px;
+}
+
+.search-input-wrapper .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.search-input-wrapper .search-input {
+  padding-left: 32px;
+  padding-right: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  font-size: 0.84rem;
+  background-color: #ffffff;
+  color: var(--text-primary);
+  font-weight: 400;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.search-input-wrapper .search-input:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+  outline: none;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.status-select-filter {
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  min-width: 140px;
+}
+
+.status-select-filter:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+}
+
+/* ==========================================================================
+   Job Data Table
+   ========================================================================== */
+
+.job-table {
+  margin-bottom: 0;
+}
+
+.job-table thead th {
+  background-color: transparent;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+  border-top: none;
+  padding: 0.85rem 1rem;
+}
+
+.job-table tbody td {
+  padding: 1.05rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.job-table tbody td .small,
+.job-mobile-card .small {
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.job-table-row:hover td {
+  background-color: #fbfdff !important;
+}
+
+/* Job ID Chip */
+.job-id-chip {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  font-size: 0.76rem;
+  color: var(--primary-700);
+  background-color: var(--primary-50);
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+
+/* Customer Avatar */
+.customer-avatar-sm {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Service Category Tag */
+.service-category-tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background-color: var(--surface-muted);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* View Button */
+.action-view-btn {
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border: 1px solid var(--border-subtle);
+  background-color: #ffffff;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.action-view-btn:hover {
+  background-color: var(--primary-600);
+  border-color: var(--primary-600);
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   Status Badges — Meaningful Colour Only
+   ========================================================================== */
+
+.job-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* In Progress — amber */
+.status-badge-in-progress {
+  background-color: #fffbeb;
+  color: #92400e;
+}
+.status-dot-in-progress {
+  background-color: #f59e0b;
+}
+
+/* Upcoming — blue */
+.status-badge-upcoming {
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+}
+.status-dot-upcoming {
+  background-color: var(--primary-500);
+}
+
+/* Completed — green */
+.status-badge-completed {
+  background-color: #ecfdf5;
+  color: #065f46;
+}
+.status-dot-completed {
+  background-color: #10b981;
+}
+
+/* Default */
+.status-badge-default {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+.status-dot-default {
+  background-color: #64748b;
+}
+
+/* ==========================================================================
+   Mobile Job Cards
+   ========================================================================== */
+
+.job-mobile-card {
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+}
+
+.job-mobile-card .bg-light {
+  background-color: var(--surface-muted) !important;
+  border: 0 !important;
+}
+
+/* ==========================================================================
+   Job Details Modal
+   ========================================================================== */
+
+.job-details-modal-content {
+  border-radius: 12px;
+  border: 0;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.14);
+}
+
+.job-modal-section-card {
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0.15rem 0;
+}
+
+.job-details-modal-content .modal-header,
+.job-details-modal-content .modal-footer {
+  background-color: #ffffff !important;
+  border-color: var(--border-subtle) !important;
+}
+
+.job-modal-section-card .bg-white {
+  background-color: var(--surface-muted) !important;
+  border: 0 !important;
+  border-left: 2px solid var(--primary-200) !important;
+}
+
+.section-subtitle {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--text-muted);
+  margin-bottom: 0.65rem;
+}
+
+.customer-avatar-lg {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.info-icon-box {
+  width: 34px;
+  height: 34px;
+  background-color: var(--primary-50);
+  border: 0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.empty-state-box {
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.empty-state-icon-wrap {
+  width: 48px;
+  height: 48px;
+  background-color: var(--surface-muted);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  font-size: 1.35rem;
+}
