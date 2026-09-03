@@ -1,4 +1,4 @@
-#check keys-------------------------
+#check fk keys-------------------------
 SELECT 
     fk.name AS FK_Name,
     OBJECT_SCHEMA_NAME(fk.parent_object_id) + '.' + OBJECT_NAME(fk.parent_object_id) AS ChildTable,
@@ -6,8 +6,23 @@ SELECT
 FROM sys.foreign_keys AS fk;
 
 
+check pk keys-------
+SELECT 
+    SCHEMA_NAME(t.schema_id) AS schema_name,
+    t.name AS table_name,
+    kc.name AS primary_key_name,
+    c.name AS column_name
+FROM sys.key_constraints kc
+JOIN sys.tables t ON kc.parent_object_id = t.object_id
+JOIN sys.index_columns ic ON kc.parent_object_id = ic.object_id AND kc.unique_index_id = ic.index_id
+JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+WHERE kc.type = 'PK'
+ORDER BY schema_name, table_name, ic.key_ordinal;
+
+
 //drop contraint--------
 alter table inventory.airconPart DROP CONSTRAINT FK_airconPart_aircon
+
 
 //make  user data------------------------------------
 --make parent

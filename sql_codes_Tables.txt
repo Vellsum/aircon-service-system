@@ -271,3 +271,108 @@ CREATE TABLE new_jobBooking.partsUsed (
         REFERENCES inventory.inventoryItem(itemID) ON DELETE CASCADE
 );
 GO
+
+
+//tables for payables========================================================
+CREATE TABLE payables.promotions (
+    promo_id INT PRIMARY KEY,
+    promo_name VARCHAR(255) NOT NULL,
+    promo_start DATE NOT NULL,
+    promo_end DATE NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    packageList INT NOT NULL,
+    serviceList INT NOT NULL,
+    promoCode VARCHAR(255) NOT NULL,
+    isdeleted VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE payables.packageList (
+    promoID INT NOT NULL,
+    serviceID INT NOT NULL
+);
+
+CREATE TABLE payables.packages (
+    package_id INT PRIMARY KEY,
+    package_name VARCHAR(255) NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    serviceList INT NOT NULL,
+    price DOUBLE PRECISION NOT NULL,
+    isdeleted VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE payables.serviceList (
+    packageID INT NOT NULL,
+    promoID INT NOT NULL,
+    serviceID INT NOT NULL
+);
+
+CREATE TABLE payables.service (
+    service_id INT PRIMARY KEY,
+    service_name VARCHAR(255) NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    price DOUBLE PRECISION NOT NULL,
+    isdeleted VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE payables.purchases (
+    purchaseID INT PRIMARY KEY,
+    customerID INT NOT NULL,
+    promotionID INT NOT NULL,
+    packageID INT NOT NULL,
+    serviceID INT NOT NULL
+);
+
+
+
+
+
+
+packge list constraints--------------------
+-- Primary Key for packageList (Composite Key)
+ALTER TABLE packageList
+ADD CONSTRAINT PK_packageList PRIMARY KEY (promoID, serviceID);
+
+-- Primary Key for serviceList (Composite Key)
+ALTER TABLE serviceList
+ADD CONSTRAINT PK_serviceList PRIMARY KEY (packageID, promoID, serviceID);
+
+-- Foreign Keys for packageList
+ALTER TABLE packageList
+ADD CONSTRAINT FK_packageList_promotions 
+    FOREIGN KEY (promoID) REFERENCES promotions(promo_id),
+ADD CONSTRAINT FK_packageList_service 
+    FOREIGN KEY (serviceID) REFERENCES service(service_id);
+
+-- Foreign Keys for serviceList
+ALTER TABLE serviceList
+ADD CONSTRAINT FK_serviceList_packages 
+    FOREIGN KEY (packageID) REFERENCES packages(package_id),
+ADD CONSTRAINT FK_serviceList_promotions 
+    FOREIGN KEY (promoID) REFERENCES promotions(promo_id),
+ADD CONSTRAINT FK_serviceList_service 
+    FOREIGN KEY (serviceID) REFERENCES service(service_id);
+
+-- Foreign Keys for purchases
+ALTER TABLE purchases
+ADD CONSTRAINT FK_purchases_promotions 
+    FOREIGN KEY (promotionID) REFERENCES promotions(promo_id),
+ADD CONSTRAINT FK_purchases_packages 
+    FOREIGN KEY (packageID) REFERENCES packages(package_id),
+ADD CONSTRAINT FK_purchases_service 
+    FOREIGN KEY (serviceID) REFERENCES service(service_id);
+
+
+
+cnostraint between purchases n customer-----------------
+ALTER TABLE payables.purchases
+ADD CONSTRAINT fk_purchases_customer FOREIGN KEY (customerID) references user3.newCustomer(customer_ID)
+
+constraint between service n job -------------------
+
+
+
+ALTER TABLE new_jobBooking.job
+ADD CONSTRAINT fk_service_job FOREIGN KEY (serviceID) references payables.service(service_id)
+
+
+
