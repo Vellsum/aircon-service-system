@@ -2695,3 +2695,670 @@ textarea.report-control {
     padding: 0.8rem 0.9rem;
   }
 }
+
+/* ==========================================================================
+   Job History — Completed Work & Report Detail
+   All rules are page-scoped to protect other Technician experiences.
+   ========================================================================== */
+
+.technician-job-history-page {
+  padding-bottom: 1rem;
+}
+
+.technician-job-history-page .job-history-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 1.35rem;
+}
+
+.technician-job-history-page .job-history-page-header .page-title {
+  margin: 0 0 0.3rem;
+  font-size: clamp(1.55rem, 2vw, 1.9rem);
+}
+
+.technician-job-history-page .job-history-page-header .page-subtitle {
+  max-width: 680px;
+  margin: 0;
+}
+
+.technician-job-history-page .job-history-record-count {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: max-content;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: var(--text-muted);
+  font-size: 0.73rem;
+  font-weight: 600;
+}
+
+.technician-job-history-page .job-history-record-count strong {
+  color: var(--primary-700);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.technician-job-history-page .job-history-list-panel,
+.technician-job-history-page .job-history-report-card,
+.technician-job-history-page .job-history-feedback-card {
+  overflow: hidden;
+  border: 1px solid #dfe6ef;
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.035);
+}
+
+.technician-job-history-page .job-history-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.technician-job-history-page .job-history-search-field {
+  width: min(390px, 40%);
+}
+
+.technician-job-history-page .job-history-search-field > label,
+.technician-job-history-page .job-history-date-filters label {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.technician-job-history-page .job-history-search-control {
+  position: relative;
+}
+
+.technician-job-history-page .job-history-search-control > svg {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  color: #7c8ba1;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.technician-job-history-page .job-history-search-control input,
+.technician-job-history-page .job-history-date-filters input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #d9e1eb;
+  border-radius: 7px;
+  background-color: #ffffff;
+  color: var(--text-primary);
+  font-size: 0.79rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.technician-job-history-page .job-history-search-control input {
+  padding: 0.45rem 2rem 0.45rem 2.2rem;
+}
+
+.technician-job-history-page .job-history-date-filters input {
+  min-width: 138px;
+  padding: 0.4rem 0.65rem;
+}
+
+.technician-job-history-page .job-history-search-control input:focus,
+.technician-job-history-page .job-history-date-filters input:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.11);
+}
+
+.technician-job-history-page .job-history-search-control button {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 1.1rem;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.technician-job-history-page .job-history-date-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.55rem;
+}
+
+.technician-job-history-page .job-history-date-filters > span {
+  padding-bottom: 0.58rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.technician-job-history-page .job-history-reset-button {
+  min-height: 38px;
+  padding: 0.4rem 0.25rem;
+  border: 0;
+  background-color: transparent;
+  color: var(--primary-700);
+  font-size: 0.74rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.technician-job-history-page .job-history-reset-button:hover {
+  text-decoration: underline;
+}
+
+.technician-job-history-page .job-history-table-wrapper {
+  overflow-x: auto;
+}
+
+.technician-job-history-page .job-history-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.technician-job-history-page .job-history-table th {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid #dfe6ef;
+  background-color: #f8fafc;
+  color: #65758b;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(1) {
+  width: 130px;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(2) {
+  width: 210px;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(4) {
+  width: 155px;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(5) {
+  width: 90px;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(6) {
+  width: 95px;
+  text-align: right;
+}
+
+.technician-job-history-page .job-history-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #e8edf3;
+  color: var(--text-primary);
+  font-size: 0.81rem;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.technician-job-history-page .job-history-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.technician-job-history-page .job-history-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.technician-job-history-page .job-history-table tbody tr:hover {
+  background-color: #f8fbff;
+}
+
+.technician-job-history-page .job-history-table td strong,
+.technician-job-history-page .job-history-table td small {
+  display: block;
+}
+
+.technician-job-history-page .job-history-table td strong {
+  overflow: hidden;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.technician-job-history-page .job-history-table td small {
+  margin-top: 0.2rem;
+  overflow: hidden;
+  color: #68788d;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.technician-job-history-page .job-history-id-chip {
+  display: inline-flex;
+  padding: 0.22rem 0.45rem;
+  border-radius: 5px;
+  background-color: #eef5ff;
+  color: var(--primary-700);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.technician-job-history-page .job-history-unavailable-value {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.technician-job-history-page .job-history-view-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 32px;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #cfd9e6;
+  border-radius: 7px;
+  background-color: #ffffff;
+  color: var(--primary-700);
+  font-size: 0.74rem;
+  font-weight: 650;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.technician-job-history-page .job-history-view-button:hover,
+.technician-job-history-page .job-history-view-button:focus-visible {
+  border-color: var(--primary-600);
+  background-color: var(--primary-600);
+  color: #ffffff;
+}
+
+.technician-job-history-page .job-history-table td:last-child {
+  text-align: right;
+}
+
+.technician-job-history-page .job-history-mobile-list {
+  padding: 0.8rem;
+  background-color: #f8fafc;
+}
+
+.technician-job-history-page .job-history-mobile-card {
+  padding: 1rem;
+  border: 1px solid #dfe6ef;
+  border-radius: 10px;
+  background-color: #ffffff;
+}
+
+.technician-job-history-page .job-history-mobile-card + .job-history-mobile-card {
+  margin-top: 0.75rem;
+}
+
+.technician-job-history-page .job-history-mobile-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.technician-job-history-page .job-history-mobile-card h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.technician-job-history-page .job-history-mobile-card > p {
+  margin: 0.2rem 0 0.8rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.technician-job-history-page .job-history-mobile-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 0.9rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.technician-job-history-page .job-history-mobile-card dl > div:nth-child(2) {
+  grid-column: 1 / -1;
+}
+
+.technician-job-history-page .job-history-mobile-card dt,
+.technician-job-history-page .job-history-report-information dt {
+  margin-bottom: 0.2rem;
+  color: #718096;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.technician-job-history-page .job-history-mobile-card dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.77rem;
+  font-weight: 600;
+}
+
+.technician-job-history-page .job-history-mobile-card .job-history-view-button {
+  width: 100%;
+}
+
+.technician-job-history-page .job-history-empty-state {
+  padding: 3.25rem 1rem;
+  border-top: 1px solid var(--border-subtle);
+  text-align: center;
+}
+
+.technician-job-history-page .job-history-empty-state > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 0.85rem;
+  border-radius: 10px;
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+  font-size: 1.25rem;
+}
+
+.technician-job-history-page .job-history-empty-state h3 {
+  margin: 0 0 0.3rem;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.technician-job-history-page .job-history-empty-state p {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.technician-job-history-page .job-history-list-footer {
+  padding: 0.8rem 1.15rem;
+  border-top: 1px solid var(--border-subtle);
+  background-color: #f8fafc;
+  color: #68788d;
+  font-size: 0.73rem;
+}
+
+.technician-job-history-page .job-history-list-footer strong {
+  color: var(--text-primary);
+  font-weight: 650;
+}
+
+.technician-job-history-page .job-history-detail-header {
+  align-items: center;
+}
+
+.technician-job-history-page .job-history-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 38px;
+  border-color: #cfd9e6;
+  border-radius: 7px;
+  font-size: 0.77rem;
+  font-weight: 600;
+}
+
+.technician-job-history-page .job-history-report-card {
+  margin-bottom: 1rem;
+}
+
+.technician-job-history-page .job-history-report-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.35rem 1.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.technician-job-history-page .job-history-service-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.technician-job-history-page .job-history-report-identity > span,
+.technician-job-history-page .job-history-section-label {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: #718096;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.technician-job-history-page .job-history-report-identity h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.technician-job-history-page .job-history-report-identity p {
+  margin: 0.2rem 0 0;
+  color: var(--primary-700);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.technician-job-history-page .job-history-report-information {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0.2rem 1.5rem;
+}
+
+.technician-job-history-page .job-history-report-information > div {
+  min-width: 0;
+  padding: 1.15rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.technician-job-history-page .job-history-report-information > div:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+.technician-job-history-page .job-history-report-information dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.technician-job-history-page .job-history-feedback-card {
+  padding: 1.3rem 1.5rem;
+}
+
+.technician-job-history-page .job-history-feedback-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.technician-job-history-page .job-history-feedback-heading h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.technician-job-history-page .job-history-rating-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.technician-job-history-page .job-history-rating-placeholder span {
+  color: #94a3b8;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+}
+
+.technician-job-history-page .job-history-rating-placeholder strong {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.technician-job-history-page .job-history-feedback-card > p {
+  margin: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 991.98px) {
+  .technician-job-history-page .job-history-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .technician-job-history-page .job-history-search-field {
+    width: min(100%, 480px);
+  }
+
+  .technician-job-history-page .job-history-date-filters {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .technician-job-history-page .job-history-page-header {
+    align-items: flex-start;
+  }
+
+  .technician-job-history-page .job-history-list-panel {
+    overflow: visible;
+  }
+
+  .technician-job-history-page .job-history-empty-state {
+    border: 1px solid #dfe6ef;
+    border-radius: 10px;
+    background-color: #ffffff;
+  }
+
+  .technician-job-history-page .job-history-report-information {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-job-history-page .job-history-report-information > div:nth-last-child(-n + 3) {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .technician-job-history-page .job-history-report-information > div:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .technician-job-history-page .job-history-page-header {
+    flex-direction: column;
+    gap: 0.85rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .technician-job-history-page .job-history-record-count {
+    align-self: flex-start;
+  }
+
+  .technician-job-history-page .job-history-toolbar {
+    padding: 0.9rem;
+  }
+
+  .technician-job-history-page .job-history-date-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .technician-job-history-page .job-history-date-filters > span {
+    display: none;
+  }
+
+  .technician-job-history-page .job-history-date-filters input {
+    min-width: 0;
+  }
+
+  .technician-job-history-page .job-history-reset-button {
+    grid-column: 1 / -1;
+    justify-self: start;
+    min-height: auto;
+  }
+
+  .technician-job-history-page .job-history-mobile-list {
+    padding: 0.7rem;
+  }
+
+  .technician-job-history-page .job-history-list-footer {
+    padding: 0.75rem 0.9rem;
+  }
+
+  .technician-job-history-page .job-history-back-button {
+    align-self: flex-start;
+  }
+
+  .technician-job-history-page .job-history-report-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 1.1rem;
+  }
+
+  .technician-job-history-page .job-history-report-summary .job-status-badge {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .technician-job-history-page .job-history-report-information {
+    grid-template-columns: 1fr;
+    padding: 0.2rem 1.1rem;
+  }
+
+  .technician-job-history-page .job-history-report-information > div,
+  .technician-job-history-page .job-history-report-information > div:nth-last-child(-n + 2) {
+    padding: 0.95rem 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .technician-job-history-page .job-history-report-information > div:last-child {
+    border-bottom: 0;
+  }
+
+  .technician-job-history-page .job-history-feedback-card {
+    padding: 1.1rem;
+  }
+
+  .technician-job-history-page .job-history-feedback-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

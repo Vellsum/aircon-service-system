@@ -130,6 +130,23 @@ export function selectAssignedJobs(entityState, technician_ID) {
     .filter(Boolean)
 }
 
+export function selectTechnicianJobHistory(entityState, technician_ID) {
+  const historyRelationships = getCollection(entityState, 'jobHistory')
+  const workRelationships = getCollection(entityState, 'work')
+  const indexes = createEntityIndexes(entityState)
+  const workByJobId = indexBy(workRelationships, 'job_ID')
+
+  return historyRelationships
+    .filter((historyRecord) => historyRecord.technician_ID === technician_ID)
+    .map((historyRecord) => {
+      const job = indexes.jobById.get(historyRecord.job_ID)
+      const workRelationship = job ? workByJobId.get(job.job_ID) : null
+
+      return workRelationship ? createJobViewModel(workRelationship, indexes) : null
+    })
+    .filter(Boolean)
+}
+
 export function selectInventoryItems(entityState) {
   return getCollection(entityState, 'inventoryItems').filter((item) => !item.isDeleted)
 }
@@ -146,6 +163,12 @@ export function selectAssignedJobViewModels(
 
 export function selectCurrentInventoryItems() {
   return selectInventoryItems(TECHNICIAN_MOCK_ENTITY_STATE)
+}
+
+export function selectCurrentTechnicianJobHistoryViewModels(
+  technician_ID = CURRENT_TECHNICIAN_ENTITY_ID,
+) {
+  return selectTechnicianJobHistory(TECHNICIAN_MOCK_ENTITY_STATE, technician_ID)
 }
 
 export function selectCurrentTechnicianJobViewModels() {
