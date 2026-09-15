@@ -1,0 +1,21 @@
+### Test 1: Register New Customer
+POST http://localhost:5000/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "khaisum_test",
+  "password": "Password123!",
+  "customer_name": "Khai Tan Sum",
+  "customer_address": "Ang Mo Kio Ave 3, Singapore"
+}
+
+###
+
+### Test 2: Login Customer
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "khaisum_test",
+  "password": "Password123!"
+}
