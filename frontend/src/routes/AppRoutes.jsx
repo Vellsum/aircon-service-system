@@ -2,20 +2,20 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 // 1. Import Meet Samir's Admin Pages
-import AdminBookings from '../pages/admin/AdminBookings';
-import AdminInventory from '../pages/admin/AdminInventory';
+//import AdminBookings from '../pages/admin/AdminBookings';
+//import AdminInventory from '../pages/admin/AdminInventory';
 
 // 2. Import Min Thaw Tar's Technician Pages
-import TechnicianDashboard from '../pages/technician/TechnicianDashboard';
+//import TechnicianDashboard from '../pages/technician/TechnicianDashboard';
 import TechnicianAssignedJobs from '../pages/technician/TechnicianAssignedJobs';
-import TechnicianSubmitReport from '../pages/technician/TechnicianSubmitReport';
-import TechnicianJobHistory from '../pages/technician/TechnicianJobHistory';
-import TechnicianModulePlaceholder from '../pages/technician/TechnicianModulePlaceholder';
+//import TechnicianSubmitReport from '../pages/technician/TechnicianSubmitReport';
+//import TechnicianJobHistory from '../pages/technician/TechnicianJobHistory';
+//import TechnicianModulePlaceholder from '../pages/technician/TechnicianModulePlaceholder';
 
 
 // 3. Import Aekkaphone's Customer Pages
-import CustomerPortal from '../pages/customer/CustomerPortal';
-import ServiceCatalog from '../pages/customer/ServiceCatalog';
+//import CustomerPortal from '../pages/customer/CustomerPortal';
+//import ServiceCatalog from '../pages/customer/ServiceCatalog';
 
 export default function AppRoutes() {
   return (
