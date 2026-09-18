@@ -1,17 +1,11 @@
-function App() {
+import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import AppRoutes from './routes/AppRoutes';
+
+export default function App() {
   return (
-    <div className="container mt-5">
-      <h1>AirCon Care</h1>
-
-      <p>
-        Air Conditioning Maintenance Service System
-      </p>
-
-      <button className="btn btn-primary">
-        Test Bootstrap
-      </button>
-    </div>
-  )
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  );
 }
-
-export default App
