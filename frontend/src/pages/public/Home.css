@@ -1,0 +1,398 @@
+/* Public site styles — shares CSS variables + fonts from shared.css,
+   but uses its own "site-" prefixed classes since the layout is
+   marketing-style, not the admin dashboard layout. */
+
+.site-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 40px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.site-nav-brand span:first-child {
+  color: var(--accent);
+  font-size: 20px;
+}
+
+.site-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.site-nav-links a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.site-nav-links a:hover {
+  color: var(--accent);
+}
+
+.site-nav-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Hero */
+
+.site-hero {
+  background: linear-gradient(135deg, #0b1526 0%, #16305c 55%, #1478c9 130%);
+  color: #fff;
+  padding: 80px 40px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.site-hero::after {
+  content: "❄";
+  position: absolute;
+  right: -30px;
+  top: -60px;
+  font-size: 320px;
+  opacity: 0.06;
+}
+
+.site-hero-eyebrow {
+  font-size: 13px;
+  color: var(--accent-cyan);
+  font-weight: 500;
+  margin: 0 0 14px;
+}
+
+.site-hero h1 {
+  font-size: 40px;
+  font-weight: 600;
+  margin: 0 0 16px;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.25;
+}
+
+.site-hero p {
+  font-size: 15px;
+  color: rgba(238, 242, 246, 0.8);
+  max-width: 560px;
+  margin: 0 auto 30px;
+}
+
+.site-hero-actions {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+}
+
+/* Trust stats */
+
+.site-trust {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-trust-item {
+  background: var(--bg-surface);
+  padding: 26px 20px;
+  text-align: center;
+}
+
+.site-trust-value {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 0 0 4px;
+}
+
+.site-trust-label {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Generic section */
+
+.site-section {
+  padding: 64px 40px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.site-section-head {
+  text-align: center;
+  max-width: 560px;
+  margin: 0 auto 40px;
+}
+
+.site-section-head p.site-eyebrow {
+  font-size: 12.5px;
+  color: var(--accent);
+  font-weight: 600;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.site-section-head h2 {
+  font-size: 26px;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+.site-section-head p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 0;
+}
+
+/* About (two-column) */
+
+.site-about {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+
+.site-about h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+
+.site-about p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0 0 14px;
+}
+
+.site-about-visual {
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 80px;
+  color: var(--accent);
+}
+
+/* Services grid */
+
+.site-services {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.site-service-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px 20px;
+  text-align: center;
+}
+
+.site-service-icon {
+  font-size: 28px;
+  margin-bottom: 14px;
+}
+
+.site-service-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.site-service-card p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.site-service-card a {
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.site-service-card a:hover {
+  text-decoration: underline;
+}
+
+/* Promotions */
+
+.site-promos {
+  background: var(--bg-app);
+}
+
+.site-promo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.site-promo-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent-cyan);
+  border-radius: 8px;
+  padding: 22px;
+}
+
+.site-promo-code {
+  display: inline-block;
+  background: var(--bg-app);
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.site-promo-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.site-promo-card p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 6px;
+}
+
+.site-promo-validity {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 12px 0 0;
+}
+
+/* CTA banner */
+
+.site-cta {
+  background: linear-gradient(135deg, #0b1526, #1478c9);
+  color: #fff;
+  text-align: center;
+  padding: 56px 40px;
+  border-radius: 8px;
+  margin: 0 40px 64px;
+}
+
+.site-cta h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+.site-cta p {
+  color: rgba(238, 242, 246, 0.8);
+  font-size: 14px;
+  margin: 0 0 22px;
+}
+
+/* Footer */
+
+.site-footer {
+  background: var(--bg-sidebar);
+  color: rgba(238, 242, 246, 0.7);
+  padding: 40px;
+}
+
+.site-footer-grid {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 32px;
+  font-size: 13px;
+}
+
+.site-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.site-footer h4 {
+  color: #fff;
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+
+.site-footer ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.site-footer-bottom {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(238, 242, 246, 0.4);
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Responsive */
+
+@media (max-width: 900px) {
+  .site-trust,
+  .site-services,
+  .site-promo-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .site-about {
+    grid-template-columns: 1fr;
+  }
+  .site-footer-grid {
+    grid-template-columns: 1fr;
+  }
+  .site-nav-links {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .site-trust,
+  .site-services,
+  .site-promo-grid {
+    grid-template-columns: 1fr;
+  }
+  .site-hero h1 {
+    font-size: 28px;
+  }
+}
