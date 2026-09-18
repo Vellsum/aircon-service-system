@@ -19,7 +19,7 @@ const config = {
 const poolPromise = new sql.ConnectionPool(config)
     .connect()
     .then(pool => {
-        console.log('✅ Connected successfully to Azure SQL Database (weijie-db)!');
+        console.log('✅ Connected successfully to Azure SQL Database (Backend)!');
         return pool;
     })
     .catch(err => {

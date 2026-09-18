@@ -25,6 +25,7 @@ const getAllInventory = async (req, res) => {
             ORDER BY i.itemID DESC
         `);
 
+        // Return the results as JSON
         res.status(200).json({
             success: true,
             count: result.recordset.length,
@@ -40,6 +41,7 @@ const getAllInventory = async (req, res) => {
 const addInventoryItem = async (req, res) => {
     const { itemName, itemType, stock, description } = req.body;
 
+    // Validate required fields
     if (!itemName || !itemType || stock === undefined) {
         return res.status(400).json({ success: false, message: 'itemName, itemType, and stock are required.' });
     }
@@ -84,7 +86,7 @@ const updateStock = async (req, res) => {
             .input('stock', sql.Int, stock)
             .query(`
                 UPDATE inventory.inventoryItem
-                SET stock = @stock
+                SET stock = @stock 
                 WHERE itemID = @itemID AND isDeleted = 0
             `);
 

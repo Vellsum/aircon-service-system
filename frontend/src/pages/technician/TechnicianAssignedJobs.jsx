@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react'
-import { selectCurrentTechnicianJobViewModels } from './data/technicianSelectors'
+import React, { useState, useMemo, useEffect } from 'react'
+import { getAssignedJobs } from '../../api/technicianApi'
 import FilterTabs from '../../components/technician/FilterTabs'
 import JobRow from '../../components/technician/JobRow'
 import JobCard from '../../components/technician/JobCard'
@@ -11,14 +11,46 @@ const isThisWeekJob = (job) =>
 
 /**
  * TechnicianAssignedJobs Page Component
- * Refined enterprise-grade Assigned Jobs dashboard.
+ * Live-connected enterprise-grade Assigned Jobs dashboard.
  */
 function TechnicianAssignedJobs() {
-  const [jobs] = useState(() => selectCurrentTechnicianJobViewModels())
+  const [jobs, setJobs] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
   const [activeTab, setActiveTab] = useState('today')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [selectedJob, setSelectedJob] = useState(null)
+
+  // Temporary hardcoded technician ID until Auth Context is wired up
+  const TECHNICIAN_ID = 1
+
+  // Fetch live backend data on component mount
+  useEffect(() => {
+    setLoading(true)
+    getAssignedJobs(TECHNICIAN_ID)
+      .then((data) => {
+        // Map Azure SQL / backend schema to component view model expectations
+        const mappedJobs = data.map((item) => ({
+          id: String(item.booking_ID || item.id || ''),
+          customerName: item.customer_name || item.customerName || 'N/A',
+          serviceType: item.service_type || item.serviceType || 'Standard Service',
+          unitType: item.unit_type || item.unitType || 'Aircon Unit',
+          address: item.location || item.address || '',
+          date: item.date ? new Date(item.date).toISOString().split('T')[0] : '',
+          status: item.bookingStatus || item.status || 'Upcoming',
+          timeframe: item.isFollowup ? 'this-week' : 'today', // Map timeframe dynamically if needed
+          raw: item,
+        }))
+        setJobs(mappedJobs)
+      })
+      .catch((err) => {
+        console.error('Error fetching jobs:', err)
+        setError(err.message || 'Failed to load assigned jobs')
+      })
+      .finally(() => setLoading(false))
+  }, [TECHNICIAN_ID])
 
   // Calculate dynamic tab counts based on dataset
   const tabCounts = useMemo(() => {
@@ -57,7 +89,7 @@ function TechnicianAssignedJobs() {
         return false
       }
 
-      // 3. Search query filtering (by ID, customer, service, equipment, or address)
+      // 3. Search query filtering
       if (normalizedQuery !== '') {
         const matchesId = job.id.toLowerCase().includes(normalizedQuery)
         const matchesCustomer = job.customerName.toLowerCase().includes(normalizedQuery)
@@ -76,6 +108,25 @@ function TechnicianAssignedJobs() {
       return true
     })
   }, [jobs, activeTab, statusFilter, searchQuery])
+
+  if (loading) {
+    return (
+      <div className="p-5 text-center">
+        <div className="spinner-border text-primary mb-3" role="status"></div>
+        <p className="text-muted">Loading live assigned jobs from Azure SQL...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-5 text-center">
+        <div className="alert alert-danger d-inline-block px-4 py-3" role="alert">
+          <strong>Backend Error:</strong> {error}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="technician-page-content technician-assigned-jobs-page">
@@ -148,7 +199,7 @@ function TechnicianAssignedJobs() {
 
       {/* Main Jobs Card Section */}
       <div className="jobs-main-card">
-        {/* Card Toolbar: Segmented Control on Left, Search & Filters on Right */}
+        {/* Card Toolbar */}
         <div className="jobs-toolbar">
           <FilterTabs
             activeTab={activeTab}
@@ -157,7 +208,7 @@ function TechnicianAssignedJobs() {
           />
 
           <div className="assigned-jobs-filter-controls">
-            {/* Search Input with Clear Button */}
+            {/* Search Input */}
             <div className="search-input-wrapper">
               <svg
                 width="15"
@@ -295,7 +346,7 @@ function TechnicianAssignedJobs() {
           )}
         </div>
 
-        {/* Card Footer: Summary & Sync Status */}
+        {/* Card Footer */}
         <div className="jobs-card-footer">
           <span className="text-muted small">
             Showing <strong className="text-dark">{filteredJobs.length}</strong> of{' '}

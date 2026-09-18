@@ -19,3 +19,5 @@ Content-Type: application/json
   "username": "khaisum_test",
   "password": "Password123!"
 }
+
+GET http://localhost:5000/api/technician/assigned-jobs/1

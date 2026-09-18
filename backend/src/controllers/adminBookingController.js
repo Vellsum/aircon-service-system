@@ -22,6 +22,7 @@ const getAllBookings = async (req, res) => {
             ORDER BY b.booking_ID DESC
         `);
 
+        // Return the results as JSON
         res.status(200).json({
             success: true,
             count: result.recordset.length,
@@ -37,11 +38,13 @@ const getAllBookings = async (req, res) => {
 const updateBookingStatus = async (req, res) => {
     const { bookingId } = req.params;
     const { status } = req.body; // e.g., 'Pending', 'Assigned', 'Completed', 'Cancelled'
-
+    
+    // Validate the status input
     if (!status) {
         return res.status(400).json({ success: false, message: 'Status string is required.' });
     }
 
+    // Validate that the status is one of the allowed values
     try {
         const pool = await poolPromise;
         const result = await pool.request()
@@ -57,6 +60,7 @@ const updateBookingStatus = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Booking not found.' });
         }
 
+        // Return a success response
         res.status(200).json({
             success: true,
             message: `Booking ID ${bookingId} status updated to '${status}'.`
@@ -76,6 +80,7 @@ const reassignTechnician = async (req, res) => {
         return res.status(400).json({ success: false, message: 'technician_ID is required.' });
     }
 
+    // Validate that the technician_ID is a number
     try {
         const pool = await poolPromise;
         const result = await pool.request()
