@@ -3,19 +3,38 @@
    ========================================================================== */
 
 .technician-portal-wrapper {
+  --technician-canvas: #f4f7fb;
+  --technician-surface: #ffffff;
+  --technician-panel-border: #dfe6ef;
+  --technician-control-border: #8291a5;
+  --technician-metadata: #64748b;
+  --technician-canvas-metadata: #5b6b80;
+  --technician-focus-ring: rgba(37, 99, 235, 0.24);
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #dfe6ef;
+  --sidebar-text: #475569;
+  --bg-app: #f4f7fb;
+  --surface-muted: #f8fafc;
+  --border-subtle: #dfe6ef;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
   display: flex;
   min-height: 100vh;
   width: 100%;
+  background-color: var(--technician-canvas);
+  color: var(--text-primary);
 }
 
 /* ---- Sidebar ---- */
 .technician-sidebar {
-  width: 260px;
+  width: 232px;
   background-color: var(--sidebar-bg);
   color: var(--sidebar-text);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  border-right: 1px solid var(--sidebar-border);
   z-index: 1040;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -27,7 +46,7 @@
     bottom: 0;
     left: 0;
     transform: translateX(-100%);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    box-shadow: 12px 0 32px rgba(15, 23, 42, 0.16);
   }
   .technician-sidebar.show {
     transform: translateX(0);
@@ -43,7 +62,7 @@
 
 /* Brand */
 .sidebar-brand-header {
-  padding: 1.45rem 1.2rem;
+  padding: 1.25rem 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -63,22 +82,21 @@
 .brand-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-primary);
   letter-spacing: -0.3px;
 }
 
 .brand-subtitle {
-  font-size: 0.68rem;
-  color: #60a5fa;
+  font-size: 0.72rem;
+  color: var(--primary-600);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.01em;
 }
 
 /* Nav Items */
 .sidebar-nav-menu {
   flex-grow: 1;
-  padding: 1.15rem 0.7rem;
+  padding: 1rem 0.7rem;
   overflow-y: auto;
 }
 
@@ -88,35 +106,35 @@
 
 .sidebar-nav-menu .nav-link {
   color: var(--sidebar-text);
-  padding: 0.6rem 0.85rem;
+  min-height: 44px;
+  padding: 0.65rem 0.8rem;
   border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 500;
   position: relative;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
   text-decoration: none;
 }
 
 .sidebar-nav-menu .nav-link:hover {
-  color: #e2e8f0;
-  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  background-color: #f8fafc;
+}
+
+.sidebar-nav-menu .nav-link:focus-visible {
+  color: var(--primary-700);
+  outline: 3px solid var(--technician-focus-ring);
+  outline-offset: 2px;
 }
 
 .sidebar-nav-menu .nav-link.active {
-  color: #ffffff;
-  background-color: rgba(37, 99, 235, 0.2);
+  color: var(--primary-700);
+  background-color: var(--primary-50);
   font-weight: 600;
 }
 
 .sidebar-nav-menu .nav-link.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 20%;
-  bottom: 20%;
-  width: 3px;
-  background-color: var(--primary-500);
-  border-radius: 0 3px 3px 0;
+  display: none;
 }
 
 .sidebar-nav-menu .nav-icon {
@@ -132,8 +150,9 @@
 }
 
 .sidebar-profile-card {
-  padding: 0.55rem 0.65rem;
-  background-color: rgba(255, 255, 255, 0.04);
+  padding: 0.65rem;
+  border: 1px solid var(--technician-panel-border);
+  background-color: #f8fafc;
   border-radius: 8px;
 }
 
@@ -154,12 +173,12 @@
 .tech-name {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .tech-role {
-  font-size: 0.7rem;
-  color: #94a3b8;
+  font-size: 0.72rem;
+  color: var(--technician-metadata);
 }
 
 .duty-status-badge {
@@ -171,7 +190,7 @@
   padding: 3px 8px;
   border-radius: 9999px;
   font-size: 0.7rem;
-  color: #4ade80;
+  color: #166534;
   font-weight: 600;
 }
 
@@ -197,12 +216,13 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background-color: var(--bg-app);
+  background-color: var(--technician-canvas);
 }
 
 .technician-topbar {
+  min-height: 60px;
   background-color: #ffffff;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--technician-panel-border);
   position: sticky;
   top: 0;
   z-index: 1020;
@@ -220,7 +240,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--text-muted);
+  color: var(--technician-canvas-metadata);
 }
 
 .topbar-date-pill {
@@ -236,8 +256,9 @@
 }
 
 .topbar-alert-btn {
+  min-height: 44px;
   border-radius: 8px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--technician-panel-border);
   background-color: #ffffff;
   color: var(--text-secondary);
   padding: 4px 10px;
@@ -250,8 +271,14 @@
   background-color: var(--surface-muted);
 }
 
+.topbar-alert-btn:focus-visible {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  outline: none;
+}
+
 .technician-content-area {
-  max-width: 1320px;
+  max-width: 1440px;
   width: 100%;
   margin: 0 auto;
 }
@@ -261,7 +288,7 @@
    ========================================================================== */
 
 .page-kicker {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -270,7 +297,7 @@
 }
 
 .page-title {
-  font-size: 1.7rem;
+  font-size: 1.75rem;
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 0.15rem;
@@ -280,7 +307,7 @@
 
 .page-subtitle {
   font-size: 0.9rem;
-  color: var(--text-muted);
+  color: var(--technician-canvas-metadata);
   font-weight: 400;
   line-height: 1.5;
 }
@@ -470,7 +497,7 @@
   gap: 8px;
   width: 100%;
   text-decoration: none;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .quick-action-outline-btn:hover {
@@ -629,7 +656,7 @@
 }
 
 .technician-dashboard-page .dashboard-panel-card {
-  border-color: #dfe6ef;
+  border-color: var(--technician-panel-border);
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.035);
 }
@@ -819,7 +846,7 @@
 .technician-dashboard-page .dashboard-detail-label {
   margin-bottom: 0.2rem;
   color: var(--text-muted);
-  font-size: 0.64rem;
+  font-size: 0.68rem;
   font-weight: 700;
   line-height: 1.2;
   text-transform: uppercase;
@@ -1120,7 +1147,7 @@
   }
 
   .technician-dashboard-page .kpi-stat-label {
-    font-size: 0.61rem;
+    font-size: 0.68rem;
   }
 
   .technician-dashboard-page .dashboard-section-header {
@@ -1170,6 +1197,2509 @@
 }
 
 /* ==========================================================================
+   Cool Fix Full Presentation Redesign
+   Presentation-only admin workspace composed around existing Technician logic.
+   ========================================================================== */
+
+.technician-portal-wrapper {
+  --cf-canvas: #f6f8f7;
+  --cf-surface: #ffffff;
+  --cf-surface-soft: #f8fbfa;
+  --cf-primary: #2f8f7d;
+  --cf-primary-strong: #277568;
+  --cf-primary-soft: #eaf7f2;
+  --cf-text: #1f2937;
+  --cf-heading: #183f3a;
+  --cf-muted: #6b7280;
+  --cf-border: #e5eae7;
+  --cf-border-strong: #d5dfdb;
+  --cf-shadow: 0 8px 28px rgba(31, 41, 55, 0.055);
+  --cf-shadow-raised: 0 18px 48px rgba(31, 41, 55, 0.13);
+  min-height: 100vh;
+  background: var(--cf-canvas);
+  color: var(--cf-text);
+}
+
+.technician-main-container {
+  min-width: 0;
+  flex: 1;
+  margin-left: 0;
+  background: var(--cf-canvas);
+}
+
+.technician-content-area {
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 2rem 2.1rem 3rem !important;
+}
+
+/* Admin shell */
+.technician-sidebar.cf-sidebar {
+  width: 218px;
+  border-right: 1px solid var(--cf-border);
+  background: var(--cf-surface);
+  box-shadow: none;
+}
+
+.cf-sidebar .cf-sidebar-brand {
+  min-height: 88px;
+  padding: 1.2rem 1.15rem 1rem;
+  border-bottom: 0;
+}
+
+.cf-sidebar .cf-sidebar-brand-lockup {
+  width: 100%;
+}
+
+.cf-sidebar .cool-fix-logo-mark {
+  width: 34px;
+  height: 34px;
+  filter: none;
+}
+
+.cf-sidebar .cool-fix-wordmark {
+  color: var(--cf-heading);
+  font-size: 1.05rem;
+}
+
+.cf-sidebar .brand-subtitle {
+  margin: 0.25rem 0 0 2.86rem;
+  color: #87918d;
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+}
+
+.cf-sidebar .cf-sidebar-nav {
+  flex: 1;
+  padding: 0.35rem 0.7rem 1rem;
+  overflow-y: auto;
+}
+
+.cf-sidebar .sidebar-nav-section {
+  margin: 1.15rem 0 0.45rem;
+  padding: 0 0.65rem;
+  color: #97a19d;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+
+.cf-sidebar .nav-item + .nav-item {
+  margin-top: 0.2rem;
+}
+
+.cf-sidebar .nav-link {
+  min-height: 42px;
+  gap: 0.72rem !important;
+  padding: 0.58rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: #63706d;
+  font-size: 0.81rem;
+  font-weight: 600;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.cf-sidebar .nav-link:hover {
+  border-color: #edf2f0;
+  background: #f7faf9;
+  color: var(--cf-heading);
+}
+
+.cf-sidebar .nav-link.active {
+  border-color: #dbeee7;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+  box-shadow: none;
+}
+
+.cf-sidebar .cf-nav-icon {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  flex: 0 0 29px;
+  place-items: center;
+  border-radius: 8px;
+  color: #7c8985;
+}
+
+.cf-sidebar .nav-link.active .cf-nav-icon {
+  background: #d7f0e7;
+  color: var(--cf-primary-strong);
+}
+
+.cf-sidebar .cf-nav-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.cf-sidebar-footer {
+  margin: 0;
+  padding: 0.8rem;
+  border-top: 1px solid var(--cf-border);
+}
+
+.cf-sidebar .cf-profile-card {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.72rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 11px;
+  background: #fafcfb;
+}
+
+.cf-profile-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.cf-sidebar .tech-avatar {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--cf-primary-strong);
+  font-size: 0.68rem;
+}
+
+.cf-profile-copy {
+  min-width: 0;
+}
+
+.cf-sidebar .tech-name {
+  color: var(--cf-text);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.cf-sidebar .tech-role {
+  color: var(--cf-muted);
+  font-size: 0.64rem;
+}
+
+.cf-profile-status {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border-radius: 8px;
+  background: #eaf8ef;
+}
+
+.cf-admin-topbar.technician-topbar {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 2.1rem;
+  border-bottom: 1px solid var(--cf-border);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(14px);
+}
+
+.cf-topbar-leading,
+.cf-topbar-actions {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cf-topbar-context {
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.cf-topbar-context-label {
+  color: var(--cf-heading);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cf-topbar-context-date {
+  padding-left: 0.7rem;
+  border-left: 1px solid var(--cf-border);
+  color: var(--cf-muted);
+  font-size: 0.77rem;
+  font-weight: 500;
+}
+
+.cf-shift-status {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.72rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 10px;
+  background: #fafcfb;
+}
+
+.cf-shift-copy {
+  display: grid;
+  gap: 0.02rem;
+}
+
+.cf-shift-copy small {
+  color: var(--cf-muted);
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.cf-shift-copy strong {
+  color: var(--cf-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.cf-topbar-alert.topbar-alert-btn {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--cf-border);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #62706d;
+}
+
+.cf-topbar-alert .topbar-alert-count {
+  top: 5px;
+  right: 5px;
+  background: var(--cf-primary-strong);
+}
+
+/* Shared page and component language */
+.cf-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.55rem;
+}
+
+.cf-page-heading {
+  min-width: 0;
+}
+
+.cf-eyebrow,
+.cf-widget-kicker {
+  display: block;
+  margin-bottom: 0.36rem;
+  color: var(--cf-primary-strong);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+}
+
+.cf-page-heading h1,
+.cf-report-header h1 {
+  margin: 0;
+  color: var(--cf-heading);
+  font-size: clamp(1.7rem, 2.4vw, 2rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+}
+
+.cf-page-heading p,
+.cf-report-header > div > p {
+  max-width: 690px;
+  margin: 0.48rem 0 0;
+  color: var(--cf-muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.cf-widget,
+.cf-workspace-card,
+.cf-history-filter-card,
+.cf-history-results-card,
+.cf-report-card,
+.cf-report-side-card {
+  border: 1px solid var(--cf-border);
+  border-radius: 14px;
+  background: var(--cf-surface);
+  box-shadow: var(--cf-shadow);
+}
+
+.cf-widget-header {
+  display: flex;
+  min-height: 80px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 1.3rem;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-widget-header-compact {
+  min-height: 70px;
+}
+
+.cf-widget-header h2,
+.cf-workspace-heading h2,
+.cf-results-header h2,
+.cf-history-filter-heading h2 {
+  margin: 0;
+  color: var(--cf-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+}
+
+.cf-widget-header p,
+.cf-workspace-heading p {
+  margin: 0.25rem 0 0;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+}
+
+.cf-widget-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cf-count-pill {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.cf-text-link {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0 0.25rem;
+  color: var(--cf-primary-strong);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cf-text-link svg {
+  width: 15px;
+  height: 15px;
+}
+
+.cf-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.58rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.cf-button-primary {
+  border-color: var(--cf-primary-strong);
+  background: var(--cf-primary-strong);
+  color: #ffffff;
+}
+
+.cf-button-primary:hover {
+  border-color: #1e6258;
+  background: #1e6258;
+  color: #ffffff;
+}
+
+.cf-button-progress {
+  border-color: #b97918;
+  background: #b97918;
+}
+
+.cf-button-progress:hover {
+  border-color: #9c6511;
+  background: #9c6511;
+}
+
+.cf-button-secondary {
+  border-color: var(--cf-border-strong);
+  background: #ffffff;
+  color: var(--cf-primary-strong);
+}
+
+.cf-button-secondary:hover,
+.cf-button-quiet:hover {
+  border-color: #bcd4cd;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+}
+
+.cf-button-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: #60706c;
+}
+
+.cf-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cf-page-header-status {
+  display: flex;
+  min-width: 126px;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.68rem 0.8rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.cf-page-header-status > span:last-child {
+  display: grid;
+}
+
+.cf-page-header-status small {
+  color: var(--cf-muted);
+  font-size: 0.62rem;
+}
+
+.cf-page-header-status strong {
+  color: var(--cf-text);
+  font-size: 0.74rem;
+}
+
+.cf-empty-state {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  align-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.cf-empty-state > span:first-child {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 0.75rem;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+  font-size: 1.4rem;
+}
+
+.cf-empty-state h3 {
+  margin: 0;
+  color: var(--cf-heading);
+  font-size: 0.95rem;
+}
+
+.cf-empty-state p {
+  max-width: 430px;
+  margin: 0.35rem 0 1rem;
+  color: var(--cf-muted);
+  font-size: 0.78rem;
+}
+
+/* Dashboard */
+.cf-dashboard-header {
+  align-items: center;
+}
+
+.cf-dashboard-date-card {
+  display: flex;
+  min-width: 218px;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.68rem 0.82rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.035);
+}
+
+.cf-dashboard-date-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+}
+
+.cf-dashboard-date-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.cf-dashboard-date-card > span:last-child {
+  display: grid;
+}
+
+.cf-dashboard-date-card small {
+  color: var(--cf-muted);
+  font-size: 0.64rem;
+}
+
+.cf-dashboard-date-card strong {
+  color: var(--cf-heading);
+  font-size: 0.76rem;
+}
+
+.cf-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.95rem;
+  margin-bottom: 1.15rem;
+}
+
+.cf-kpi-card {
+  position: relative;
+  display: grid;
+  min-height: 124px;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+  gap: 0.82rem;
+  overflow: hidden;
+  padding: 1.05rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: var(--cf-shadow);
+}
+
+.cf-kpi-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 12px;
+}
+
+.cf-kpi-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.cf-kpi-icon-mint {
+  background: #e7f7f2;
+  color: #277568;
+}
+
+.cf-kpi-icon-green {
+  background: #e9f7ed;
+  color: #27824d;
+}
+
+.cf-kpi-icon-amber {
+  background: #fff5df;
+  color: #a86712;
+}
+
+.cf-kpi-icon-violet {
+  background: #f1edfb;
+  color: #7354a5;
+}
+
+.cf-kpi-content {
+  display: grid;
+  min-width: 0;
+  grid-template-areas: "label" "value" "context";
+}
+
+.cf-kpi-label {
+  grid-area: label;
+  color: var(--cf-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.cf-kpi-value {
+  grid-area: value;
+  margin-top: 0.08rem;
+  color: var(--cf-text);
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.cf-kpi-context {
+  grid-area: context;
+  margin-top: 0.35rem;
+  color: #7a8582;
+  font-size: 0.68rem;
+}
+
+.cf-kpi-accent {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+}
+
+.cf-kpi-accent-mint { background: #55bca5; }
+.cf-kpi-accent-green { background: #60b77e; }
+.cf-kpi-accent-amber { background: #e1aa52; }
+.cf-kpi-accent-violet { background: #9b83c7; }
+
+.cf-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(320px, 0.78fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.cf-schedule-widget {
+  overflow: hidden;
+}
+
+.cf-schedule-list {
+  padding: 0 1.25rem 0.4rem;
+}
+
+.cf-schedule-row {
+  display: grid;
+  min-height: 148px;
+  grid-template-columns: 92px minmax(0, 1fr) 150px;
+  align-items: center;
+  gap: 1.15rem;
+  padding: 1.15rem 0;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-schedule-row:last-child {
+  border-bottom: 0;
+}
+
+.cf-schedule-time {
+  display: grid;
+  align-self: stretch;
+  align-content: center;
+  padding-right: 1rem;
+  border-right: 1px solid var(--cf-border);
+}
+
+.cf-schedule-index {
+  margin-bottom: 0.55rem;
+  color: #a0aaa7;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.cf-schedule-time strong {
+  color: var(--cf-heading);
+  font-size: 0.94rem;
+  font-weight: 700;
+}
+
+.cf-schedule-time small {
+  margin-top: 0.2rem;
+  color: var(--cf-muted);
+  font-size: 0.66rem;
+}
+
+.cf-schedule-details {
+  min-width: 0;
+}
+
+.cf-schedule-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.cf-job-code {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--cf-primary-strong);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.cf-schedule-title-row h3 {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 0.93rem;
+  font-weight: 700;
+}
+
+.cf-schedule-customer {
+  margin: 0.32rem 0 0.58rem;
+  color: #47534f;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.cf-schedule-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.9fr);
+  gap: 0.55rem 1rem;
+  color: var(--cf-muted);
+  font-size: 0.7rem;
+}
+
+.cf-schedule-meta span {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.38rem;
+}
+
+.cf-schedule-meta svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  margin-top: 0.08rem;
+  color: #89a39c;
+}
+
+.cf-schedule-actions {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.cf-schedule-actions .cf-button {
+  width: 100%;
+}
+
+.cf-dashboard-rail {
+  display: grid;
+  gap: 1rem;
+}
+
+.cf-action-list {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.85rem;
+}
+
+.cf-action-tile {
+  display: grid;
+  min-height: 62px;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.68rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--cf-text);
+  text-decoration: none;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.cf-action-tile:hover {
+  border-color: var(--cf-border);
+  background: #f8fbfa;
+  color: var(--cf-text);
+}
+
+.cf-action-tile-primary {
+  border-color: #dceee8;
+  background: var(--cf-primary-soft);
+}
+
+.cf-action-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 9px;
+  background: #ffffff;
+  color: var(--cf-primary-strong);
+}
+
+.cf-action-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.cf-action-tile > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+}
+
+.cf-action-tile strong {
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.cf-action-tile small {
+  margin-top: 0.08rem;
+  color: var(--cf-muted);
+  font-size: 0.63rem;
+}
+
+.cf-action-tile > span:last-child {
+  color: #7e8c88;
+  font-size: 0.9rem;
+}
+
+.cf-performance-hero {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem 1.15rem;
+}
+
+.cf-progress-ring {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(var(--cf-primary) 0 97%, #e7eeeb 97% 100%);
+}
+
+.cf-progress-ring::before {
+  width: 48px;
+  height: 48px;
+  border-radius: inherit;
+  background: #ffffff;
+  content: "";
+}
+
+.cf-progress-ring span {
+  position: absolute;
+  color: var(--cf-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.cf-performance-hero > div:last-child {
+  display: grid;
+}
+
+.cf-performance-hero strong {
+  color: var(--cf-text);
+  font-size: 0.75rem;
+}
+
+.cf-performance-hero span {
+  color: var(--cf-muted);
+  font-size: 0.64rem;
+}
+
+.cf-performance-list {
+  margin: 0;
+  padding: 0 1.15rem;
+}
+
+.cf-performance-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.72rem 0;
+  border-top: 1px solid var(--cf-border);
+}
+
+.cf-performance-list dt {
+  color: #56625f;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.cf-performance-list dd {
+  display: grid;
+  margin: 0;
+  color: var(--cf-heading);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.cf-performance-list dd small {
+  color: var(--cf-muted);
+  font-size: 0.6rem;
+  font-weight: 500;
+}
+
+.cf-readiness-banner {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.62rem;
+  margin: 0.8rem;
+  padding: 0.72rem;
+  border-radius: 10px;
+  background: #f1faf6;
+}
+
+.cf-readiness-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 9px;
+  background: #ffffff;
+  color: var(--cf-primary-strong);
+}
+
+.cf-readiness-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cf-readiness-banner > span:nth-child(2) {
+  display: grid;
+}
+
+.cf-readiness-banner strong {
+  color: var(--cf-text);
+  font-size: 0.67rem;
+}
+
+.cf-readiness-banner small {
+  color: var(--cf-muted);
+  font-size: 0.59rem;
+}
+
+.cf-readiness-banner b {
+  color: #267446;
+  font-size: 0.64rem;
+}
+
+/* Assigned Jobs */
+.cf-jobs-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.cf-job-stat-card {
+  display: grid;
+  min-height: 74px;
+  grid-template-columns: 9px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 0.72rem;
+  padding: 0.82rem 0.9rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.04);
+}
+
+.cf-job-stat-card > span:nth-child(2) {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cf-job-stat-card small {
+  color: var(--cf-muted);
+  font-size: 0.69rem;
+  font-weight: 600;
+}
+
+.cf-job-stat-card strong {
+  color: var(--cf-text);
+  font-size: 1.18rem;
+  font-weight: 700;
+}
+
+.cf-job-stat-card > svg {
+  width: 16px;
+  height: 16px;
+  color: #a1aca8;
+}
+
+.cf-job-stat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.cf-job-stat-dot-mint { background: var(--cf-primary); }
+.cf-job-stat-dot-amber { background: #d99a36; }
+.cf-job-stat-dot-blue { background: #5b9ac2; }
+.cf-job-stat-dot-green { background: #54a970; }
+
+.cf-workspace-card {
+  overflow: hidden;
+}
+
+.cf-workspace-heading {
+  display: flex;
+  min-height: 80px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.technician-assigned-jobs-page .cf-jobs-toolbar.jobs-toolbar {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(440px, 1.1fr);
+  align-items: end;
+  gap: 1.25rem;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--cf-border);
+  border-radius: 0;
+  background: #fbfcfb;
+  box-shadow: none;
+}
+
+.cf-jobs-tabs {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.cf-toolbar-label,
+.technician-assigned-jobs-page .assigned-jobs-toolbar-field label {
+  color: #68736f;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.technician-assigned-jobs-page .filter-tabs-container {
+  min-height: 44px;
+  padding: 4px;
+  border: 1px solid var(--cf-border);
+  border-radius: 9px;
+  background: #f1f5f3;
+}
+
+.technician-assigned-jobs-page .filter-tab-btn {
+  min-height: 34px;
+  border-radius: 7px;
+  font-size: 0.7rem;
+}
+
+.technician-assigned-jobs-page .filter-tab-btn.active {
+  background: #ffffff;
+  color: var(--cf-primary-strong);
+  box-shadow: 0 2px 8px rgba(31, 41, 55, 0.08);
+}
+
+.cf-job-filter-controls {
+  display: grid !important;
+  grid-template-columns: minmax(240px, 1fr) 158px;
+  align-items: end;
+  gap: 0.7rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-toolbar-field {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.technician-assigned-jobs-page .search-input,
+.technician-assigned-jobs-page .status-select-filter {
+  min-height: 44px;
+  border-color: var(--cf-border-strong);
+  border-radius: 8px;
+  background-color: #ffffff;
+  font-size: 0.74rem;
+}
+
+.technician-assigned-jobs-page .search-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.cf-jobs-results {
+  min-height: 270px;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-table-view {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.technician-assigned-jobs-page .job-table {
+  table-layout: fixed;
+}
+
+.technician-assigned-jobs-page .job-table thead th {
+  height: 46px;
+  padding-block: 0.65rem;
+  border-bottom: 1px solid var(--cf-border);
+  background: #f6f8f7;
+  color: #78837f;
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+}
+
+.technician-assigned-jobs-page .job-table thead th:nth-child(1) { width: 11%; }
+.technician-assigned-jobs-page .job-table thead th:nth-child(2) { width: 20%; }
+.technician-assigned-jobs-page .job-table thead th:nth-child(3) { width: 24%; }
+.technician-assigned-jobs-page .job-table thead th:nth-child(4) { width: 15%; }
+.technician-assigned-jobs-page .job-table thead th:nth-child(5) { width: 12%; }
+.technician-assigned-jobs-page .job-table thead th:nth-child(6) { width: 18%; }
+
+.technician-assigned-jobs-page .job-table tbody td {
+  height: 88px;
+  padding-block: 0.9rem;
+  border-color: #edf1ef;
+  background: #ffffff;
+  vertical-align: middle;
+}
+
+.technician-assigned-jobs-page .job-table-row:hover td {
+  background: #f8fcfa !important;
+}
+
+.technician-assigned-jobs-page .customer-avatar-sm {
+  border-radius: 9px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+}
+
+.technician-assigned-jobs-page .job-primary-action {
+  min-height: 38px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--cf-primary-strong);
+  border-radius: 8px;
+  background: var(--cf-primary-strong);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.technician-assigned-jobs-page .action-view-btn {
+  min-height: 38px;
+  padding: 0 0.65rem;
+  border-color: transparent;
+  background: transparent;
+  color: #65736f;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.technician-assigned-jobs-page .job-row-actions {
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.cf-workspace-footer {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 1.25rem;
+  border-top: 1px solid var(--cf-border);
+  background: #fbfcfb;
+  color: var(--cf-muted);
+  font-size: 0.69rem;
+}
+
+.cf-workspace-footer span {
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Submit Report */
+.cf-report-header {
+  align-items: center;
+}
+
+.cf-report-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.46rem;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 11px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.035);
+}
+
+.cf-report-progress span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  color: #66736f;
+  font-size: 0.65rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cf-report-progress b {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+  font-size: 0.62rem;
+}
+
+.cf-report-progress i {
+  width: 18px;
+  height: 1px;
+  background: var(--cf-border-strong);
+}
+
+.technician-submit-report-page .cf-report-workspace {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.technician-submit-report-page .cf-report-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.85fr) minmax(320px, 0.82fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.technician-submit-report-page .cf-report-main,
+.technician-submit-report-page .cf-report-rail {
+  display: grid;
+  gap: 1rem;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.technician-submit-report-page .cf-report-card,
+.technician-submit-report-page .cf-report-side-card {
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: var(--cf-shadow);
+}
+
+.technician-submit-report-page .cf-report-card.report-section {
+  padding: 1.25rem;
+}
+
+.technician-submit-report-page .cf-report-card.report-component-slot,
+.technician-submit-report-page .cf-report-side-card.report-component-slot {
+  padding: 0;
+}
+
+.technician-submit-report-page .cf-report-card > .report-section,
+.technician-submit-report-page .cf-report-side-card > .report-section {
+  margin: 0;
+  padding: 1.2rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.technician-submit-report-page .report-main-column > :not(:last-child),
+.technician-submit-report-page .report-support-column > :not(:last-child) {
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.technician-submit-report-page .cf-report-main > :not(:last-child),
+.technician-submit-report-page .cf-report-rail > :not(:last-child) {
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.technician-submit-report-page .cf-report-card > .report-section,
+.technician-submit-report-page .cf-report-side-card > .report-section,
+.technician-submit-report-page .cf-report-action-dock {
+  border-bottom: 0 !important;
+}
+
+.technician-submit-report-page .report-section-heading {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 1.1rem;
+  padding: 0 0 0.9rem 2.55rem;
+  border-bottom: 1px solid #edf1ef;
+}
+
+.technician-submit-report-page .report-section-heading:not(:has(.cf-card-step)) {
+  padding-left: 0;
+}
+
+.cf-card-step {
+  position: absolute;
+  top: -0.08rem;
+  left: 0;
+  display: grid;
+  width: 31px;
+  height: 31px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.technician-submit-report-page .report-section-heading h3 {
+  margin: 0;
+  color: var(--cf-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+}
+
+.technician-submit-report-page .report-section-heading p {
+  margin: 0.28rem 0 0;
+  color: var(--cf-muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.technician-submit-report-page .report-eligibility-badge {
+  min-height: 29px;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid #d9eee7;
+  background: #f0faf6;
+  color: var(--cf-primary-strong);
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
+.technician-submit-report-page .selected-job-summary {
+  margin-top: 0.85rem;
+  padding: 1rem;
+  border: 1px solid #dcebe6;
+  border-radius: 10px;
+  background: #f7fbf9;
+}
+
+.technician-submit-report-page .selected-job-details {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.technician-submit-report-page .report-fields-grid {
+  gap: 1rem;
+}
+
+.technician-submit-report-page .cf-inspection-fields,
+.technician-submit-report-page .cf-work-performed-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.technician-submit-report-page .cf-inspection-fields .report-multi-select,
+.technician-submit-report-page .cf-work-performed-fields .report-multi-select {
+  grid-column: 1 / -1;
+}
+
+.technician-submit-report-page .cf-work-performed-fields .report-field-full {
+  grid-column: 1 / -1;
+}
+
+.technician-submit-report-page .cf-report-main .report-multi-select .service-checklist-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.technician-submit-report-page .cf-report-rail .service-checklist-grid {
+  grid-template-columns: 1fr;
+  gap: 0.42rem;
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-item {
+  min-height: 46px;
+  padding: 0.58rem 0.68rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 9px;
+  background: #fbfcfb;
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-item:has(input:checked) {
+  border-color: #8bcfbd;
+  background: var(--cf-primary-soft);
+  color: var(--cf-heading);
+  box-shadow: inset 0 0 0 1px rgba(47, 143, 125, 0.08);
+}
+
+.technician-submit-report-page .cf-report-rail .service-checklist-item {
+  min-height: 40px;
+  padding: 0.45rem 0;
+  border: 0;
+  border-bottom: 1px solid #eef2f0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.technician-submit-report-page .cf-report-rail .service-checklist-item:last-child {
+  border-bottom: 0;
+}
+
+.technician-submit-report-page .cf-report-rail .service-checklist-item:has(input:checked) {
+  border-bottom-color: #dcebe6;
+  background: transparent;
+  box-shadow: none;
+}
+
+.technician-submit-report-page .report-control {
+  min-height: 44px;
+  border-color: var(--cf-border-strong);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--cf-text);
+  font-size: 0.78rem;
+}
+
+.technician-submit-report-page textarea.report-control {
+  min-height: 88px;
+  padding-block: 0.68rem;
+}
+
+.technician-submit-report-page .report-control:focus {
+  border-color: var(--cf-primary);
+  box-shadow: 0 0 0 3px rgba(47, 143, 125, 0.18);
+}
+
+.technician-submit-report-page .report-label {
+  color: #4d5c57;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.technician-submit-report-page .materials-grid-header {
+  border-radius: 8px 8px 0 0;
+  background: #f4f7f5;
+}
+
+.technician-submit-report-page .materials-grid-row {
+  border-color: #edf1ef;
+}
+
+.technician-submit-report-page .materials-summary {
+  border-radius: 0 0 9px 9px;
+  background: #f5faf8;
+}
+
+.technician-submit-report-page .customer-acknowledgement {
+  min-height: 72px;
+  padding: 0.82rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 10px;
+  background: #fbfcfb;
+}
+
+.technician-submit-report-page .customer-acknowledgement:has(input:checked) {
+  border-color: #9bd5c5;
+  background: var(--cf-primary-soft);
+}
+
+.technician-submit-report-page .cf-report-action-dock {
+  position: sticky;
+  bottom: 1rem;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid #cfe2dc;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 34px rgba(31, 41, 55, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+.technician-submit-report-page .cf-report-action-dock > div {
+  display: grid;
+  grid-column: 1 / -1;
+  margin-bottom: 0.25rem;
+}
+
+.technician-submit-report-page .cf-report-action-dock > div strong {
+  color: var(--cf-heading);
+  font-size: 0.8rem;
+}
+
+.technician-submit-report-page .cf-report-action-dock > div span {
+  margin-top: 0.16rem;
+  color: var(--cf-muted);
+  font-size: 0.65rem;
+  line-height: 1.45;
+}
+
+.technician-submit-report-page .cf-report-action-dock .cf-button:last-child {
+  grid-column: 1 / -1;
+}
+
+/* Job History */
+.cf-history-summary-widget {
+  display: flex;
+  min-width: 168px;
+  align-items: center;
+  gap: 0.72rem;
+  padding: 0.72rem 0.82rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.035);
+}
+
+.cf-history-summary-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+}
+
+.cf-history-summary-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.cf-history-summary-widget > span:last-child {
+  display: grid;
+}
+
+.cf-history-summary-widget small {
+  color: var(--cf-muted);
+  font-size: 0.64rem;
+}
+
+.cf-history-summary-widget strong {
+  color: var(--cf-heading);
+  font-size: 1.08rem;
+}
+
+.cf-history-filter-card {
+  display: grid;
+  grid-template-columns: minmax(205px, 0.38fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem 1.15rem;
+}
+
+.cf-history-filter-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.68rem;
+}
+
+.cf-history-filter-heading p {
+  margin: 0.2rem 0 0;
+  color: var(--cf-muted);
+  font-size: 0.67rem;
+}
+
+.cf-filter-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+}
+
+.cf-filter-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cf-history-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 145px 145px auto;
+  align-items: end;
+  gap: 0.65rem;
+}
+
+.cf-history-filter-grid label {
+  display: block;
+  margin-bottom: 0.36rem;
+  color: #68736f;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.technician-job-history-page .job-history-search-control,
+.cf-date-filter-field {
+  min-width: 0;
+}
+
+.technician-job-history-page .job-history-search-control input,
+.cf-date-filter-field input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--cf-border-strong);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--cf-text);
+  font-size: 0.74rem;
+}
+
+.cf-history-reset {
+  min-width: 92px;
+}
+
+.cf-history-results-card {
+  overflow: hidden;
+}
+
+.cf-results-header {
+  display: flex;
+  min-height: 74px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-results-header > span {
+  color: var(--cf-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.technician-job-history-page .job-history-table-wrapper {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.technician-job-history-page .job-history-table {
+  table-layout: fixed;
+}
+
+.technician-job-history-page .job-history-table th {
+  height: 46px;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--cf-border);
+  background: #f6f8f7;
+  color: #78837f;
+  font-size: 0.63rem;
+  letter-spacing: 0.07em;
+}
+
+.technician-job-history-page .job-history-table td {
+  height: 84px;
+  padding: 0.85rem 1rem;
+  border-color: #edf1ef;
+}
+
+.technician-job-history-page .job-history-table tbody tr:hover td {
+  background: #f8fcfa !important;
+}
+
+.technician-job-history-page .job-history-view-button {
+  min-height: 38px;
+  padding: 0 0.72rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cf-primary-strong);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.technician-job-history-page .job-history-view-button:hover {
+  border-color: #d6e9e3;
+  background: var(--cf-primary-soft);
+}
+
+.cf-history-report-hero {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1.25rem;
+  border: 1px solid #d9ebe5;
+  border-radius: 14px;
+  background: linear-gradient(110deg, #ffffff 0%, #f1faf6 100%);
+  box-shadow: var(--cf-shadow);
+}
+
+.cf-history-report-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--cf-primary-strong);
+  color: #ffffff;
+}
+
+.cf-history-report-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.cf-history-report-identity span {
+  color: var(--cf-primary-strong);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cf-history-report-identity h2 {
+  margin: 0.2rem 0;
+  color: var(--cf-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.cf-history-report-identity p {
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: 0.74rem;
+}
+
+.cf-history-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.7fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.cf-history-information-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0.25rem 1.25rem 1.25rem;
+}
+
+.cf-history-information-grid > div {
+  min-height: 90px;
+  padding: 1rem;
+  border-right: 1px solid var(--cf-border);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.cf-history-information-grid > div:nth-child(3n) {
+  border-right: 0;
+}
+
+.cf-history-information-grid > div:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+.cf-history-information-grid dt {
+  color: var(--cf-muted);
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+
+.cf-history-information-grid dd {
+  margin: 0.35rem 0 0;
+  color: var(--cf-text);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.cf-history-feedback-card {
+  overflow: hidden;
+}
+
+.cf-history-rating-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 1.1rem 1.15rem 0;
+  padding: 0.85rem;
+  border-radius: 10px;
+  background: #fff9ec;
+  color: #c28320;
+}
+
+.cf-history-feedback-card > p {
+  margin: 1rem 1.15rem 1.2rem;
+  color: var(--cf-muted);
+  font-size: 0.74rem;
+  line-height: 1.55;
+}
+
+/* Job details modal */
+.cf-job-modal.job-details-modal-content {
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: 15px;
+  box-shadow: var(--cf-shadow-raised);
+}
+
+.cf-job-modal-header {
+  min-height: 92px;
+  padding: 1.2rem 1.35rem !important;
+  border-bottom: 1px solid var(--cf-border) !important;
+  background: #ffffff !important;
+}
+
+.cf-job-modal-heading {
+  min-width: 0;
+}
+
+.cf-job-modal-heading > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cf-job-modal-heading h2 {
+  width: 100%;
+  margin: 0 0 0.35rem;
+  color: var(--cf-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.cf-priority-badge {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: #fff5df;
+  color: #966211;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.cf-priority-urgent {
+  background: #fff0ef;
+  color: #b33f38;
+}
+
+.cf-job-modal-body {
+  padding: 1.25rem !important;
+  background: #f7f9f8;
+}
+
+.cf-modal-customer-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 0.8rem;
+  padding: 1rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.cf-job-modal .customer-avatar-lg {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.cf-modal-customer-copy {
+  min-width: 0;
+}
+
+.cf-modal-customer-copy > span,
+.cf-modal-detail-card > div > span,
+.cf-modal-notes > span {
+  color: var(--cf-muted);
+  font-size: 0.64rem;
+  font-weight: 600;
+}
+
+.cf-modal-customer-copy h3 {
+  margin: 0.12rem 0 0.3rem;
+  color: var(--cf-text);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.cf-modal-contact-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+}
+
+.cf-modal-contact-row a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #63716d;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cf-modal-contact-row svg {
+  width: 13px;
+  height: 13px;
+  color: var(--cf-primary-strong);
+}
+
+.cf-modal-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.cf-modal-detail-card {
+  display: flex;
+  min-width: 0;
+  min-height: 96px;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.cf-modal-detail-icon {
+  display: grid;
+  width: 35px;
+  height: 35px;
+  flex: 0 0 35px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+}
+
+.cf-modal-detail-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cf-modal-detail-card > div {
+  display: grid;
+  min-width: 0;
+}
+
+.cf-modal-detail-card strong {
+  margin-top: 0.2rem;
+  color: var(--cf-text);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.cf-modal-detail-card small {
+  margin-top: 0.16rem;
+  color: var(--cf-muted);
+  font-size: 0.64rem;
+}
+
+.cf-modal-notes {
+  margin-top: 0.8rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #dce9e5;
+  border-radius: 12px;
+  background: #f0f8f5;
+}
+
+.cf-modal-notes p {
+  margin: 0.35rem 0 0;
+  color: #52615d;
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+
+.cf-job-modal-footer {
+  gap: 0.5rem;
+  padding: 0.9rem 1.25rem !important;
+  border-top: 1px solid var(--cf-border) !important;
+  background: #ffffff !important;
+}
+
+/* Focus and motion */
+.technician-portal-wrapper :is(
+  .cf-button,
+  .cf-text-link,
+  .cf-action-tile,
+  .cf-topbar-alert,
+  .cf-sidebar .nav-link,
+  .filter-tab-btn,
+  .action-view-btn,
+  .job-primary-action,
+  .job-history-view-button,
+  .search-clear-btn,
+  .job-history-search-control button
+):focus-visible,
+.technician-portal-wrapper :is(input, select, textarea):focus-visible {
+  outline: 3px solid rgba(47, 143, 125, 0.25);
+  outline-offset: 2px;
+}
+
+/* Responsive presentation */
+@media (max-width: 1199.98px) {
+  .technician-content-area {
+    padding: 1.8rem 1.55rem 2.6rem !important;
+  }
+
+  .cf-dashboard-grid {
+    grid-template-columns: minmax(0, 1.6fr) minmax(290px, 0.78fr);
+  }
+
+  .cf-schedule-row {
+    grid-template-columns: 78px minmax(0, 1fr);
+  }
+
+  .cf-schedule-actions {
+    grid-column: 2;
+    grid-template-columns: repeat(2, minmax(0, 150px));
+  }
+
+  .technician-assigned-jobs-page .cf-jobs-toolbar.jobs-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .technician-submit-report-page .cf-report-layout {
+    grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.82fr);
+  }
+
+  .cf-history-filter-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .technician-main-container {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .technician-sidebar.cf-sidebar {
+    width: min(286px, 86vw);
+  }
+
+  .cf-admin-topbar.technician-topbar {
+    padding: 0 1.25rem;
+  }
+
+  .technician-content-area {
+    padding: 1.65rem 1.25rem 2.5rem !important;
+  }
+
+  .cf-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cf-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-dashboard-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-mobile-view,
+  .technician-job-history-page .job-history-mobile-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+    padding: 1rem;
+    background: #f7f9f8;
+  }
+
+  .technician-assigned-jobs-page .job-mobile-card,
+  .technician-job-history-page .job-history-mobile-card {
+    margin: 0 !important;
+    border: 1px solid var(--cf-border);
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 5px 16px rgba(31, 41, 55, 0.04);
+  }
+
+  .technician-submit-report-page .cf-report-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .technician-submit-report-page .cf-report-action-dock {
+    position: static;
+  }
+
+  .cf-history-filter-grid {
+    grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(135px, 0.55fr)) auto;
+  }
+
+  .cf-history-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .cf-admin-topbar.technician-topbar {
+    min-height: 60px;
+    padding: 0 1rem;
+  }
+
+  .cf-topbar-leading,
+  .cf-topbar-actions {
+    min-height: 60px;
+  }
+
+  .technician-content-area {
+    padding: 1.35rem 1rem 2rem !important;
+  }
+
+  .cf-page-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.85rem;
+    margin-bottom: 1.15rem;
+  }
+
+  .cf-dashboard-header,
+  .cf-history-header {
+    align-items: stretch;
+  }
+
+  .cf-dashboard-date-card,
+  .cf-history-summary-widget,
+  .cf-page-header-status {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .cf-kpi-grid,
+  .cf-jobs-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+
+  .cf-kpi-card {
+    min-height: 106px;
+    grid-template-columns: 38px minmax(0, 1fr);
+    padding: 0.85rem;
+  }
+
+  .cf-kpi-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .cf-kpi-value {
+    font-size: 1.4rem;
+  }
+
+  .cf-widget-header,
+  .cf-workspace-heading,
+  .cf-results-header {
+    min-height: 0;
+    align-items: flex-start;
+    padding: 1rem;
+  }
+
+  .cf-widget-header {
+    flex-direction: column;
+  }
+
+  .cf-schedule-list {
+    padding: 0 1rem 0.35rem;
+  }
+
+  .cf-schedule-row {
+    min-height: 0;
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+    padding: 1rem 0;
+  }
+
+  .cf-schedule-time {
+    display: flex;
+    align-items: center;
+    align-self: auto;
+    gap: 0.55rem;
+    padding: 0;
+    border-right: 0;
+  }
+
+  .cf-schedule-index {
+    margin: 0 auto 0 0;
+  }
+
+  .cf-schedule-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-schedule-actions {
+    grid-column: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cf-dashboard-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .technician-assigned-jobs-page .cf-jobs-toolbar.jobs-toolbar {
+    gap: 0.9rem;
+    padding: 0.9rem;
+  }
+
+  .cf-job-filter-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-mobile-view,
+  .technician-job-history-page .job-history-mobile-list {
+    grid-template-columns: 1fr;
+    padding: 0.8rem;
+  }
+
+  .cf-report-progress {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .technician-submit-report-page .cf-report-main .report-multi-select .service-checklist-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cf-history-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cf-history-filter-grid .job-history-search-field {
+    grid-column: 1 / -1;
+  }
+
+  .cf-history-reset {
+    grid-column: 1 / -1;
+  }
+
+  .cf-history-report-hero {
+    grid-template-columns: 48px minmax(0, 1fr);
+    padding: 1rem;
+  }
+
+  .cf-history-report-hero > .job-status-badge {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .cf-history-information-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cf-history-information-grid > div:nth-child(3n) {
+    border-right: 1px solid var(--cf-border);
+  }
+
+  .cf-history-information-grid > div:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .cf-history-information-grid > div:nth-last-child(-n + 3) {
+    border-bottom: 1px solid var(--cf-border);
+  }
+
+  .cf-history-information-grid > div:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .cf-topbar-alert.topbar-alert-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .cf-page-heading h1,
+  .cf-report-header h1 {
+    font-size: 1.55rem;
+  }
+
+  .cf-eyebrow {
+    font-size: 0.64rem;
+  }
+
+  .cf-kpi-card {
+    min-height: 116px;
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .cf-kpi-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .cf-job-stat-card {
+    min-height: 70px;
+    grid-template-columns: 8px minmax(0, 1fr);
+    padding: 0.72rem;
+  }
+
+  .cf-job-stat-card > svg {
+    display: none;
+  }
+
+  .cf-job-stat-card > span:nth-child(2) {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.08rem;
+  }
+
+  .cf-schedule-title-row {
+    align-items: flex-start;
+  }
+
+  .cf-schedule-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-schedule-actions .cf-button {
+    min-height: 44px;
+  }
+
+  .cf-report-progress {
+    gap: 0.25rem;
+    padding: 0.5rem;
+  }
+
+  .cf-report-progress span {
+    gap: 0.22rem;
+    font-size: 0.6rem;
+  }
+
+  .cf-report-progress b {
+    width: 21px;
+    height: 21px;
+  }
+
+  .cf-report-progress i {
+    width: 8px;
+  }
+
+  .technician-submit-report-page .cf-report-card.report-section,
+  .technician-submit-report-page .cf-report-card > .report-section,
+  .technician-submit-report-page .cf-report-side-card > .report-section {
+    padding: 1rem;
+  }
+
+  .technician-submit-report-page .report-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .technician-submit-report-page .report-eligibility-badge {
+    margin-left: 2.55rem;
+  }
+
+  .technician-submit-report-page .cf-inspection-fields,
+  .technician-submit-report-page .cf-work-performed-fields,
+  .technician-submit-report-page .cf-report-main .report-multi-select .service-checklist-grid,
+  .technician-submit-report-page .selected-job-details {
+    grid-template-columns: 1fr;
+  }
+
+  .technician-submit-report-page .cf-report-action-dock {
+    grid-template-columns: 1fr;
+    padding: 0.85rem;
+  }
+
+  .technician-submit-report-page .cf-report-action-dock .cf-button,
+  .technician-submit-report-page .cf-report-action-dock .cf-button:last-child {
+    grid-column: 1;
+    width: 100%;
+  }
+
+  .cf-history-filter-card {
+    padding: 0.9rem;
+  }
+
+  .cf-history-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-history-filter-grid .job-history-search-field,
+  .cf-history-reset {
+    grid-column: 1;
+  }
+
+  .cf-history-information-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-history-information-grid > div,
+  .cf-history-information-grid > div:nth-child(2n),
+  .cf-history-information-grid > div:nth-child(3n),
+  .cf-history-information-grid > div:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--cf-border);
+  }
+
+  .cf-history-information-grid > div:last-child {
+    border-bottom: 0;
+  }
+
+  .cf-modal-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-modal-contact-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cf-job-modal-footer {
+    display: grid !important;
+    grid-template-columns: 1fr;
+  }
+
+  .cf-job-modal-footer .cf-button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-button,
+  .cf-action-tile,
+  .cf-sidebar .nav-link {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
    Assigned Jobs Card & Toolbar
    ========================================================================== */
 
@@ -1201,7 +3731,7 @@
   font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .filter-tab-btn:hover {
@@ -1257,7 +3787,7 @@
 
 .search-input-wrapper .search-input:focus {
   border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+  box-shadow: 0 0 0 3px var(--technician-focus-ring);
   outline: none;
 }
 
@@ -1273,6 +3803,12 @@
   cursor: pointer;
 }
 
+.search-clear-btn:focus-visible {
+  border-radius: 5px;
+  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  outline: none;
+}
+
 .status-select-filter {
   border-radius: 7px;
   border: 1px solid var(--border-subtle);
@@ -1284,7 +3820,7 @@
 
 .status-select-filter:focus {
   border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+  box-shadow: 0 0 0 3px var(--technician-focus-ring);
 }
 
 /* ==========================================================================
@@ -1375,7 +3911,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .action-view-btn:hover {
@@ -1544,7 +4080,8 @@
 
 .technician-submit-report-page {
   width: 100%;
-  max-width: 1180px;
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
 .report-page-header {
@@ -1560,21 +4097,70 @@
   border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 600;
-  min-height: 42px;
+  min-height: 44px;
   padding: 0.58rem 1.05rem;
   white-space: nowrap;
 }
 
 .service-report-form {
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background-color: #ffffff;
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  border: 1px solid var(--technician-panel-border, #dfe6ef);
+  border-radius: 12px;
+}
+
+.report-layout-grid,
+.report-main-column,
+.report-support-column,
+.report-component-slot {
+  display: contents;
+}
+
+.report-job-section {
+  order: 1;
+}
+
+.report-service-section {
+  order: 2;
+}
+
+.report-checklist-slot {
+  order: 3;
+}
+
+.report-checklist-slot > .report-section {
+  order: 3;
+}
+
+.report-materials-slot {
+  order: 4;
+}
+
+.report-materials-slot > .report-section {
+  order: 4;
+}
+
+.report-follow-up-slot {
+  order: 5;
+}
+
+.report-follow-up-slot > .report-section {
+  order: 5;
+}
+
+.report-completion-section {
+  order: 6;
+}
+
+.report-form-actions {
+  order: 7;
 }
 
 .report-section {
   padding: 1.7rem 1.75rem;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--technician-panel-border);
 }
 
 .report-section-heading {
@@ -1588,7 +4174,7 @@
 .report-section-heading h3 {
   margin: 0 0 0.25rem;
   color: var(--text-primary);
-  font-size: 1.05rem;
+  font-size: 1.0625rem;
   font-weight: 700;
   letter-spacing: -0.15px;
   line-height: 1.35;
@@ -1597,7 +4183,7 @@
 .report-section-heading p {
   max-width: 700px;
   margin: 0;
-  color: var(--text-muted);
+  color: var(--technician-metadata);
   font-size: 0.84rem;
   line-height: 1.5;
 }
@@ -1651,7 +4237,9 @@
   width: 100%;
   min-height: 44px;
   padding: 0.66rem 0.8rem;
-  border: 1px solid var(--border-default);
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--technician-control-border);
   border-radius: 8px;
   background-color: #ffffff;
   color: var(--text-primary);
@@ -1673,7 +4261,7 @@ textarea.report-control {
 
 .report-control:focus {
   border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.09);
+  box-shadow: 0 0 0 3px var(--technician-focus-ring);
   outline: none;
 }
 
@@ -1808,6 +4396,78 @@ textarea.report-control {
   margin: 0.06rem 0 0;
   flex-shrink: 0;
   accent-color: var(--primary-600);
+}
+
+.technician-submit-report-page .report-multi-select {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.technician-submit-report-page .report-multi-select legend {
+  float: none;
+  width: auto;
+  margin-bottom: 0.15rem;
+}
+
+.technician-submit-report-page .report-choice-hint {
+  margin: 0 0 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-item {
+  min-height: 44px;
+  align-items: center;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--technician-control-border);
+  border-radius: 8px;
+  background-color: #ffffff;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-item:hover {
+  border-color: var(--primary-200);
+  background-color: #f8fbff;
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-item:has(input:checked) {
+  border-color: var(--primary-200);
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+  font-weight: 600;
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-item:has(input:focus-visible) {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  outline: none;
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-item input:focus-visible {
+  outline: none;
+}
+
+.technician-submit-report-page .report-multi-select[aria-invalid='true'] .service-checklist-grid {
+  border-radius: 8px;
+  outline: 2px solid rgba(220, 38, 38, 0.18);
+  outline-offset: 4px;
+}
+
+.technician-submit-report-page .report-other-details {
+  max-width: 680px;
+  margin-top: 0.8rem;
+}
+
+.technician-submit-report-page .report-other-details .report-label {
+  margin-bottom: 0.35rem;
 }
 
 /* Parts & Materials */
@@ -2056,6 +4716,98 @@ textarea.report-control {
   }
 }
 
+@media (min-width: 1200px) {
+  .technician-submit-report-page .service-report-form {
+    display: block;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+  }
+
+  .technician-submit-report-page .report-layout-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.85fr) minmax(300px, 1fr);
+    align-items: start;
+    gap: 1.25rem;
+  }
+
+  .technician-submit-report-page .report-main-column,
+  .technician-submit-report-page .report-support-column {
+    display: grid;
+    align-self: start;
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid var(--technician-panel-border);
+    border-radius: 12px;
+    background-color: #ffffff;
+  }
+
+  .technician-submit-report-page .report-component-slot {
+    display: block;
+  }
+
+  .technician-submit-report-page .report-main-column > .report-section,
+  .technician-submit-report-page .report-main-column > .report-component-slot > .report-section,
+  .technician-submit-report-page .report-support-column > .report-section,
+  .technician-submit-report-page .report-support-column > .report-component-slot > .report-section {
+    border-bottom: 0;
+  }
+
+  .technician-submit-report-page .report-main-column > :not(:last-child),
+  .technician-submit-report-page .report-support-column > :not(:last-child) {
+    border-bottom: 1px solid var(--technician-panel-border);
+  }
+
+  .technician-submit-report-page .report-main-column > .report-section,
+  .technician-submit-report-page .report-main-column > .report-component-slot > .report-section {
+    padding: 1.5rem;
+  }
+
+  .technician-submit-report-page .report-support-column > .report-section,
+  .technician-submit-report-page .report-support-column > .report-component-slot > .report-section {
+    padding: 1.35rem;
+  }
+
+  .technician-submit-report-page .report-main-column .selected-job-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-submit-report-page .report-main-column .report-multi-select .service-checklist-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-submit-report-page .report-support-column .service-checklist-grid,
+  .technician-submit-report-page .report-support-column .report-multi-select .service-checklist-grid,
+  .technician-submit-report-page .report-support-column .report-fields-grid,
+  .technician-submit-report-page .report-support-column .follow-up-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .technician-submit-report-page .report-support-column .service-checklist-grid {
+    gap: 0;
+  }
+
+  .technician-submit-report-page .report-main-column .materials-grid {
+    grid-template-columns: minmax(150px, 1.7fr) 70px 96px 90px 36px;
+    gap: 0.65rem;
+  }
+
+  .technician-submit-report-page .report-support-column .report-form-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 0.65rem;
+    padding: 1.1rem 1.35rem;
+    background-color: #f8fafc;
+  }
+
+  .technician-submit-report-page .report-support-column .report-form-actions .btn {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 0.65rem;
+  }
+}
+
 @media (max-width: 767.98px) {
   .report-page-header {
     align-items: stretch;
@@ -2131,6 +4883,12 @@ textarea.report-control {
   }
 }
 
+@media (min-width: 576px) and (max-width: 991.98px) {
+  .technician-submit-report-page .report-multi-select .service-checklist-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 575.98px) {
   .report-section-heading-with-action {
     align-items: flex-start;
@@ -2148,6 +4906,11 @@ textarea.report-control {
 
   .service-checklist-grid {
     gap: 0;
+  }
+
+  .technician-submit-report-page .report-multi-select .service-checklist-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
   }
 
   .report-form-actions {
@@ -2242,7 +5005,7 @@ textarea.report-control {
 
 .technician-assigned-jobs-page .jobs-main-card {
   overflow: hidden;
-  border-color: #dfe6ef;
+  border-color: var(--technician-panel-border);
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.035);
 }
@@ -2280,6 +5043,11 @@ textarea.report-control {
   color: var(--text-primary);
 }
 
+.technician-assigned-jobs-page .filter-tab-btn:focus-visible {
+  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  outline: none;
+}
+
 .technician-assigned-jobs-page .filter-tab-btn.active {
   background-color: #ffffff;
   color: var(--primary-700);
@@ -2291,7 +5059,7 @@ textarea.report-control {
   padding: 0.1rem 0.35rem;
   background-color: #e2e8f0;
   color: #64748b;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   line-height: 1.35;
   text-align: center;
 }
@@ -2317,7 +5085,7 @@ textarea.report-control {
 .technician-assigned-jobs-page .search-input-wrapper .search-input,
 .technician-assigned-jobs-page .status-select-filter {
   min-height: 36px;
-  border-color: #d9e1eb;
+  border-color: var(--technician-control-border);
   border-radius: 7px;
   background-color: #ffffff;
   font-size: 0.79rem;
@@ -2355,12 +5123,26 @@ textarea.report-control {
 
 .technician-assigned-jobs-page .job-table thead th {
   padding: 0.8rem 0.9rem;
-  border-bottom-color: #dfe6ef;
+  border-bottom-color: var(--technician-panel-border);
   background-color: #f8fafc;
   color: #65758b;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.055em;
+}
+
+.technician-assigned-jobs-page .job-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.technician-assigned-jobs-page .job-table tbody td {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.technician-assigned-jobs-page .job-table tbody td:nth-child(3) > div:first-child {
+  flex-wrap: wrap;
 }
 
 .technician-assigned-jobs-page .job-table tbody td {
@@ -2394,7 +5176,7 @@ textarea.report-control {
 
 .technician-assigned-jobs-page .job-table td:nth-child(2) .fw-bold {
   font-size: 0.83rem;
-  font-weight: 650 !important;
+  font-weight: 600 !important;
 }
 
 .technician-assigned-jobs-page .job-table td:nth-child(3) .fw-semibold,
@@ -2405,7 +5187,7 @@ textarea.report-control {
 
 .technician-assigned-jobs-page .job-table tbody td .small {
   margin-top: 0.2rem !important;
-  color: #68788d !important;
+  color: var(--technician-metadata) !important;
   font-size: 0.74rem;
   line-height: 1.45;
 }
@@ -2430,7 +5212,7 @@ textarea.report-control {
   border-radius: 4px;
   background-color: #f1f5f9;
   color: #64748b;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   line-height: 1.3;
 }
 
@@ -2438,7 +5220,7 @@ textarea.report-control {
   min-height: 24px;
   padding: 0.22rem 0.55rem;
   font-size: 0.69rem;
-  font-weight: 650;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -2464,6 +5246,12 @@ textarea.report-control {
   border-color: var(--primary-600);
   background-color: var(--primary-600);
   color: #ffffff;
+}
+
+.technician-assigned-jobs-page .action-view-btn:focus-visible {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  outline: none;
 }
 
 .technician-assigned-jobs-page .empty-state-box {
@@ -2504,7 +5292,7 @@ textarea.report-control {
   margin-bottom: 0.75rem !important;
   padding: 1rem !important;
   overflow: hidden;
-  border-color: #dfe6ef;
+  border-color: var(--technician-panel-border);
   border-radius: 10px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
 }
@@ -2556,11 +5344,11 @@ textarea.report-control {
 
 .technician-assigned-jobs-page .job-mobile-card .fw-bold {
   font-size: 0.84rem;
-  font-weight: 650 !important;
+  font-weight: 600 !important;
 }
 
 .technician-assigned-jobs-page .job-mobile-card .small {
-  color: #68788d !important;
+  color: var(--technician-metadata) !important;
   font-size: 0.74rem;
   line-height: 1.45;
 }
@@ -2580,14 +5368,14 @@ textarea.report-control {
 }
 
 .technician-assigned-jobs-page .jobs-card-footer .small {
-  color: #68788d !important;
+  color: var(--technician-metadata) !important;
   font-size: 0.73rem;
   line-height: 1.4;
 }
 
 .technician-assigned-jobs-page .jobs-card-footer .text-dark {
   color: var(--text-primary) !important;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .technician-assigned-jobs-page .jobs-card-footer .duty-dot-pulse {
@@ -2639,6 +5427,7 @@ textarea.report-control {
   .technician-assigned-jobs-page .filter-tab-btn {
     justify-content: center;
     flex: 1;
+    white-space: nowrap;
   }
 
   .technician-assigned-jobs-page .assigned-jobs-filter-controls {
@@ -2671,7 +5460,7 @@ textarea.report-control {
   }
 
   .technician-assigned-jobs-page .assigned-jobs-summary .kpi-stat-label {
-    font-size: 0.61rem;
+    font-size: 0.68rem;
   }
 
   .technician-assigned-jobs-page .assigned-jobs-filter-controls {
@@ -2689,6 +5478,10 @@ textarea.report-control {
 
   .technician-assigned-jobs-page .job-mobile-card {
     padding: 0.9rem !important;
+  }
+
+  .technician-assigned-jobs-page .job-mobile-card .action-view-btn {
+    min-height: 42px;
   }
 
   .technician-assigned-jobs-page .jobs-card-footer {
@@ -2747,7 +5540,7 @@ textarea.report-control {
 .technician-job-history-page .job-history-report-card,
 .technician-job-history-page .job-history-feedback-card {
   overflow: hidden;
-  border: 1px solid #dfe6ef;
+  border: 1px solid var(--technician-panel-border);
   border-radius: 12px;
   background-color: #ffffff;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.035);
@@ -2772,7 +5565,7 @@ textarea.report-control {
   margin-bottom: 0.3rem;
   color: var(--text-secondary);
   font-size: 0.7rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .technician-job-history-page .job-history-search-control {
@@ -2792,7 +5585,7 @@ textarea.report-control {
 .technician-job-history-page .job-history-date-filters input {
   width: 100%;
   min-height: 38px;
-  border: 1px solid #d9e1eb;
+  border: 1px solid var(--technician-control-border);
   border-radius: 7px;
   background-color: #ffffff;
   color: var(--text-primary);
@@ -2813,7 +5606,7 @@ textarea.report-control {
 .technician-job-history-page .job-history-search-control input:focus,
 .technician-job-history-page .job-history-date-filters input:focus {
   border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.11);
+  box-shadow: 0 0 0 3px var(--technician-focus-ring);
 }
 
 .technician-job-history-page .job-history-search-control button {
@@ -2829,6 +5622,13 @@ textarea.report-control {
   font-size: 1.1rem;
   line-height: 1;
   transform: translateY(-50%);
+}
+
+.technician-job-history-page .job-history-search-control button:focus-visible,
+.technician-job-history-page .job-history-reset-button:focus-visible {
+  border-radius: 5px;
+  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  outline: none;
 }
 
 .technician-job-history-page .job-history-date-filters {
@@ -2850,7 +5650,7 @@ textarea.report-control {
   background-color: transparent;
   color: var(--primary-700);
   font-size: 0.74rem;
-  font-weight: 650;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -2871,10 +5671,10 @@ textarea.report-control {
 
 .technician-job-history-page .job-history-table th {
   padding: 0.8rem 1rem;
-  border-bottom: 1px solid #dfe6ef;
+  border-bottom: 1px solid var(--technician-panel-border);
   background-color: #f8fafc;
   color: #65758b;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.055em;
   text-transform: uppercase;
@@ -2929,7 +5729,7 @@ textarea.report-control {
 
 .technician-job-history-page .job-history-table td strong {
   overflow: hidden;
-  font-weight: 650;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2937,7 +5737,7 @@ textarea.report-control {
 .technician-job-history-page .job-history-table td small {
   margin-top: 0.2rem;
   overflow: hidden;
-  color: #68788d;
+  color: var(--technician-metadata);
   font-size: 0.72rem;
   line-height: 1.45;
   text-overflow: ellipsis;
@@ -2971,15 +5771,20 @@ textarea.report-control {
   background-color: #ffffff;
   color: var(--primary-700);
   font-size: 0.74rem;
-  font-weight: 650;
+  font-weight: 600;
   transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
-.technician-job-history-page .job-history-view-button:hover,
-.technician-job-history-page .job-history-view-button:focus-visible {
+.technician-job-history-page .job-history-view-button:hover {
   border-color: var(--primary-600);
   background-color: var(--primary-600);
   color: #ffffff;
+}
+
+.technician-job-history-page .job-history-view-button:focus-visible {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  outline: none;
 }
 
 .technician-job-history-page .job-history-table td:last-child {
@@ -2993,7 +5798,7 @@ textarea.report-control {
 
 .technician-job-history-page .job-history-mobile-card {
   padding: 1rem;
-  border: 1px solid #dfe6ef;
+  border: 1px solid var(--technician-panel-border);
   border-radius: 10px;
   background-color: #ffffff;
 }
@@ -3041,7 +5846,7 @@ textarea.report-control {
 .technician-job-history-page .job-history-report-information dt {
   margin-bottom: 0.2rem;
   color: #718096;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -3056,6 +5861,7 @@ textarea.report-control {
 
 .technician-job-history-page .job-history-mobile-card .job-history-view-button {
   width: 100%;
+  min-height: 42px;
 }
 
 .technician-job-history-page .job-history-empty-state {
@@ -3094,13 +5900,13 @@ textarea.report-control {
   padding: 0.8rem 1.15rem;
   border-top: 1px solid var(--border-subtle);
   background-color: #f8fafc;
-  color: #68788d;
+  color: var(--technician-metadata);
   font-size: 0.73rem;
 }
 
 .technician-job-history-page .job-history-list-footer strong {
   color: var(--text-primary);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .technician-job-history-page .job-history-detail-header {
@@ -3147,7 +5953,7 @@ textarea.report-control {
   display: block;
   margin-bottom: 0.15rem;
   color: #718096;
-  font-size: 0.64rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -3164,7 +5970,7 @@ textarea.report-control {
   margin: 0.2rem 0 0;
   color: var(--primary-700);
   font-size: 0.76rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .technician-job-history-page .job-history-report-information {
@@ -3189,7 +5995,7 @@ textarea.report-control {
   overflow-wrap: anywhere;
   color: var(--text-primary);
   font-size: 0.85rem;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.45;
 }
 
@@ -3253,6 +6059,16 @@ textarea.report-control {
   }
 }
 
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .technician-job-history-page .job-history-mobile-card dl {
+    grid-template-columns: 0.8fr 2fr 0.8fr;
+  }
+
+  .technician-job-history-page .job-history-mobile-card dl > div:nth-child(2) {
+    grid-column: auto;
+  }
+}
+
 @media (max-width: 767.98px) {
   .technician-job-history-page .job-history-page-header {
     align-items: flex-start;
@@ -3263,7 +6079,7 @@ textarea.report-control {
   }
 
   .technician-job-history-page .job-history-empty-state {
-    border: 1px solid #dfe6ef;
+    border: 1px solid var(--technician-panel-border);
     border-radius: 10px;
     background-color: #ffffff;
   }
@@ -3361,4 +6177,4387 @@ textarea.report-control {
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+/* ==========================================================================
+   Approved Final Hybrid — Clean Production Field Service
+   ========================================================================== */
+
+.technician-portal-wrapper .dashboard-kpi-strip,
+.technician-portal-wrapper .dashboard-panel-card,
+.technician-assigned-jobs-page .assigned-jobs-summary,
+.technician-assigned-jobs-page .jobs-main-card,
+.technician-job-history-page .job-history-list-panel,
+.technician-job-history-page .job-history-report-card,
+.technician-job-history-page .job-history-feedback-card {
+  border-color: var(--technician-panel-border);
+  box-shadow: none;
+}
+
+.technician-portal-wrapper .kpi-stat-label,
+.technician-dashboard-page .dashboard-detail-label,
+.technician-dashboard-page .dashboard-job-detail small,
+.technician-dashboard-page .performance-stat-row span,
+.technician-dashboard-page .dashboard-verified-badge,
+.technician-assigned-jobs-page .assigned-jobs-summary .kpi-stat-label,
+.technician-assigned-jobs-page .tab-count-badge,
+.technician-assigned-jobs-page .job-table thead th,
+.technician-assigned-jobs-page .job-id-chip,
+.technician-assigned-jobs-page .service-category-tag,
+.technician-assigned-jobs-page .job-status-badge,
+.technician-job-history-page .job-history-table th,
+.technician-job-history-page .job-history-report-information dt,
+.technician-job-history-page .job-history-report-identity > span,
+.technician-job-history-page .job-history-section-label {
+  font-size: 0.75rem;
+}
+
+.technician-dashboard-page .dashboard-kpi-strip,
+.technician-assigned-jobs-page .assigned-jobs-summary {
+  background-color: var(--technician-surface);
+}
+
+.sidebar-brand-header .btn-close,
+.job-details-modal-content .btn-close,
+.report-confirmation-modal .btn-close {
+  width: 44px;
+  height: 44px;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background-size: 0.75rem;
+}
+
+.technician-dashboard-page .dashboard-job-actions .btn,
+.technician-dashboard-page .dashboard-view-all-link,
+.technician-topbar .btn,
+.technician-assigned-jobs-page .filter-tab-btn,
+.technician-assigned-jobs-page .search-input-wrapper .search-input,
+.technician-assigned-jobs-page .status-select-filter,
+.technician-assigned-jobs-page .action-view-btn,
+.technician-job-history-page .job-history-search-control input,
+.technician-job-history-page .job-history-date-filters input,
+.technician-job-history-page .job-history-reset-button,
+.technician-job-history-page .job-history-view-button,
+.technician-job-history-page .job-history-back-button,
+.job-details-modal-content .btn,
+.report-section-heading-with-action .btn,
+.materials-delete-btn,
+.report-confirmation-modal .btn {
+  min-height: 44px;
+}
+
+.technician-topbar .btn:focus-visible,
+.technician-portal-wrapper .btn:focus-visible,
+.technician-dashboard-page a:focus-visible,
+.job-details-modal-content a:focus-visible,
+.job-details-modal-content .btn:focus-visible,
+.report-confirmation-modal .btn:focus-visible {
+  outline: 3px solid var(--technician-focus-ring, rgba(37, 99, 235, 0.24));
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.technician-dashboard-page .dashboard-panel-card,
+.technician-assigned-jobs-page .jobs-main-card,
+.technician-job-history-page .job-history-list-panel {
+  border-radius: 12px;
+}
+
+.technician-dashboard-page .dashboard-continue-action {
+  border-color: var(--primary-600);
+  background-color: var(--primary-600);
+  color: #ffffff;
+}
+
+.technician-dashboard-page .dashboard-continue-action:hover {
+  border-color: var(--primary-700);
+  background-color: var(--primary-700);
+  color: #ffffff;
+}
+
+.technician-dashboard-page .dashboard-secondary-action,
+.technician-assigned-jobs-page .action-view-btn,
+.technician-job-history-page .job-history-view-button {
+  border-color: var(--technician-control-border);
+  background-color: #ffffff;
+  color: var(--text-secondary);
+}
+
+.technician-dashboard-page .dashboard-secondary-action:hover,
+.technician-assigned-jobs-page .action-view-btn:hover,
+.technician-job-history-page .job-history-view-button:hover {
+  border-color: var(--primary-200);
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.technician-assigned-jobs-page .filter-tab-btn {
+  padding-inline: 0.8rem;
+  white-space: nowrap;
+}
+
+.technician-assigned-jobs-page .search-input-wrapper .search-input,
+.technician-assigned-jobs-page .status-select-filter,
+.technician-job-history-page .job-history-search-control input,
+.technician-job-history-page .job-history-date-filters input {
+  border-color: var(--technician-control-border);
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+.technician-assigned-jobs-page .search-clear-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+.technician-assigned-jobs-page .job-table thead th,
+.technician-job-history-page .job-history-table th {
+  background-color: #f8fafc;
+  color: var(--technician-metadata);
+}
+
+.technician-assigned-jobs-page .job-table tbody td,
+.technician-job-history-page .job-history-table td {
+  border-color: #edf1f5;
+}
+
+.technician-assigned-jobs-page .job-table-row:hover td,
+.technician-job-history-page .job-history-table tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+.technician-assigned-jobs-page .job-mobile-card,
+.technician-job-history-page .job-history-mobile-card {
+  border-color: var(--technician-panel-border);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.technician-job-history-page .job-history-search-control button {
+  width: 36px;
+  height: 36px;
+}
+
+.technician-job-history-page .job-history-view-button {
+  padding-inline: 0.9rem;
+}
+
+.job-details-modal-content {
+  max-height: calc(100vh - 2rem);
+  overflow: hidden;
+  border: 1px solid var(--technician-panel-border);
+  border-radius: 12px;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+}
+
+.job-details-modal-content .modal-body {
+  overflow-y: auto;
+}
+
+.job-details-modal-content .modal-header,
+.job-details-modal-content .modal-footer {
+  border-color: var(--technician-panel-border, #dfe6ef) !important;
+  background-color: #ffffff !important;
+}
+
+.job-details-modal-content .modal-footer {
+  gap: 0.6rem;
+}
+
+.job-details-modal-content .modal-footer .btn-primary {
+  border-color: var(--primary-600);
+  background-color: var(--primary-600);
+}
+
+.job-details-modal-content .modal-footer .btn-outline-secondary {
+  border-color: var(--technician-control-border, #8291a5);
+  color: var(--text-secondary);
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-item,
+.technician-submit-report-page .report-control {
+  border-color: var(--technician-control-border);
+}
+
+.technician-submit-report-page .report-section-heading h3 {
+  font-size: 1.0625rem;
+}
+
+.technician-submit-report-page .report-form-actions {
+  border-top: 0;
+}
+
+@media (max-width: 1199.98px) {
+  .technician-submit-report-page .service-report-form {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .technician-submit-report-page .report-layout-grid,
+  .technician-submit-report-page .report-main-column,
+  .technician-submit-report-page .report-support-column,
+  .technician-submit-report-page .report-component-slot {
+    display: contents;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .technician-sidebar {
+    width: min(280px, 86vw);
+  }
+
+  .technician-dashboard-page .dashboard-job-actions .btn,
+  .technician-assigned-jobs-page .job-mobile-card .action-view-btn,
+  .technician-job-history-page .job-history-mobile-card .job-history-view-button {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .technician-content-area {
+    padding-top: 1.25rem !important;
+    padding-bottom: 1.5rem !important;
+  }
+
+  .technician-assigned-jobs-page .filter-tab-btn {
+    min-width: 0;
+    padding-inline: 0.45rem;
+    font-size: 0.75rem;
+  }
+
+  .technician-assigned-jobs-page .tab-count-badge {
+    min-width: 18px;
+    padding-inline: 0.3rem;
+  }
+
+  .technician-submit-report-page .report-control {
+    width: 100%;
+  }
+
+  .job-details-modal-content {
+    max-height: calc(100vh - 1rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .technician-portal-wrapper *,
+  .technician-portal-wrapper *::before,
+  .technician-portal-wrapper *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .duty-dot-pulse {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   Final Hybrid — second production composition pass
+   ========================================================================== */
+
+.technician-portal-wrapper {
+  background: #f4f7fb;
+}
+
+.technician-sidebar {
+  width: 208px;
+}
+
+.sidebar-brand-header {
+  min-height: 72px;
+  padding: 1rem 1.1rem 0.9rem;
+  border-bottom: 0;
+}
+
+.sidebar-brand-header .gap-3 {
+  gap: 0.65rem !important;
+}
+
+.brand-logo-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+}
+
+.brand-title {
+  font-size: 0.94rem;
+  font-weight: 700;
+}
+
+.brand-subtitle {
+  margin-top: 1px;
+  color: var(--technician-metadata);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.sidebar-nav-menu {
+  padding: 0.35rem 0.75rem 1rem;
+}
+
+.sidebar-nav-section {
+  margin: 1rem 0 0.35rem;
+  padding: 0 0.6rem;
+  color: #8291a5;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.sidebar-nav-section:first-child {
+  margin-top: 0.35rem;
+}
+
+.sidebar-nav-menu .nav-item {
+  margin: 0 0 2px;
+}
+
+.sidebar-nav-menu .nav-link {
+  min-height: 42px;
+  gap: 0.7rem !important;
+  padding: 0.55rem 0.65rem;
+  color: #475569;
+  font-size: 0.83rem;
+  font-weight: 500;
+}
+
+.sidebar-nav-menu .nav-link.active {
+  background: #eff6ff;
+  color: #1d4ed8;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.05);
+}
+
+.sidebar-nav-menu .nav-icon {
+  width: 20px;
+  color: #64748b;
+}
+
+.sidebar-nav-menu .nav-link.active .nav-icon {
+  color: #2563eb;
+}
+
+.sidebar-footer {
+  margin: 0 0.75rem;
+  padding: 0.9rem 0.35rem 1rem;
+  border-color: #edf1f5;
+}
+
+.sidebar-profile-card {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.sidebar-profile-card .duty-status-badge {
+  display: none;
+}
+
+.technician-topbar {
+  min-height: 56px;
+  padding-block: 0;
+}
+
+.topbar-leading,
+.topbar-actions {
+  min-height: 56px;
+}
+
+.topbar-mobile-label {
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.topbar-menu-button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  color: #64748b;
+}
+
+.topbar-date-pill {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.topbar-duty-status {
+  min-height: 30px;
+  padding: 0.35rem 0.7rem;
+  background: #f0fdf4;
+  border-color: #dcfce7;
+  font-size: 0.72rem;
+}
+
+.topbar-alert-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-color: transparent;
+}
+
+.topbar-alert-count {
+  position: absolute;
+  top: 4px;
+  right: 3px;
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  padding-inline: 4px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.technician-content-area {
+  max-width: 1320px;
+  padding: 2rem 2rem 2.5rem !important;
+}
+
+.page-kicker {
+  margin-bottom: 0.32rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+}
+
+.page-title {
+  margin-bottom: 0.35rem;
+  font-size: 1.75rem;
+  line-height: 1.12;
+}
+
+.page-subtitle {
+  margin-bottom: 0;
+  font-size: 0.9rem;
+}
+
+/* Dashboard */
+.technician-dashboard-page .dashboard-hero {
+  align-items: center;
+  margin-bottom: 1.55rem;
+}
+
+.technician-dashboard-page .dashboard-header-action {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1rem;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.technician-dashboard-page .dashboard-header-action:hover {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.technician-dashboard-page .dashboard-kpi-strip {
+  margin-bottom: 1.35rem;
+  border-color: #dfe6ef;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.technician-dashboard-page .dashboard-kpi-item {
+  min-height: 88px;
+  padding: 1rem 1.15rem;
+}
+
+.technician-dashboard-page .dashboard-kpi-item .kpi-icon-box {
+  display: none;
+}
+
+.technician-dashboard-page .dashboard-kpi-copy {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label label"
+    "value context";
+  align-items: end;
+  gap: 0.25rem 0.75rem;
+}
+
+.technician-dashboard-page .dashboard-kpi-copy .kpi-stat-label {
+  grid-area: label;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.technician-dashboard-page .dashboard-kpi-copy .kpi-stat-value {
+  grid-area: value;
+  font-size: 1.7rem;
+  font-weight: 700;
+}
+
+.technician-dashboard-page .dashboard-kpi-context {
+  grid-area: context;
+  padding-bottom: 0.18rem;
+  color: #64748b;
+  font-size: 0.72rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.technician-dashboard-page .dashboard-workspace {
+  grid-template-columns: minmax(0, 2.05fr) minmax(280px, 0.95fr);
+  gap: 1.15rem;
+}
+
+.technician-dashboard-page .dashboard-panel-card {
+  border-color: #dfe6ef;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.technician-dashboard-page .dashboard-panel-header {
+  min-height: 70px;
+  padding: 1rem 1.1rem;
+}
+
+.technician-dashboard-page .dashboard-section-header h3 {
+  font-size: 1.05rem;
+}
+
+.technician-dashboard-page .dashboard-section-header p {
+  margin: 0.2rem 0 0;
+  color: #64748b;
+  font-size: 0.74rem;
+}
+
+.technician-dashboard-page .dashboard-view-all-link {
+  min-height: 36px;
+  padding: 0 0.25rem;
+}
+
+.technician-dashboard-page .dashboard-schedule-card {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) 170px;
+  align-items: center;
+  gap: 1rem;
+  min-height: 126px;
+  padding: 1rem 1.1rem;
+  border: 0;
+  border-top: 1px solid #edf1f5;
+}
+
+.technician-dashboard-page .dashboard-schedule-card:first-child {
+  padding-top: 1rem;
+}
+
+.technician-dashboard-page .dashboard-schedule-card::before {
+  display: none;
+}
+
+.technician-dashboard-page .dashboard-schedule-card:hover {
+  background: #f8fafc;
+}
+
+.technician-dashboard-page .dashboard-job-time-block {
+  display: grid;
+  gap: 0.2rem;
+  align-self: start;
+  padding-top: 0.18rem;
+}
+
+.technician-dashboard-page .dashboard-job-time-block strong {
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.technician-dashboard-page .dashboard-job-time-block span {
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+.technician-dashboard-page .dashboard-job-summary {
+  min-width: 0;
+}
+
+.technician-dashboard-page .dashboard-job-title-row {
+  justify-content: flex-start;
+  gap: 0.75rem;
+}
+
+.technician-dashboard-page .dashboard-job-title-row h4 {
+  font-size: 0.94rem;
+}
+
+.technician-dashboard-page .dashboard-job-customer {
+  margin: 0.2rem 0 0.55rem;
+  color: #64748b;
+  font-size: 0.76rem;
+}
+
+.technician-dashboard-page .dashboard-job-operational-meta {
+  display: grid;
+  gap: 0.25rem;
+  color: #475569;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.technician-dashboard-page .dashboard-job-operational-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.technician-dashboard-page .dashboard-job-actions {
+  display: grid;
+  gap: 0.45rem;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.technician-dashboard-page .dashboard-job-actions .btn {
+  width: 100%;
+  min-height: 42px;
+  justify-content: center;
+}
+
+.technician-dashboard-page .dashboard-side-column {
+  display: block;
+  overflow: hidden;
+  border: 1px solid #dfe6ef;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.technician-dashboard-page .dashboard-side-column .dashboard-panel-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.technician-dashboard-page .dashboard-side-column .dashboard-panel-card + .dashboard-panel-card {
+  border-top: 1px solid #dfe6ef;
+}
+
+.technician-dashboard-page .dashboard-quick-actions-list {
+  gap: 0.4rem;
+  padding: 0.8rem 0.9rem 1rem;
+}
+
+.technician-dashboard-page .quick-action-primary-btn,
+.technician-dashboard-page .quick-action-outline-btn {
+  min-height: 44px;
+}
+
+.technician-dashboard-page .quick-action-outline-btn {
+  border: 1px solid #dfe6ef;
+  background: #fff;
+}
+
+.technician-dashboard-page .dashboard-performance-list {
+  padding: 0.7rem 1rem 1rem;
+}
+
+/* Assigned Jobs */
+.technician-assigned-jobs-page .assigned-jobs-header {
+  margin-bottom: 1.3rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary {
+  display: flex;
+  gap: 0.5rem;
+  margin: -0.6rem 0 1rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary-item {
+  min-height: 0;
+  flex: 0 0 auto;
+  gap: 0.35rem;
+  padding: 0.25rem 0.7rem 0.25rem 0;
+  border: 0;
+  border-right: 1px solid #dfe6ef;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary-item:last-child {
+  border-right: 0;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary .kpi-icon-box {
+  display: none;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary-copy {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary .kpi-stat-label {
+  order: 2;
+  color: #64748b;
+  font-size: 0.72rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary .kpi-stat-value {
+  font-size: 0.86rem;
+}
+
+.technician-assigned-jobs-page .jobs-main-card {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.technician-assigned-jobs-page .jobs-toolbar {
+  align-items: end;
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid #dfe6ef;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.technician-assigned-jobs-page .filter-tabs-container {
+  min-height: 44px;
+  align-items: center;
+  padding: 4px;
+  border-radius: 8px;
+  background: #f1f5f9;
+}
+
+.technician-assigned-jobs-page .filter-tab-btn {
+  min-height: 36px;
+  border-radius: 6px;
+}
+
+.technician-assigned-jobs-page .filter-tab-btn.active {
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.technician-assigned-jobs-page .assigned-jobs-filter-controls {
+  align-items: end;
+  gap: 0.65rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-toolbar-field {
+  display: grid;
+  gap: 0.32rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-toolbar-field > label {
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-search-field {
+  width: min(420px, 40vw);
+}
+
+.technician-assigned-jobs-page .assigned-jobs-status-field {
+  width: 150px;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-table-view {
+  overflow: hidden;
+  border: 1px solid #dfe6ef;
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: #fff;
+}
+
+.technician-assigned-jobs-page .job-table thead th {
+  height: 44px;
+  padding-block: 0.65rem;
+  border-bottom-color: #dfe6ef;
+  background: #f8fafc;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+}
+
+.technician-assigned-jobs-page .job-table tbody td {
+  height: 86px;
+  padding-block: 0.9rem;
+}
+
+.technician-assigned-jobs-page .job-table .customer-avatar-sm {
+  display: none;
+}
+
+.technician-assigned-jobs-page .job-row-actions,
+.technician-assigned-jobs-page .job-mobile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.technician-assigned-jobs-page .job-table .job-id-chip {
+  white-space: nowrap;
+}
+
+.technician-assigned-jobs-page .job-table th:last-child,
+.technician-assigned-jobs-page .job-table td:last-child {
+  padding-right: 0.75rem !important;
+}
+
+.technician-assigned-jobs-page .job-primary-action,
+.technician-assigned-jobs-page .action-view-btn {
+  min-height: 40px;
+  padding: 0.55rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.technician-assigned-jobs-page .job-primary-action {
+  min-width: 82px;
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.technician-assigned-jobs-page .job-primary-action:hover {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+}
+
+.technician-assigned-jobs-page .action-view-btn {
+  border-color: #8291a5;
+  color: #475569;
+}
+
+.technician-assigned-jobs-page .jobs-card-footer {
+  min-height: 46px;
+  margin: 0;
+  padding: 0.7rem 1rem;
+  border: 1px solid #dfe6ef;
+  border-top-color: #edf1f5;
+  border-radius: 0 0 12px 12px;
+  background: #fff;
+}
+
+/* Submit Report */
+.technician-submit-report-page .report-page-header {
+  align-items: center;
+  margin-bottom: 1.6rem;
+}
+
+.technician-submit-report-page .service-report-form {
+  border: 0;
+  background: transparent;
+}
+
+.technician-submit-report-page .report-workflow-heading {
+  align-items: center;
+}
+
+.technician-submit-report-page .report-eligibility-badge {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.technician-submit-report-page .report-eligibility-badge > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.technician-submit-report-page .report-job-selector-block {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.technician-submit-report-page .report-workflow-divider {
+  height: 1px;
+  margin: 1.35rem 0;
+  background: #edf1f5;
+}
+
+.technician-submit-report-page .selected-job-summary {
+  margin-top: 0;
+  padding: 0.9rem 1rem;
+  border: 0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-grid {
+  gap: 0.48rem;
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-item {
+  min-height: 46px;
+  padding: 0.65rem 0.72rem;
+  border-color: #cbd5e1;
+}
+
+.technician-submit-report-page .report-support-column .service-checklist-item {
+  min-height: 40px;
+  padding-block: 0.5rem;
+}
+
+.technician-submit-report-page .report-control {
+  min-height: 44px;
+  border-color: #8291a5;
+}
+
+.technician-submit-report-page textarea.report-control {
+  min-height: 88px;
+}
+
+.technician-submit-report-page .customer-acknowledgement {
+  border: 0;
+  background: #f8fafc;
+}
+
+/* Job History */
+.technician-job-history-page .job-history-page-header {
+  margin-bottom: 1.45rem;
+}
+
+.technician-job-history-page .job-history-record-count {
+  padding: 0.55rem 0.75rem;
+  border: 0;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #dfe6ef;
+}
+
+.technician-job-history-page .job-history-list-panel {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.technician-job-history-page .job-history-toolbar {
+  align-items: end;
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid #dfe6ef;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.technician-job-history-page .job-history-search-field,
+.technician-job-history-page .job-history-date-filters > div {
+  gap: 0.32rem;
+}
+
+.technician-job-history-page .job-history-search-field label,
+.technician-job-history-page .job-history-date-filters label {
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.technician-job-history-page .job-history-table-wrapper {
+  overflow: hidden;
+  border: 1px solid #dfe6ef;
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: #fff;
+}
+
+.technician-job-history-page .job-history-table th {
+  height: 44px;
+  padding-block: 0.65rem;
+  background: #f8fafc;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+}
+
+.technician-job-history-page .job-history-table td {
+  height: 84px;
+  padding-block: 0.9rem;
+}
+
+.technician-job-history-page .job-history-list-footer {
+  min-height: 46px;
+  margin: 0;
+  padding: 0.7rem 1rem;
+  border: 1px solid #dfe6ef;
+  border-top-color: #edf1f5;
+  border-radius: 0 0 12px 12px;
+  background: #fff;
+}
+
+.technician-job-history-page .job-history-view-button {
+  min-height: 40px;
+  border-color: #8291a5;
+  background: #fff;
+  color: #475569;
+  font-weight: 600;
+}
+
+/* Job Details */
+.job-details-modal-content .modal-header {
+  min-height: 68px;
+  padding: 1rem 1.25rem !important;
+  background: #fff !important;
+}
+
+.job-details-modal-content .modal-body {
+  padding: 0 1.25rem 1.2rem !important;
+}
+
+.job-details-modal-content .job-modal-section-card {
+  margin: 0 !important;
+  padding: 1rem 0;
+  border: 0;
+  border-bottom: 1px solid #edf1f5;
+  border-radius: 0;
+  background: transparent;
+}
+
+.job-details-modal-content .job-modal-section-card:last-child {
+  border-bottom: 0;
+}
+
+.job-details-modal-content .row.g-3 {
+  --bs-gutter-x: 2rem;
+  margin-bottom: 0 !important;
+}
+
+.job-details-modal-content .info-icon-box,
+.job-details-modal-content .customer-avatar-lg {
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.job-details-modal-content .job-modal-section-card .bg-white.border {
+  border: 0 !important;
+  border-left: 2px solid #bfdbfe !important;
+  border-radius: 0 8px 8px 0 !important;
+  background: #f8fafc !important;
+}
+
+.job-details-modal-content .modal-footer {
+  min-height: 68px;
+  padding: 0.8rem 1.25rem !important;
+  background: #fff !important;
+}
+
+@media (min-width: 1200px) {
+  .technician-submit-report-page .report-layout-grid {
+    grid-template-columns: minmax(0, 1.85fr) minmax(320px, 1fr);
+    gap: 1.2rem;
+  }
+
+  .technician-submit-report-page .report-main-column,
+  .technician-submit-report-page .report-support-column {
+    border-color: #dfe6ef;
+    border-radius: 12px;
+  }
+
+  .technician-submit-report-page .report-main-column > .report-section,
+  .technician-submit-report-page .report-main-column > .report-component-slot > .report-section {
+    padding: 1.35rem 1.45rem;
+  }
+
+  .technician-submit-report-page .report-support-column > .report-section,
+  .technician-submit-report-page .report-support-column > .report-component-slot > .report-section {
+    padding: 1.25rem;
+  }
+
+  .technician-submit-report-page .report-main-column .report-multi-select .service-checklist-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-submit-report-page .report-support-column .report-section-heading {
+    margin-bottom: 0.8rem;
+  }
+
+  .technician-submit-report-page .report-support-column .report-section-heading p {
+    font-size: 0.74rem;
+  }
+}
+
+@media (max-width: 1199.98px) {
+  .technician-submit-report-page .service-report-form {
+    overflow: hidden;
+    border: 1px solid #dfe6ef;
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  .technician-dashboard-page .dashboard-schedule-card {
+    grid-template-columns: 86px minmax(0, 1fr) 160px;
+  }
+
+  .technician-submit-report-page .report-workflow-section {
+    order: 1;
+  }
+
+  .technician-submit-report-page .report-checklist-slot > .report-section {
+    order: 2;
+  }
+
+  .technician-submit-report-page .report-materials-slot > .report-section {
+    order: 3;
+  }
+
+  .technician-submit-report-page .report-follow-up-slot > .report-section {
+    order: 4;
+  }
+
+  .technician-submit-report-page .report-completion-section {
+    order: 5;
+  }
+
+  .technician-submit-report-page .report-form-actions {
+    order: 6;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .technician-sidebar {
+    width: min(280px, 86vw);
+  }
+
+  .technician-content-area {
+    max-width: none;
+    padding: 1.75rem 1.5rem 2.25rem !important;
+  }
+
+  .technician-dashboard-page .dashboard-header-action {
+    display: none;
+  }
+
+  .technician-dashboard-page .dashboard-kpi-context {
+    display: none;
+  }
+
+  .technician-dashboard-page .dashboard-kpi-copy .kpi-stat-value {
+    white-space: nowrap;
+  }
+
+  .technician-dashboard-page .dashboard-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .technician-dashboard-page .dashboard-side-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    overflow: visible;
+    gap: 1rem;
+    border: 0;
+    background: transparent;
+  }
+
+  .technician-dashboard-page .dashboard-side-column .dashboard-panel-card {
+    overflow: hidden;
+    border: 1px solid #dfe6ef;
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  .technician-dashboard-page .dashboard-side-column .dashboard-panel-card + .dashboard-panel-card {
+    border-top: 1px solid #dfe6ef;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-search-field {
+    width: min(100%, 480px);
+  }
+
+  .technician-assigned-jobs-page .jobs-toolbar {
+    align-items: stretch;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-filter-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-mobile-view,
+  .technician-job-history-page .job-history-mobile-list {
+    padding: 0;
+  }
+
+  .technician-assigned-jobs-page .job-mobile-card,
+  .technician-job-history-page .job-history-mobile-card {
+    margin-bottom: 0.75rem !important;
+    border: 1px solid #dfe6ef;
+    background: #fff;
+  }
+
+  .technician-assigned-jobs-page .job-mobile-card .bg-light {
+    padding: 0.75rem 0 !important;
+    border: 0 !important;
+    border-top: 1px solid #edf1f5 !important;
+    border-bottom: 1px solid #edf1f5 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .technician-assigned-jobs-page .jobs-card-footer,
+  .technician-job-history-page .job-history-list-footer {
+    border-radius: 10px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .technician-content-area {
+    padding: 1.35rem 1rem 1.75rem !important;
+  }
+
+  .page-title {
+    font-size: 1.55rem;
+  }
+
+  .technician-dashboard-page .dashboard-kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-dashboard-page .dashboard-kpi-item {
+    min-height: 82px;
+  }
+
+  .technician-dashboard-page .dashboard-kpi-context {
+    display: none;
+  }
+
+  .technician-dashboard-page .dashboard-schedule-card {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 0.8rem;
+    padding: 1rem;
+  }
+
+  .technician-dashboard-page .dashboard-job-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr;
+    margin-top: 0.15rem;
+  }
+
+  .technician-dashboard-page .dashboard-job-operational-meta span {
+    white-space: normal;
+  }
+
+  .technician-dashboard-page .dashboard-side-column {
+    grid-template-columns: 1fr;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-summary {
+    flex-wrap: wrap;
+    gap: 0.3rem 0.55rem;
+  }
+
+  .technician-assigned-jobs-page .jobs-toolbar,
+  .technician-job-history-page .job-history-toolbar {
+    padding: 0.85rem;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-filter-controls,
+  .technician-job-history-page .job-history-date-filters {
+    width: 100%;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-search-field,
+  .technician-assigned-jobs-page .assigned-jobs-status-field {
+    width: 100%;
+  }
+
+  .technician-assigned-jobs-page .job-mobile-card-footer {
+    align-items: flex-end !important;
+    gap: 0.75rem;
+  }
+
+  .technician-assigned-jobs-page .job-mobile-actions {
+    flex: 1;
+  }
+
+  .technician-assigned-jobs-page .job-mobile-actions button {
+    flex: 1;
+  }
+
+  .technician-submit-report-page .report-workflow-heading {
+    align-items: flex-start;
+  }
+
+  .technician-submit-report-page .report-eligibility-badge {
+    display: none;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .topbar-duty-status {
+    display: none !important;
+  }
+
+  .technician-dashboard-page .dashboard-hero {
+    margin-bottom: 1.2rem;
+  }
+
+  .technician-dashboard-page .dashboard-panel-header {
+    min-height: 64px;
+  }
+
+  .technician-dashboard-page .dashboard-schedule-card {
+    grid-template-columns: 1fr;
+  }
+
+  .technician-dashboard-page .dashboard-job-time-block {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+
+  .technician-dashboard-page .dashboard-job-actions {
+    grid-column: auto;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-summary-item {
+    padding-right: 0.55rem;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-summary .kpi-stat-label {
+    font-size: 0.68rem;
+  }
+
+  .technician-assigned-jobs-page .filter-tabs-container {
+    width: 100%;
+  }
+
+  .technician-assigned-jobs-page .filter-tab-btn {
+    flex: 1;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-filter-controls {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .technician-assigned-jobs-page .job-mobile-card-footer {
+    display: grid !important;
+    grid-template-columns: 1fr;
+  }
+
+  .technician-assigned-jobs-page .job-mobile-actions {
+    width: 100%;
+  }
+
+  .technician-submit-report-page .report-section {
+    padding: 1.1rem;
+  }
+
+  .technician-job-history-page .job-history-record-count {
+    align-self: flex-start;
+  }
+}
+
+/* ==========================================================================
+   Cooling Aqua Theme Pass
+   Visual tokens only; layout and component behavior remain unchanged.
+   ========================================================================== */
+
+.technician-portal-wrapper {
+  --primary-50: #eaf7f6;
+  --primary-100: #d8f1ef;
+  --primary-200: #b9e4e1;
+  --primary-500: #58c5c7;
+  --primary-600: #287c86;
+  --primary-700: #245b68;
+  --technician-canvas: #f7f9f7;
+  --technician-surface: #ffffff;
+  --technician-panel-border: #dce9e7;
+  --technician-control-border: #91a9ad;
+  --technician-metadata: #5d767b;
+  --technician-canvas-metadata: #5d767b;
+  --technician-focus-ring: rgba(88, 197, 199, 0.3);
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #dce9e7;
+  --sidebar-text: #526b70;
+  --bg-app: #f7f9f7;
+  --surface-muted: #f3f8f7;
+  --border-subtle: #dce9e7;
+  --border-default: #cbdedb;
+  --text-primary: #233e46;
+  --text-secondary: #526d73;
+  --text-muted: #5d767b;
+  --text-dim: #809397;
+  --bs-primary: #287c86;
+  --bs-primary-rgb: 40, 124, 134;
+  --bs-link-color: #287c86;
+  --bs-link-hover-color: #206c75;
+  background: #f7f9f7;
+  color: #233e46;
+}
+
+.technician-main-container {
+  background: #f7f9f7;
+}
+
+.technician-sidebar {
+  border-color: #dce9e7;
+  background: #ffffff;
+}
+
+.brand-logo-icon {
+  background: linear-gradient(145deg, #69d0cf 0%, #287c86 100%);
+  box-shadow: 0 6px 16px rgba(40, 124, 134, 0.16);
+}
+
+.brand-title,
+.page-title,
+.technician-dashboard-page .dashboard-section-header h3,
+.technician-submit-report-page .report-section-heading h2,
+.technician-submit-report-page .report-section-heading h3,
+.technician-job-history-page .job-history-report-identity h3,
+.job-details-modal-content .modal-title {
+  color: #245b68;
+}
+
+.brand-subtitle,
+.page-subtitle,
+.topbar-date-pill,
+.topbar-mobile-label {
+  color: #5d767b;
+}
+
+.sidebar-nav-section {
+  color: #769095;
+}
+
+.sidebar-nav-menu .nav-link {
+  color: #526b70;
+}
+
+.sidebar-nav-menu .nav-link:hover {
+  background: #f3f8f7;
+  color: #245b68;
+}
+
+.sidebar-nav-menu .nav-link.active {
+  background: #e6f5f4;
+  color: #245b68;
+  box-shadow: inset 0 0 0 1px rgba(88, 197, 199, 0.1);
+}
+
+.sidebar-nav-menu .nav-link.active .nav-icon,
+.page-kicker,
+.technician-portal-wrapper .text-primary {
+  color: #287c86 !important;
+}
+
+.sidebar-nav-menu .nav-link:focus-visible,
+.topbar-menu-button:focus-visible,
+.topbar-alert-btn:focus-visible {
+  outline-color: #58c5c7;
+}
+
+.tech-avatar {
+  background: #287c86;
+}
+
+.technician-topbar {
+  border-color: #dce9e7;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.topbar-alert-btn {
+  color: #5d767b;
+}
+
+.topbar-alert-btn:hover {
+  background: #f3f8f7;
+  color: #287c86;
+}
+
+.topbar-alert-count {
+  background: #287c86;
+}
+
+.technician-portal-wrapper .btn-primary,
+.job-details-modal-content .btn-primary {
+  --bs-btn-bg: #287c86;
+  --bs-btn-border-color: #287c86;
+  --bs-btn-hover-bg: #206c75;
+  --bs-btn-hover-border-color: #206c75;
+  --bs-btn-active-bg: #1d6169;
+  --bs-btn-active-border-color: #1d6169;
+  --bs-btn-focus-shadow-rgb: 88, 197, 199;
+  background-color: #287c86;
+  border-color: #287c86;
+  color: #ffffff;
+}
+
+.technician-portal-wrapper .btn-outline-primary {
+  --bs-btn-color: #287c86;
+  --bs-btn-border-color: #58c5c7;
+  --bs-btn-hover-bg: #287c86;
+  --bs-btn-hover-border-color: #287c86;
+  --bs-btn-active-bg: #206c75;
+  --bs-btn-active-border-color: #206c75;
+  --bs-btn-focus-shadow-rgb: 88, 197, 199;
+  color: #287c86;
+  border-color: #58c5c7;
+}
+
+.technician-dashboard-page .dashboard-header-action,
+.technician-dashboard-page .quick-action-primary-btn,
+.technician-assigned-jobs-page .job-primary-action {
+  border-color: #287c86;
+  background: #287c86;
+  color: #ffffff;
+}
+
+.technician-dashboard-page .dashboard-header-action:hover,
+.technician-dashboard-page .quick-action-primary-btn:hover,
+.technician-assigned-jobs-page .job-primary-action:hover {
+  border-color: #206c75;
+  background: #206c75;
+  color: #ffffff;
+}
+
+.technician-dashboard-page .dashboard-kpi-strip,
+.technician-dashboard-page .dashboard-panel-card,
+.technician-dashboard-page .dashboard-side-column,
+.technician-assigned-jobs-page .jobs-toolbar,
+.technician-assigned-jobs-page .assigned-jobs-table-view,
+.technician-assigned-jobs-page .jobs-card-footer,
+.technician-submit-report-page .service-report-form,
+.technician-submit-report-page .report-main-column,
+.technician-submit-report-page .report-support-column,
+.technician-job-history-page .job-history-toolbar,
+.technician-job-history-page .job-history-table-wrapper,
+.technician-job-history-page .job-history-list-footer,
+.technician-job-history-page .job-history-report-card,
+.technician-job-history-page .job-history-feedback-card {
+  border-color: #dce9e7;
+}
+
+.technician-dashboard-page .dashboard-schedule-card,
+.technician-dashboard-page .dashboard-side-column .dashboard-panel-card + .dashboard-panel-card,
+.technician-submit-report-page .report-workflow-divider,
+.job-details-modal-content .job-modal-section-card {
+  border-color: #e4efed;
+}
+
+.technician-dashboard-page .dashboard-schedule-card:hover,
+.technician-dashboard-page .quick-action-outline-btn:hover {
+  background: #f2f9f8;
+}
+
+.technician-dashboard-page .quick-action-outline-btn {
+  border-color: #dce9e7;
+  background: #ffffff;
+  color: #526d73;
+}
+
+.technician-dashboard-page .dashboard-action-icon,
+.technician-dashboard-page .dashboard-view-all-link,
+.technician-dashboard-page .dashboard-performance-primary,
+.technician-dashboard-page .dashboard-readiness-icon {
+  color: #287c86 !important;
+}
+
+.technician-dashboard-page .performance-progress-fill {
+  background: #58c5c7;
+}
+
+.technician-assigned-jobs-page .filter-tabs-container {
+  background: #edf5f4;
+}
+
+.technician-assigned-jobs-page .filter-tab-btn.active {
+  color: #287c86;
+  box-shadow: 0 1px 2px rgba(36, 91, 104, 0.08);
+}
+
+.technician-assigned-jobs-page .tab-count-badge.active,
+.technician-assigned-jobs-page .job-id-chip,
+.technician-job-history-page .job-history-id-chip,
+.job-details-modal-content .job-id-chip {
+  background: #eaf7f6;
+  color: #245b68;
+}
+
+.technician-assigned-jobs-page .job-table thead th,
+.technician-job-history-page .job-history-table th {
+  border-color: #dce9e7;
+  background: #f1f7f6;
+  color: #5d767b;
+}
+
+.technician-assigned-jobs-page .job-table tbody td,
+.technician-job-history-page .job-history-table td {
+  border-color: #e4efed;
+}
+
+.technician-assigned-jobs-page .job-table-row:hover td,
+.technician-job-history-page .job-history-table tbody tr:hover {
+  background: #f2f9f8 !important;
+}
+
+.technician-assigned-jobs-page .action-view-btn,
+.technician-job-history-page .job-history-view-button,
+.technician-job-history-page .job-history-back-button {
+  border-color: #b9cecb;
+  background: #ffffff;
+  color: #287c86;
+}
+
+.technician-assigned-jobs-page .action-view-btn:hover,
+.technician-job-history-page .job-history-view-button:hover {
+  border-color: #58c5c7;
+  background: #eaf7f6;
+  color: #245b68;
+}
+
+.status-badge-upcoming {
+  background: #eaf7f6;
+  color: #287c86;
+}
+
+.status-dot-upcoming {
+  background: #58c5c7;
+}
+
+.technician-assigned-jobs-page .job-mobile-card,
+.technician-job-history-page .job-history-mobile-card {
+  border-color: #dce9e7;
+}
+
+.technician-assigned-jobs-page .job-mobile-card::before {
+  background: #58c5c7;
+}
+
+.technician-submit-report-page .selected-job-summary,
+.technician-submit-report-page .customer-acknowledgement,
+.technician-submit-report-page .materials-inventory-details {
+  background: #f3f8f7;
+}
+
+.technician-submit-report-page .report-control,
+.technician-assigned-jobs-page .search-input,
+.technician-assigned-jobs-page .status-select-filter,
+.technician-job-history-page .job-history-search-control input,
+.technician-job-history-page .job-history-date-filters input {
+  border-color: #91a9ad;
+  background: #ffffff;
+  color: #233e46;
+}
+
+.technician-submit-report-page .report-control:focus,
+.technician-assigned-jobs-page .search-input:focus,
+.technician-assigned-jobs-page .status-select-filter:focus,
+.technician-job-history-page .job-history-search-control input:focus,
+.technician-job-history-page .job-history-date-filters input:focus {
+  border-color: #58c5c7;
+  box-shadow: 0 0 0 3px rgba(88, 197, 199, 0.3);
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-item {
+  border-color: #b9cecb;
+  background: #ffffff;
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-item:hover {
+  border-color: #7fd1d1;
+  background: #f2f9f8;
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-item:has(input:checked) {
+  border-color: #58c5c7;
+  background: #eaf7f6;
+  color: #245b68;
+}
+
+.technician-submit-report-page .service-checklist-item input,
+.technician-submit-report-page .report-option-row input,
+.technician-submit-report-page .customer-acknowledgement input {
+  accent-color: #287c86;
+}
+
+.technician-submit-report-page .report-eligibility-badge {
+  border: 1px solid #d7ece6;
+}
+
+.technician-job-history-page .job-history-record-count,
+.technician-job-history-page .job-history-service-mark,
+.technician-job-history-page .job-history-empty-state > span {
+  border-color: #dce9e7;
+  background: #eaf7f6;
+  color: #245b68;
+}
+
+.job-details-modal-content {
+  --primary-50: #eaf7f6;
+  --primary-200: #b9e4e1;
+  --primary-500: #58c5c7;
+  --primary-600: #287c86;
+  --primary-700: #245b68;
+  --technician-focus-ring: rgba(88, 197, 199, 0.3);
+  --border-subtle: #dce9e7;
+  --text-primary: #233e46;
+  --text-secondary: #526d73;
+  --text-muted: #5d767b;
+  border: 1px solid #dce9e7;
+  box-shadow: 0 18px 42px rgba(36, 91, 104, 0.16);
+}
+
+.job-details-modal-content .modal-header,
+.job-details-modal-content .modal-footer {
+  border-color: #dce9e7 !important;
+  background: #ffffff !important;
+}
+
+.job-details-modal-content .info-icon-box,
+.job-details-modal-content .customer-avatar-lg {
+  background: #eaf7f6;
+  color: #287c86;
+}
+
+.job-details-modal-content .job-modal-section-card .bg-white.border {
+  border-left-color: #9edbd8 !important;
+  background: #f3f8f7 !important;
+}
+
+.job-details-modal-content .text-primary {
+  color: #287c86 !important;
+}
+
+.job-details-modal-content .text-dark {
+  color: #233e46 !important;
+}
+
+.job-details-modal-content .text-secondary,
+.job-details-modal-content .text-muted {
+  color: #5d767b !important;
+}
+
+.technician-portal-wrapper :where(
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  [tabindex]
+):focus-visible,
+.job-details-modal-content :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline-color: #58c5c7;
+}
+
+/* ==========================================================================
+   Cool Fix Brand & Dashboard Surface Pass
+   ========================================================================== */
+
+.technician-portal-wrapper {
+  --primary-50: #e8f7f4;
+  --primary-100: #d8f1ec;
+  --primary-200: #afe3da;
+  --primary-500: #39b7a5;
+  --primary-600: #247c73;
+  --primary-700: #234e52;
+  --technician-canvas: #f7f8f6;
+  --technician-panel-border: #e3eae7;
+  --technician-control-border: #94aaa6;
+  --technician-metadata: #626f70;
+  --technician-canvas-metadata: #5f6d6f;
+  --technician-focus-ring: rgba(57, 183, 165, 0.28);
+  --sidebar-border: #e3eae7;
+  --sidebar-text: #526466;
+  --bg-app: #f7f8f6;
+  --surface-muted: #f3f7f5;
+  --border-subtle: #e3eae7;
+  --border-default: #cfddda;
+  --text-primary: #1f2937;
+  --text-secondary: #526466;
+  --text-muted: #626f70;
+  --text-dim: #7b898a;
+  --bs-primary: #247c73;
+  --bs-primary-rgb: 36, 124, 115;
+  --bs-link-color: #247c73;
+  --bs-link-hover-color: #1d665f;
+  background: #f7f8f6;
+  color: #1f2937;
+}
+
+.technician-main-container {
+  background: #f7f8f6;
+}
+
+.sidebar-brand-header {
+  min-height: 76px;
+}
+
+.sidebar-brand-lockup {
+  min-width: 0;
+}
+
+.cool-fix-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.62rem;
+  min-width: 0;
+  color: #247c73;
+}
+
+.cool-fix-logo-mark {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 5px 10px rgba(36, 124, 115, 0.16));
+}
+
+.cool-fix-logo-snow {
+  stroke: #c6f3eb;
+}
+
+.cool-fix-wordmark {
+  color: #234e52;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.cool-fix-sidebar-logo {
+  display: flex;
+}
+
+.sidebar-brand-lockup .brand-subtitle {
+  margin: 0.28rem 0 0 2.98rem;
+  color: #6b7280;
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.topbar-mobile-brand {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.cool-fix-mobile-logo {
+  gap: 0.45rem;
+}
+
+.cool-fix-mobile-logo .cool-fix-logo-mark {
+  width: 30px;
+  height: 30px;
+  filter: none;
+}
+
+.cool-fix-mobile-logo .cool-fix-wordmark {
+  font-size: 0.88rem;
+}
+
+.brand-title,
+.page-title,
+.technician-dashboard-page .dashboard-section-header h3,
+.technician-submit-report-page .report-section-heading h2,
+.technician-submit-report-page .report-section-heading h3,
+.technician-job-history-page .job-history-report-identity h3 {
+  color: #234e52;
+}
+
+.page-subtitle,
+.topbar-date-pill,
+.technician-portal-wrapper .text-muted {
+  color: #626f70 !important;
+}
+
+.technician-sidebar,
+.technician-topbar {
+  border-color: #e3eae7;
+}
+
+.sidebar-nav-menu .nav-link.active {
+  background: #e9f7f3;
+  color: #247c73;
+  box-shadow: inset 3px 0 0 #39b7a5;
+}
+
+.sidebar-nav-menu .nav-link.active .nav-icon,
+.page-kicker,
+.technician-portal-wrapper .text-primary {
+  color: #247c73 !important;
+}
+
+.sidebar-nav-menu .nav-link:hover {
+  background: #f1f7f5;
+  color: #234e52;
+}
+
+.tech-avatar,
+.topbar-alert-count {
+  background: #247c73;
+}
+
+.technician-portal-wrapper .btn-primary,
+.job-details-modal-content .btn-primary,
+.technician-dashboard-page .dashboard-header-action,
+.technician-dashboard-page .quick-action-primary-btn,
+.technician-assigned-jobs-page .job-primary-action {
+  border-color: #247c73;
+  background: #247c73;
+}
+
+.technician-portal-wrapper .btn-primary:hover,
+.job-details-modal-content .btn-primary:hover,
+.technician-dashboard-page .dashboard-header-action:hover,
+.technician-dashboard-page .quick-action-primary-btn:hover,
+.technician-assigned-jobs-page .job-primary-action:hover {
+  border-color: #1d665f;
+  background: #1d665f;
+}
+
+.technician-portal-wrapper .btn-outline-primary {
+  color: #247c73;
+  border-color: #39b7a5;
+}
+
+.technician-dashboard-page .dashboard-kpi-strip {
+  gap: 0.9rem;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.technician-dashboard-page .dashboard-kpi-item {
+  min-height: 98px;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid #e3eae7;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 7px 20px rgba(35, 78, 82, 0.045);
+}
+
+.technician-dashboard-page .dashboard-kpi-item:last-child {
+  border-right: 1px solid #e3eae7;
+}
+
+.technician-dashboard-page .dashboard-kpi-item .kpi-icon-box {
+  display: flex;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  background: #e8f7f4;
+  color: #247c73;
+}
+
+.technician-dashboard-page .dashboard-kpi-copy {
+  display: grid;
+  grid-template-areas:
+    "label"
+    "value"
+    "context";
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0.12rem;
+}
+
+.technician-dashboard-page .dashboard-kpi-copy .kpi-stat-label {
+  color: #6b7280;
+}
+
+.technician-dashboard-page .dashboard-kpi-copy .kpi-stat-value {
+  color: #1f2937;
+  font-size: 1.55rem;
+}
+
+.technician-dashboard-page .dashboard-kpi-context {
+  padding: 0;
+  color: #6b7280;
+  text-align: left;
+}
+
+.technician-dashboard-page .dashboard-panel-card,
+.technician-dashboard-page .dashboard-side-column,
+.technician-assigned-jobs-page .jobs-toolbar,
+.technician-assigned-jobs-page .assigned-jobs-table-view,
+.technician-submit-report-page .report-main-column,
+.technician-submit-report-page .report-support-column,
+.technician-job-history-page .job-history-toolbar,
+.technician-job-history-page .job-history-table-wrapper,
+.technician-job-history-page .job-history-report-card,
+.technician-job-history-page .job-history-feedback-card {
+  border-color: #e3eae7;
+  box-shadow: 0 7px 22px rgba(35, 78, 82, 0.04);
+}
+
+.technician-dashboard-page .dashboard-schedule-card:hover,
+.technician-assigned-jobs-page .job-table-row:hover td,
+.technician-job-history-page .job-history-table tbody tr:hover {
+  background: #f2faf7 !important;
+}
+
+.technician-dashboard-page .dashboard-action-icon,
+.technician-dashboard-page .dashboard-view-all-link,
+.technician-dashboard-page .dashboard-performance-primary,
+.technician-dashboard-page .dashboard-readiness-icon {
+  color: #247c73 !important;
+}
+
+.technician-dashboard-page .performance-progress-fill {
+  background: #39b7a5;
+}
+
+.technician-assigned-jobs-page .filter-tabs-container {
+  background: #eef5f2;
+}
+
+.technician-assigned-jobs-page .filter-tab-btn.active,
+.technician-assigned-jobs-page .tab-count-badge.active {
+  color: #247c73;
+}
+
+.technician-assigned-jobs-page .job-table thead th,
+.technician-job-history-page .job-history-table th {
+  border-color: #e3eae7;
+  background: #f2f7f5;
+  color: #626f70;
+}
+
+.technician-assigned-jobs-page .job-table tbody td,
+.technician-job-history-page .job-history-table td {
+  border-color: #e8efec;
+}
+
+.technician-assigned-jobs-page .job-id-chip,
+.technician-job-history-page .job-history-id-chip,
+.job-details-modal-content .job-id-chip {
+  background: #e8f7f4;
+  color: #234e52;
+}
+
+.technician-assigned-jobs-page .action-view-btn,
+.technician-job-history-page .job-history-view-button,
+.technician-job-history-page .job-history-back-button {
+  border-color: #bfd2ce;
+  color: #247c73;
+}
+
+.technician-assigned-jobs-page .action-view-btn:hover,
+.technician-job-history-page .job-history-view-button:hover {
+  border-color: #39b7a5;
+  background: #e8f7f4;
+  color: #234e52;
+}
+
+.status-badge-upcoming {
+  background: #e8f7f4;
+  color: #247c73;
+}
+
+.status-dot-upcoming,
+.technician-assigned-jobs-page .job-mobile-card::before {
+  background: #39b7a5;
+}
+
+.technician-submit-report-page .report-control,
+.technician-assigned-jobs-page .search-input,
+.technician-assigned-jobs-page .status-select-filter,
+.technician-job-history-page .job-history-search-control input,
+.technician-job-history-page .job-history-date-filters input {
+  border-color: #94aaa6;
+}
+
+.technician-submit-report-page .report-control:focus,
+.technician-assigned-jobs-page .search-input:focus,
+.technician-assigned-jobs-page .status-select-filter:focus,
+.technician-job-history-page .job-history-search-control input:focus,
+.technician-job-history-page .job-history-date-filters input:focus {
+  border-color: #39b7a5;
+  box-shadow: 0 0 0 3px rgba(57, 183, 165, 0.28);
+}
+
+.technician-submit-report-page .report-multi-select .service-checklist-item:has(input:checked) {
+  border-color: #39b7a5;
+  background: #e8f7f4;
+  color: #234e52;
+}
+
+.technician-submit-report-page .service-checklist-item input,
+.technician-submit-report-page .report-option-row input,
+.technician-submit-report-page .customer-acknowledgement input {
+  accent-color: #247c73;
+}
+
+.job-details-modal-content {
+  --primary-50: #e8f7f4;
+  --primary-500: #39b7a5;
+  --primary-600: #247c73;
+  --primary-700: #234e52;
+  --technician-focus-ring: rgba(57, 183, 165, 0.28);
+  border-color: #e3eae7;
+  box-shadow: 0 18px 42px rgba(35, 78, 82, 0.15);
+}
+
+.job-details-modal-content .info-icon-box,
+.job-details-modal-content .customer-avatar-lg {
+  background: #e8f7f4;
+  color: #247c73;
+}
+
+.job-details-modal-content .text-primary {
+  color: #247c73 !important;
+}
+
+@media (max-width: 767.98px) {
+  .technician-dashboard-page .dashboard-kpi-strip {
+    gap: 0.7rem;
+  }
+
+  .technician-dashboard-page .dashboard-kpi-item {
+    min-height: 92px;
+    padding: 0.8rem;
+  }
+
+  .technician-dashboard-page .dashboard-kpi-item .kpi-icon-box {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+  }
+}
+
+@media (max-width: 420px) {
+  .technician-dashboard-page .dashboard-kpi-item {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    align-items: start;
+    gap: 0.55rem;
+  }
+
+  .technician-dashboard-page .dashboard-kpi-copy .kpi-stat-label {
+    white-space: normal;
+  }
+}
+
+/* ==========================================================================
+   Cool Fix Admin Dashboard Recomposition
+   ========================================================================== */
+
+.technician-portal-wrapper,
+.technician-main-container {
+  background: #f6f8f7;
+}
+
+.technician-sidebar {
+  width: 196px;
+  border-right-color: #e5eae7;
+}
+
+.sidebar-brand-header {
+  min-height: 82px;
+  padding-inline: 0.95rem;
+}
+
+.sidebar-nav-menu {
+  padding: 0.45rem 0.65rem 1.2rem;
+}
+
+.sidebar-nav-section {
+  margin-top: 1.25rem;
+  padding-inline: 0.7rem;
+  font-size: 0.64rem;
+  letter-spacing: 0.11em;
+}
+
+.sidebar-nav-menu .nav-link {
+  min-height: 42px;
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+}
+
+.sidebar-nav-menu .nav-link.active {
+  box-shadow: none;
+}
+
+.sidebar-footer {
+  margin-inline: 0.65rem;
+  padding-block: 1rem 1.2rem;
+}
+
+.technician-topbar,
+.topbar-leading,
+.topbar-actions {
+  min-height: 62px;
+}
+
+.technician-topbar {
+  border-bottom: 1px solid #e5eae7;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.technician-content-area {
+  max-width: 1400px;
+  padding: 2.15rem 2.25rem 3rem !important;
+}
+
+.page-title {
+  font-size: clamp(1.7rem, 2.2vw, 2rem);
+  letter-spacing: -0.04em;
+}
+
+.page-subtitle {
+  max-width: 720px;
+}
+
+/* Dashboard: distinct cards and a true primary/supporting grid. */
+.technician-dashboard-page .dashboard-hero {
+  margin-bottom: 1.8rem;
+}
+
+.technician-dashboard-page .dashboard-header-action {
+  min-height: 42px;
+  padding-inline: 1.1rem;
+  border-radius: 10px;
+  box-shadow: 0 6px 14px rgba(39, 117, 104, 0.14);
+}
+
+.technician-dashboard-page .dashboard-kpi-strip {
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.technician-dashboard-page .dashboard-kpi-item {
+  min-height: 104px;
+  padding: 1.05rem 1rem;
+  border-color: #e5eae7;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(31, 41, 55, 0.055);
+}
+
+.technician-dashboard-page .dashboard-kpi-item .kpi-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.technician-dashboard-page .dashboard-kpi-copy .kpi-stat-value {
+  font-size: 1.62rem;
+}
+
+.technician-dashboard-page .dashboard-workspace {
+  grid-template-columns: minmax(0, 1.85fr) minmax(300px, 0.82fr);
+  gap: 1rem;
+}
+
+.technician-dashboard-page .dashboard-panel-card,
+.technician-dashboard-page .dashboard-side-column .dashboard-panel-card {
+  overflow: hidden;
+  border: 1px solid #e5eae7;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 8px 26px rgba(31, 41, 55, 0.05);
+}
+
+.technician-dashboard-page .dashboard-side-column {
+  display: grid;
+  gap: 1rem;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.technician-dashboard-page .dashboard-side-column .dashboard-panel-card + .dashboard-panel-card {
+  border-top: 1px solid #e5eae7;
+}
+
+.technician-dashboard-page .dashboard-panel-header {
+  min-height: 72px;
+  padding: 1.05rem 1.2rem;
+  background: #ffffff;
+}
+
+.technician-dashboard-page .dashboard-schedule-card {
+  min-height: 132px;
+  padding-inline: 1.2rem;
+}
+
+.technician-dashboard-page .dashboard-quick-actions-list {
+  padding: 0.95rem 1rem 1.1rem;
+}
+
+.technician-dashboard-page .dashboard-performance-list {
+  padding: 0.9rem 1.1rem 1.1rem;
+}
+
+/* Assigned Jobs: one integrated admin-table card with compact stat cards. */
+.technician-assigned-jobs-page .assigned-jobs-header {
+  margin-bottom: 1.25rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary-item {
+  min-height: 72px;
+  gap: 0.65rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #e5eae7;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 5px 16px rgba(31, 41, 55, 0.04);
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary-item:last-child {
+  border-right: 1px solid #e5eae7;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary .kpi-icon-box {
+  display: flex;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary-copy {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.08rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary .kpi-stat-value {
+  order: 0;
+  font-size: 1.12rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary .kpi-stat-label {
+  order: 1;
+  color: #6b7280;
+  font-size: 0.68rem;
+}
+
+.technician-assigned-jobs-page .jobs-main-card {
+  overflow: hidden;
+  border: 1px solid #e5eae7;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 9px 28px rgba(31, 41, 55, 0.05);
+}
+
+.technician-assigned-jobs-page .jobs-toolbar {
+  margin: 0;
+  padding: 1.1rem 1.15rem;
+  border: 0;
+  border-bottom: 1px solid #e5eae7;
+  border-radius: 0;
+  background: #ffffff;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-table-view {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.technician-assigned-jobs-page .job-table thead th {
+  height: 48px;
+}
+
+.technician-assigned-jobs-page .job-table tbody td {
+  height: 92px;
+}
+
+.technician-assigned-jobs-page .jobs-card-footer {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid #e5eae7;
+  border-radius: 0;
+  background: #fbfcfb;
+}
+
+/* Submit Report: independent dashboard cards in the established 65/35 grid. */
+.technician-submit-report-page .service-report-form {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.technician-submit-report-page .report-main-column,
+.technician-submit-report-page .report-support-column {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.technician-submit-report-page .report-main-column,
+.technician-submit-report-page .report-support-column {
+  gap: 1rem;
+}
+
+.technician-submit-report-page .report-job-selection-section {
+  order: 1;
+}
+
+.technician-submit-report-page .report-workflow-section {
+  order: 2;
+}
+
+.technician-submit-report-page .report-materials-slot {
+  order: 3;
+}
+
+.technician-submit-report-page .report-checklist-slot {
+  order: 1;
+}
+
+.technician-submit-report-page .report-follow-up-slot {
+  order: 2;
+}
+
+.technician-submit-report-page .report-completion-section {
+  order: 3;
+}
+
+.technician-submit-report-page .report-form-actions {
+  order: 4;
+}
+
+.technician-submit-report-page .report-main-column > .report-section,
+.technician-submit-report-page .report-main-column > .report-component-slot > .report-section,
+.technician-submit-report-page .report-support-column > .report-section,
+.technician-submit-report-page .report-support-column > .report-component-slot > .report-section,
+.technician-submit-report-page .report-form-actions {
+  overflow: hidden;
+  border: 1px solid #e5eae7;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(31, 41, 55, 0.045);
+}
+
+.technician-submit-report-page .report-main-column > :not(:last-child),
+.technician-submit-report-page .report-support-column > :not(:last-child) {
+  border-bottom: 0;
+}
+
+.technician-submit-report-page .report-section-heading {
+  margin-bottom: 1.15rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid #eef2f0;
+}
+
+.technician-submit-report-page .report-job-selection-section .report-section-heading {
+  align-items: center;
+}
+
+.technician-submit-report-page .selected-job-summary {
+  border: 1px solid #e5eeeb;
+  background: #f5faf8;
+}
+
+.technician-submit-report-page .report-form-actions {
+  padding: 1rem;
+}
+
+/* Job History: discrete control and result cards. */
+.technician-job-history-page .job-history-list-panel {
+  display: grid;
+  gap: 1rem;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.technician-job-history-page .job-history-controls-card,
+.technician-job-history-page .job-history-results-card {
+  overflow: hidden;
+  border: 1px solid #e5eae7;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(31, 41, 55, 0.045);
+}
+
+.technician-job-history-page .job-history-toolbar {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.technician-job-history-page .job-history-table-wrapper {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.technician-job-history-page .job-history-list-footer {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid #e5eae7;
+  border-radius: 0;
+  background: #fbfcfb;
+}
+
+@media (max-width: 1199.98px) {
+  .technician-submit-report-page .service-report-form {
+    gap: 1rem;
+  }
+
+  .technician-submit-report-page .report-job-selection-section {
+    order: 1;
+  }
+
+  .technician-submit-report-page .report-workflow-section {
+    order: 2;
+  }
+
+  .technician-submit-report-page .report-checklist-slot > .report-section {
+    order: 3;
+  }
+
+  .technician-submit-report-page .report-materials-slot > .report-section {
+    order: 4;
+  }
+
+  .technician-submit-report-page .report-follow-up-slot > .report-section {
+    order: 5;
+  }
+
+  .technician-submit-report-page .report-completion-section {
+    order: 6;
+  }
+
+  .technician-submit-report-page .report-form-actions {
+    order: 7;
+  }
+
+  .technician-submit-report-page .report-section,
+  .technician-submit-report-page .report-form-actions {
+    border: 1px solid #e5eae7;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 7px 20px rgba(31, 41, 55, 0.04);
+  }
+}
+
+@media (max-width: 991.98px) {
+  .technician-sidebar {
+    width: min(276px, 86vw);
+  }
+
+  .technician-content-area {
+    padding: 1.8rem 1.5rem 2.5rem !important;
+  }
+
+  .technician-dashboard-page .dashboard-side-column {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-mobile-view,
+  .technician-job-history-page .job-history-mobile-list {
+    padding: 1rem;
+    background: #f8faf9;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .technician-content-area {
+    padding: 1.4rem 1rem 2rem !important;
+  }
+
+  .technician-dashboard-page .dashboard-kpi-strip,
+  .technician-assigned-jobs-page .assigned-jobs-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-dashboard-page .dashboard-side-column {
+    grid-template-columns: 1fr;
+  }
+
+  .technician-assigned-jobs-page .jobs-toolbar {
+    padding: 0.9rem;
+  }
+
+  .technician-submit-report-page .report-section-heading {
+    padding-bottom: 0.75rem;
+  }
+
+  .technician-job-history-page .job-history-controls-card,
+  .technician-job-history-page .job-history-results-card,
+  .technician-assigned-jobs-page .jobs-main-card {
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .technician-dashboard-page .dashboard-kpi-item,
+  .technician-assigned-jobs-page .assigned-jobs-summary-item {
+    min-height: 88px;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-summary-item {
+    padding: 0.75rem;
+  }
+
+  .technician-submit-report-page .report-section,
+  .technician-submit-report-page .report-form-actions {
+    border-radius: 12px;
+  }
+}
+
+/* Full-redesign cascade guard: this block intentionally follows legacy rules. */
+.technician-submit-report-page .cf-report-main > .report-job-selection-section { order: 1; }
+.technician-submit-report-page .cf-report-main > .cf-inspection-card { order: 2; }
+.technician-submit-report-page .cf-report-main > .cf-work-performed-card { order: 3; }
+.technician-submit-report-page .cf-report-main > .cf-materials-card { order: 4; }
+.technician-submit-report-page .cf-report-rail > .report-checklist-slot { order: 1; }
+.technician-submit-report-page .cf-report-rail > .report-follow-up-slot { order: 2; }
+.technician-submit-report-page .cf-report-rail > .report-completion-section { order: 3; }
+.technician-submit-report-page .cf-report-rail > .cf-report-action-dock {
+  position: static;
+  order: 4;
+}
+
+.technician-job-history-page .job-history-search-control > svg {
+  width: 16px;
+  height: 16px;
+}
+
+.technician-job-history-page .job-history-view-button {
+  min-width: 92px;
+  white-space: nowrap;
+}
+
+.cf-job-modal.job-details-modal-content {
+  --cf-primary: #2f8f7d;
+  --cf-primary-strong: #277568;
+  --cf-primary-soft: #eaf7f2;
+  --cf-text: #1f2937;
+  --cf-heading: #183f3a;
+  --cf-muted: #6b7280;
+  --cf-border: #e5eae7;
+  --cf-border-strong: #d5dfdb;
+  --cf-shadow-raised: 0 18px 48px rgba(31, 41, 55, 0.13);
+}
+
+/* ==========================================================================
+   Technician Follow-Up
+   ========================================================================== */
+
+.technician-follow-up-page .cf-page-header {
+  align-items: center;
+}
+
+.follow-up-assignment-status {
+  display: flex;
+  min-width: 160px;
+  align-items: center;
+  gap: 0.72rem;
+  padding: 0.72rem 0.82rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.035);
+}
+
+.follow-up-assignment-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+}
+
+.follow-up-assignment-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.follow-up-assignment-status > span:last-child {
+  display: grid;
+}
+
+.follow-up-assignment-status small {
+  color: var(--cf-muted);
+  font-size: 0.64rem;
+}
+
+.follow-up-assignment-status strong {
+  color: var(--cf-heading);
+  font-size: 1.08rem;
+  line-height: 1.1;
+}
+
+.follow-up-demo-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.72rem;
+  margin-bottom: 0.85rem;
+  padding: 0.72rem 0.9rem;
+  border: 1px solid #cfe4dd;
+  border-radius: 10px;
+  background: #f1faf7;
+  color: var(--cf-text);
+}
+
+.follow-up-demo-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.follow-up-demo-notice strong {
+  display: block;
+  color: var(--cf-heading);
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.follow-up-demo-notice p {
+  margin: 0.1rem 0 0;
+  color: var(--cf-muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.follow-up-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.follow-up-summary-card {
+  display: grid;
+  min-height: 78px;
+  grid-template-columns: 9px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.04);
+}
+
+.follow-up-summary-card > span:last-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.follow-up-summary-card small {
+  color: var(--cf-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.follow-up-summary-card strong {
+  color: var(--cf-text);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.follow-up-summary-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.follow-up-summary-dot-mint { background: var(--cf-primary); }
+.follow-up-summary-dot-blue { background: #5b9ac2; }
+.follow-up-summary-dot-amber { background: #d99a36; }
+.follow-up-summary-dot-green { background: #54a970; }
+
+.follow-up-workspace {
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: var(--cf-shadow);
+}
+
+.follow-up-workspace-header {
+  display: flex;
+  min-height: 82px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.follow-up-workspace-header h2 {
+  margin: 0;
+  color: var(--cf-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+}
+
+.follow-up-workspace-header p {
+  margin: 0.25rem 0 0;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+}
+
+.follow-up-toolbar {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) 180px auto;
+  align-items: end;
+  gap: 0.72rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--cf-border);
+  background: #fbfcfb;
+}
+
+.follow-up-search-field,
+.follow-up-status-field {
+  display: grid;
+  min-width: 0;
+  gap: 0.38rem;
+}
+
+.follow-up-search-field label,
+.follow-up-status-field label {
+  color: #68736f;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.follow-up-search-control {
+  position: relative;
+}
+
+.follow-up-search-control > svg {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  width: 15px;
+  height: 15px;
+  color: #85908c;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.follow-up-search-control input,
+.follow-up-status-field select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--cf-border-strong);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--cf-text);
+  font: inherit;
+  font-size: 0.75rem;
+}
+
+.follow-up-search-control input {
+  padding: 0.6rem 2.35rem;
+}
+
+.follow-up-status-field select {
+  padding: 0.6rem 2rem 0.6rem 0.75rem;
+}
+
+.follow-up-search-control input:focus,
+.follow-up-status-field select:focus {
+  border-color: var(--cf-primary);
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(47, 143, 125, 0.18);
+}
+
+.follow-up-search-control button {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #77837f;
+  font-size: 1.1rem;
+  transform: translateY(-50%);
+}
+
+.follow-up-reset-button {
+  min-width: 96px;
+}
+
+.follow-up-table-view {
+  overflow-x: auto;
+}
+
+.follow-up-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.follow-up-table th {
+  height: 46px;
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--cf-border);
+  background: #f6f8f7;
+  color: #78837f;
+  font-size: 0.61rem;
+  font-weight: 700;
+  text-align: left;
+  letter-spacing: 0.065em;
+}
+
+.follow-up-table td {
+  height: 88px;
+  padding: 0.85rem;
+  border-bottom: 1px solid #edf1ef;
+  color: var(--cf-text);
+  font-size: 0.73rem;
+  vertical-align: middle;
+}
+
+.follow-up-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.follow-up-table tbody tr:hover td {
+  background: #f8fcfa;
+}
+
+.follow-up-table th:nth-child(1) { width: 15%; }
+.follow-up-table th:nth-child(2) { width: 15%; }
+.follow-up-table th:nth-child(3) { width: 18%; }
+.follow-up-table th:nth-child(4) { width: 13%; }
+.follow-up-table th:nth-child(5) { width: 19%; }
+.follow-up-table th:nth-child(6) { width: 10%; }
+.follow-up-table th:nth-child(7) { width: 10%; }
+
+.follow-up-table td strong,
+.follow-up-table td small {
+  display: block;
+}
+
+.follow-up-table td strong {
+  color: var(--cf-text);
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.follow-up-table td small {
+  margin-top: 0.18rem;
+  color: var(--cf-muted);
+  font-size: 0.64rem;
+  line-height: 1.4;
+}
+
+.follow-up-report-context {
+  display: inline-flex;
+  margin-top: 0.3rem;
+  padding: 0.18rem 0.4rem;
+  border-radius: 999px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
+.follow-up-location {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #55635f;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.follow-up-view-button {
+  display: inline-flex;
+  min-width: 92px;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--cf-border-strong);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--cf-primary-strong);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.follow-up-view-button:hover {
+  border-color: #bcd4cd;
+  background: var(--cf-primary-soft);
+}
+
+.follow-up-card-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  padding: 1rem;
+  background: #f7f9f8;
+}
+
+.follow-up-record-card {
+  padding: 1rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 5px 16px rgba(31, 41, 55, 0.04);
+}
+
+.follow-up-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.follow-up-card-heading > div {
+  display: grid;
+}
+
+.follow-up-card-heading > div > span {
+  color: var(--cf-primary-strong);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.follow-up-card-heading small {
+  margin-top: 0.16rem;
+  color: var(--cf-muted);
+  font-size: 0.62rem;
+}
+
+.follow-up-record-card h3 {
+  margin: 0.9rem 0 0.2rem;
+  color: var(--cf-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.follow-up-record-card > p {
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: 0.72rem;
+}
+
+.follow-up-record-card dl {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0.9rem 0;
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--cf-border);
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.follow-up-record-card dl div {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.follow-up-record-card dt {
+  color: #7b8783;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.follow-up-record-card dd {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.follow-up-record-card .follow-up-view-button {
+  width: 100%;
+  min-height: 44px;
+}
+
+.follow-up-empty-state {
+  display: grid;
+  min-height: 330px;
+  place-items: center;
+  align-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.follow-up-empty-icon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 0.85rem;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+}
+
+.follow-up-empty-icon svg {
+  width: 23px;
+  height: 23px;
+}
+
+.follow-up-empty-state h3 {
+  margin: 0;
+  color: var(--cf-heading);
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.follow-up-empty-state p {
+  max-width: 430px;
+  margin: 0.38rem 0 1rem;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
+.follow-up-detail-modal {
+  --cf-primary: #2f8f7d;
+  --cf-primary-strong: #277568;
+  --cf-primary-soft: #eaf7f2;
+  --cf-heading: #183f3a;
+  --cf-text: #1f2937;
+  --cf-muted: #6b7280;
+  --cf-border: #e5eae7;
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(31, 41, 55, 0.13);
+}
+
+.follow-up-detail-modal .modal-header,
+.follow-up-detail-modal .modal-footer {
+  padding: 1rem 1.2rem;
+  border-color: var(--cf-border);
+}
+
+.follow-up-detail-modal .modal-body {
+  padding: 1.2rem;
+}
+
+.follow-up-detail-heading {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.follow-up-detail-heading .modal-title {
+  color: var(--cf-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.follow-up-detail-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.follow-up-detail-heading > div > span:first-child {
+  color: var(--cf-primary-strong);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.follow-up-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.follow-up-detail-grid section {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+  padding: 0.9rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 10px;
+  background: #fbfcfb;
+}
+
+.follow-up-detail-grid span,
+.follow-up-detail-grid small {
+  color: var(--cf-muted);
+  font-size: 0.68rem;
+}
+
+.follow-up-detail-grid strong {
+  overflow-wrap: anywhere;
+  color: var(--cf-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.technician-follow-up-page :is(
+  .follow-up-search-control button,
+  .follow-up-view-button
+):focus-visible {
+  outline: 3px solid rgba(47, 143, 125, 0.25);
+  outline-offset: 2px;
+}
+
+@media (max-width: 991.98px) {
+  .follow-up-card-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .technician-follow-up-page .cf-page-header {
+    align-items: stretch;
+  }
+
+  .follow-up-assignment-status {
+    width: 100%;
+  }
+
+  .follow-up-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .follow-up-workspace-header {
+    min-height: 0;
+    align-items: flex-start;
+    padding: 1rem;
+  }
+
+  .follow-up-toolbar {
+    grid-template-columns: 1fr;
+    padding: 0.9rem;
+  }
+
+  .follow-up-reset-button {
+    width: 100%;
+  }
+
+  .follow-up-card-list {
+    grid-template-columns: 1fr;
+    padding: 0.8rem;
+  }
+
+  .follow-up-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 420px) {
+  .follow-up-summary-card {
+    min-height: 72px;
+    padding: 0.72rem;
+  }
+
+  .follow-up-summary-card > span:last-child {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.08rem;
+  }
+
+  .follow-up-workspace-header {
+    flex-direction: column;
+  }
+
+  .follow-up-empty-state {
+    min-height: 300px;
+    padding: 1.5rem 1rem;
+  }
+}
+
+/* Follow-Up return-visit composition */
+.follow-up-controls {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.42fr) minmax(480px, 1.58fr) auto;
+  align-items: end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(31, 41, 55, 0.025);
+}
+
+.follow-up-controls-copy h2 {
+  margin: 0.12rem 0 0;
+  color: var(--cf-heading);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.follow-up-controls .follow-up-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 160px auto;
+  gap: 0.65rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.follow-up-result-count {
+  align-self: center;
+  color: var(--cf-muted);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.follow-up-result-count strong {
+  color: var(--cf-heading);
+  font-weight: 700;
+}
+
+.follow-up-groups {
+  display: grid;
+  gap: 1rem;
+}
+
+.follow-up-group {
+  --follow-up-tone: var(--cf-primary);
+  --follow-up-tone-soft: var(--cf-primary-soft);
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: 13px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.035);
+}
+
+.follow-up-group-upcoming {
+  --follow-up-tone: #5b9ac2;
+  --follow-up-tone-soft: #eef7fc;
+}
+
+.follow-up-group-progress {
+  --follow-up-tone: #cf9130;
+  --follow-up-tone-soft: #fff8e9;
+}
+
+.follow-up-group-completed {
+  --follow-up-tone: #4f9e6a;
+  --follow-up-tone-soft: #eef8f1;
+}
+
+.follow-up-group-header {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--cf-border);
+  background: #fbfcfb;
+}
+
+.follow-up-group-marker {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--follow-up-tone-soft);
+  color: var(--follow-up-tone);
+}
+
+.follow-up-group-marker svg {
+  width: 18px;
+  height: 18px;
+}
+
+.follow-up-group-header h2 {
+  margin: 0;
+  color: var(--cf-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.follow-up-group-header p {
+  margin: 0.16rem 0 0;
+  color: var(--cf-muted);
+  font-size: 0.68rem;
+}
+
+.follow-up-group-count {
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  background: var(--follow-up-tone-soft);
+  color: var(--follow-up-tone);
+  font-size: 0.64rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.follow-up-visit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  padding: 0.9rem;
+  background: #f8faf9;
+}
+
+.follow-up-visit-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  border: 1px solid #dfe8e4;
+  border-radius: 11px;
+  background: #ffffff;
+  box-shadow: 0 3px 11px rgba(31, 41, 55, 0.03);
+}
+
+.follow-up-visit-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 0.9rem 0.75rem;
+  border-bottom: 1px solid #edf1ef;
+}
+
+.follow-up-visit-identity {
+  display: grid;
+  min-width: 0;
+  gap: 0.12rem;
+}
+
+.follow-up-visit-identity > span {
+  color: var(--cf-muted);
+  font-size: 0.61rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+}
+
+.follow-up-visit-identity strong {
+  color: var(--cf-heading);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.follow-up-visit-identity small {
+  color: #7b8783;
+  font-size: 0.62rem;
+}
+
+.follow-up-visit-content {
+  display: grid;
+  grid-template-columns: minmax(145px, 0.72fr) minmax(0, 1.28fr);
+  gap: 0.85rem;
+  padding: 0.85rem 0.9rem;
+}
+
+.follow-up-return-schedule {
+  align-self: stretch;
+  padding: 0.75rem;
+  border-radius: 9px;
+  background: var(--follow-up-tone-soft);
+}
+
+.follow-up-return-schedule > span {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--follow-up-tone);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+}
+
+.follow-up-return-schedule time {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.follow-up-return-schedule strong {
+  color: var(--cf-heading);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.follow-up-return-schedule small {
+  color: var(--cf-text);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.follow-up-visit-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 0.65rem 0.8rem;
+  margin: 0;
+}
+
+.follow-up-visit-details div {
+  min-width: 0;
+}
+
+.follow-up-visit-details dt {
+  margin-bottom: 0.16rem;
+  color: #7b8783;
+  font-size: 0.59rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.follow-up-visit-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--cf-text);
+  font-size: 0.71rem;
+  font-weight: 600;
+  line-height: 1.42;
+}
+
+.follow-up-visit-location {
+  grid-column: 1 / -1;
+}
+
+.follow-up-visit-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding: 0.72rem 0.9rem;
+  border-top: 1px solid #edf1ef;
+}
+
+.follow-up-report-context,
+.follow-up-booking-context {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--cf-muted);
+  font-size: 0.61rem;
+  font-weight: 700;
+}
+
+.follow-up-report-context {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--cf-primary-strong);
+}
+
+.follow-up-report-context > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cf-primary);
+}
+
+.follow-up-visit-footer .follow-up-view-button {
+  min-width: 104px;
+  min-height: 44px;
+}
+
+.follow-up-group-empty {
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 1rem;
+  background: #f8faf9;
+  color: var(--cf-muted);
+  text-align: center;
+}
+
+.follow-up-group-empty > span {
+  color: var(--follow-up-tone);
+  font-weight: 700;
+}
+
+.follow-up-group-empty p {
+  margin: 0;
+  font-size: 0.7rem;
+}
+
+.follow-up-empty-state-page {
+  min-height: 280px;
+  border: 1px solid var(--cf-border);
+  border-radius: 13px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.03);
+}
+
+.follow-up-filter-empty-action {
+  display: flex;
+  justify-content: center;
+  padding: 0.9rem 0 0;
+}
+
+.follow-up-page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 0.15rem 0;
+  color: var(--cf-muted);
+  font-size: 0.66rem;
+}
+
+.follow-up-page-footer > span:last-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+@media (max-width: 1199.98px) {
+  .follow-up-controls {
+    grid-template-columns: 1fr auto;
+  }
+
+  .follow-up-controls-copy {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .follow-up-visit-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .follow-up-controls {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+
+  .follow-up-controls .follow-up-toolbar {
+    grid-template-columns: minmax(0, 1fr) 160px;
+    padding: 0;
+  }
+
+  .follow-up-controls .follow-up-reset-button {
+    grid-column: 1 / -1;
+  }
+
+  .follow-up-result-count {
+    justify-self: start;
+  }
+
+  .follow-up-visit-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .follow-up-demo-notice {
+    align-items: flex-start;
+  }
+
+  .follow-up-controls .follow-up-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .follow-up-controls .follow-up-reset-button {
+    grid-column: auto;
+  }
+
+  .follow-up-group-header {
+    grid-template-columns: 38px minmax(0, 1fr);
+    padding: 0.82rem;
+  }
+
+  .follow-up-group-marker {
+    width: 36px;
+    height: 36px;
+  }
+
+  .follow-up-group-count {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .follow-up-visit-grid {
+    padding: 0.65rem;
+  }
+
+  .follow-up-visit-card-header,
+  .follow-up-visit-content,
+  .follow-up-visit-footer {
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
+  }
+
+  .follow-up-visit-details {
+    grid-template-columns: 1fr;
+  }
+
+  .follow-up-visit-location {
+    grid-column: auto;
+  }
+
+  .follow-up-visit-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .follow-up-visit-footer .follow-up-view-button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .follow-up-page-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* Follow-Up final visual polish */
+.follow-up-summary-card {
+  min-height: 92px;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 0.8rem;
+  padding: 0.88rem 0.95rem;
+}
+
+.follow-up-summary-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 11px;
+  color: var(--cf-primary-strong);
+}
+
+.follow-up-summary-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.follow-up-summary-icon-mint {
+  background: var(--cf-primary-soft);
+}
+
+.follow-up-summary-icon-blue {
+  background: #eef7fc;
+  color: #4f8fb8;
+}
+
+.follow-up-summary-icon-amber {
+  background: #fff7e7;
+  color: #bd7f20;
+}
+
+.follow-up-summary-icon-green {
+  background: #eef8f1;
+  color: #478e60;
+}
+
+.follow-up-summary-card > span.follow-up-summary-copy:last-child {
+  display: grid;
+  align-items: initial;
+  justify-content: initial;
+  gap: 0.06rem;
+}
+
+.follow-up-summary-copy small {
+  color: #5f6d69;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.follow-up-summary-copy strong {
+  color: var(--cf-heading);
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.follow-up-summary-copy > span {
+  color: #6c7975;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.follow-up-search-field label,
+.follow-up-status-field label {
+  color: #5d6a66;
+}
+
+.follow-up-controls-copy h2,
+.follow-up-group-header h2 {
+  color: #234943;
+}
+
+.follow-up-group-header p,
+.follow-up-result-count,
+.follow-up-page-footer {
+  color: #64716d;
+}
+
+.follow-up-visit-card-header > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.14rem;
+}
+
+.follow-up-card-kicker {
+  color: #71807b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+}
+
+.follow-up-visit-card-header > div > strong {
+  overflow-wrap: anywhere;
+  color: var(--cf-heading);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.follow-up-visit-content {
+  grid-template-columns: minmax(205px, 0.92fr) minmax(0, 1.08fr);
+  gap: 0.8rem;
+  padding-top: 0.78rem;
+  padding-bottom: 0.78rem;
+}
+
+.follow-up-return-schedule {
+  display: flex;
+  align-items: center;
+  gap: 0.68rem;
+  padding: 0.75rem 0.8rem;
+}
+
+.follow-up-return-schedule > .follow-up-return-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  margin: 0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--follow-up-tone);
+}
+
+.follow-up-return-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.follow-up-return-schedule > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+}
+
+.follow-up-return-schedule > div > span {
+  color: var(--follow-up-tone);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+}
+
+.follow-up-return-schedule strong {
+  color: #183f3a;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.follow-up-return-schedule small {
+  color: #334b47;
+  font-size: 0.77rem;
+  font-weight: 700;
+}
+
+.follow-up-visit-details dt {
+  color: #6b7975;
+  font-size: 0.75rem;
+}
+
+.follow-up-visit-details dd {
+  color: #30443f;
+  font-size: 0.75rem;
+}
+
+.follow-up-visit-footer {
+  min-height: 58px;
+}
+
+.follow-up-visit-references {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem 0.55rem;
+}
+
+.follow-up-visit-references > span:not(.follow-up-report-context) {
+  color: #687671;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.follow-up-visit-references .follow-up-report-context {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+}
+
+.follow-up-visit-footer .follow-up-view-button {
+  flex: 0 0 auto;
+  border-color: #cfdbd7;
+  color: var(--cf-primary-strong);
+}
+
+.follow-up-visit-footer .follow-up-view-button:hover {
+  border-color: #abd0c4;
+}
+
+@media (max-width: 991.98px) {
+  .follow-up-visit-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .follow-up-summary-card {
+    min-height: 100px;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 0.58rem;
+    padding: 0.72rem;
+  }
+
+  .follow-up-summary-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+  }
+
+  .follow-up-summary-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .follow-up-summary-copy strong {
+    font-size: 1.25rem;
+  }
+
+  .follow-up-visit-footer {
+    min-height: 0;
+  }
+
+  .follow-up-visit-references {
+    width: 100%;
+  }
+}
+
+/* Job History final presentation refinement */
+.technician-job-history-page .cf-history-filter-card {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.85rem;
+  margin-bottom: 0;
+  border: 1px solid var(--cf-border);
+  border-bottom: 0;
+  border-radius: 14px 14px 0 0;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.technician-job-history-page .cf-history-filter-heading p {
+  max-width: 30rem;
+}
+
+.technician-job-history-page .cf-history-filter-grid {
+  grid-template-columns: minmax(260px, 1fr) repeat(2, minmax(150px, 170px)) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.technician-job-history-page .job-history-search-field,
+.technician-job-history-page .cf-date-filter-field {
+  display: grid;
+  min-width: 0;
+  grid-template-rows: auto 44px;
+  gap: 0.36rem;
+}
+
+.technician-job-history-page .job-history-search-field {
+  width: 100%;
+}
+
+.technician-job-history-page .cf-history-filter-grid label {
+  align-self: end;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.technician-job-history-page .job-history-search-control {
+  height: 44px;
+}
+
+.technician-job-history-page .job-history-search-control input,
+.technician-job-history-page .cf-date-filter-field input {
+  height: 44px;
+  min-height: 44px;
+}
+
+.technician-job-history-page .cf-history-reset {
+  min-height: 44px;
+  align-self: end;
+}
+
+.technician-job-history-page .cf-history-results-card {
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: 0 0 14px 14px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(31, 41, 55, 0.045);
+}
+
+.technician-job-history-page .cf-results-header {
+  min-height: 68px;
+  padding: 0.9rem 1.15rem;
+  background: #fbfcfb;
+}
+
+.technician-job-history-page .job-history-table {
+  min-width: 0;
+}
+
+.technician-job-history-page .job-history-table th,
+.technician-job-history-page .job-history-table td {
+  text-align: left;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(1) {
+  width: 14%;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(2) {
+  width: 25%;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(3) {
+  width: 29%;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(4) {
+  width: 19%;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(5) {
+  width: 13%;
+  text-align: right;
+}
+
+.technician-job-history-page .job-history-table td {
+  height: 76px;
+  padding: 0.85rem 1.05rem;
+}
+
+.technician-job-history-page .job-history-table tbody tr {
+  transition: background-color 0.16s ease;
+}
+
+.technician-job-history-page .job-history-table tbody tr:hover td {
+  background: #f3faf7 !important;
+}
+
+.technician-job-history-page .job-history-table td:last-child {
+  width: 1%;
+  padding-left: 0.5rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.technician-job-history-page .job-history-view-button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  padding: 0.5rem 0.72rem;
+  border: 1px solid #bfd2ce;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #247c73;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+}
+
+.technician-job-history-page .job-history-view-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+.technician-job-history-page .job-history-view-button:hover {
+  border-color: #76bfad;
+  background: #eaf7f2;
+  color: #234e52;
+}
+
+.technician-job-history-page .job-history-view-button:focus-visible {
+  border-color: #46b99a;
+  outline: 3px solid rgba(70, 185, 154, 0.25);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.technician-job-history-page .job-history-mobile-card dl {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.technician-job-history-page .job-history-mobile-card .job-history-view-button {
+  width: 100%;
+  min-height: 44px;
+}
+
+@media (max-width: 991.98px) {
+  .technician-job-history-page .cf-history-filter-card {
+    border-bottom: 1px solid var(--cf-border);
+    border-radius: 14px;
+  }
+
+  .technician-job-history-page .cf-history-filter-grid {
+    grid-template-columns: minmax(260px, 1fr) repeat(2, 160px);
+  }
+
+  .technician-job-history-page .cf-history-reset {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .technician-job-history-page .cf-history-results-card {
+    margin-top: 0.85rem;
+    border-radius: 14px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .technician-job-history-page .cf-history-filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .technician-job-history-page .cf-history-reset {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .technician-job-history-page .cf-history-filter-card,
+  .technician-job-history-page .cf-history-results-card {
+    border-radius: 12px;
+  }
+
+  .technician-job-history-page .cf-results-header {
+    min-height: 0;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+}
+
+/* Final Technician accessibility sizing pass */
+.technician-portal-wrapper :where(
+  .brand-subtitle,
+  .sidebar-nav-section,
+  .tech-avatar,
+  .tech-name,
+  .tech-role,
+  .cf-topbar-context-label,
+  .cf-topbar-context-date,
+  .cf-shift-copy small,
+  .cf-shift-copy strong,
+  .topbar-alert-count,
+  .cf-eyebrow,
+  .cf-widget-kicker,
+  .cf-count-pill
+) {
+  font-size: 12px !important;
+}
+
+.technician-dashboard-page :where(
+  small,
+  .cf-kpi-label,
+  .cf-kpi-context,
+  .cf-schedule-index,
+  .cf-job-code,
+  .cf-performance-list dt,
+  .cf-readiness-banner strong,
+  .cf-readiness-banner b,
+  .cf-performance-hero span
+) {
+  font-size: 12px !important;
+}
+
+.technician-dashboard-page .cf-quick-actions-widget a strong {
+  font-size: 12px !important;
+}
+
+.technician-assigned-jobs-page :where(
+  small,
+  .cf-toolbar-label,
+  .assigned-jobs-toolbar-field > label,
+  .job-table thead th,
+  .job-table .small,
+  .job-mobile-card .small
+) {
+  font-size: 12px !important;
+}
+
+.technician-assigned-jobs-page :where(
+  .cf-page-header-status strong,
+  .job-table tbody .text-truncate,
+  .job-table tbody .small,
+  .cf-workspace-footer strong,
+  .jobs-card-footer strong
+) {
+  font-size: 12px !important;
+}
+
+.technician-submit-report-page :where(
+  small,
+  .cf-card-step,
+  .report-label,
+  .report-choice-hint,
+  .report-section-heading p,
+  .report-optional-label,
+  .report-field-error,
+  .report-eligibility-badge,
+  .report-action-dock span,
+  .materials-field-label
+) {
+  font-size: 12px !important;
+}
+
+.technician-submit-report-page :where(
+  .cf-report-progress b,
+  .selected-job-details dt,
+  .materials-grid-header > span,
+  .materials-inventory-details span,
+  .cf-report-action-dock span
+) {
+  font-size: 12px !important;
+}
+
+.technician-follow-up-page :where(
+  small,
+  .follow-up-summary-copy small,
+  .follow-up-summary-copy > span:last-child,
+  .follow-up-toolbar label,
+  .follow-up-result-count,
+  .follow-up-group-header p,
+  .follow-up-group-count,
+  .follow-up-card-kicker,
+  .follow-up-visit-details dt,
+  .follow-up-visit-references,
+  .follow-up-view-button
+) {
+  font-size: 12px !important;
+}
+
+.technician-follow-up-page .follow-up-page-footer strong {
+  font-size: 12px !important;
+}
+
+.technician-job-history-page :where(
+  small,
+  .cf-history-filter-heading p,
+  .cf-history-filter-grid label,
+  .cf-results-header > span,
+  .job-history-table th,
+  .job-history-id-chip,
+  .job-history-mobile-card dt
+) {
+  font-size: 12px !important;
+}
+
+.technician-job-history-page .cf-workspace-footer strong {
+  font-size: 12px !important;
+}
+
+.technician-dashboard-page .cf-text-link {
+  display: inline-flex;
+  min-height: 44px !important;
+  align-items: center;
+}
+
+.technician-assigned-jobs-page :where(
+  .filter-tab-btn,
+  .job-primary-action,
+  .action-view-btn
+) {
+  min-height: 44px !important;
+}
+
+.technician-submit-report-page .report-support-column .service-checklist-item,
+.technician-submit-report-page .follow-up-choice .report-option-row label {
+  min-height: 44px !important;
+}
+
+.technician-submit-report-page .follow-up-choice .report-option-row label {
+  padding-block: 0.5rem;
+}
+
+.job-details-modal-content .cf-modal-contact-row a {
+  min-height: 44px !important;
+  padding-block: 0.5rem;
 }

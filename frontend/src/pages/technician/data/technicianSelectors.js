@@ -3,6 +3,7 @@ import {
   CURRENT_TECHNICIAN_USER_ID,
   TECHNICIAN_MOCK_ENTITY_STATE,
 } from './technicianMockEntities'
+import { selectTechnicianFollowUpDemoViewModels } from './technicianFollowUpDemo'
 
 function indexBy(records, key) {
   return new Map(records.map((record) => [record[key], record]))
@@ -130,6 +131,16 @@ export function selectAssignedJobs(entityState, technician_ID) {
     .filter(Boolean)
 }
 
+export function selectReportableJobs(entityState, technician_ID) {
+  const jobById = indexBy(getCollection(entityState, 'jobs'), 'job_ID')
+
+  return selectAssignedJobs(entityState, technician_ID).filter((jobViewModel) => {
+    const job = jobById.get(jobViewModel.job_ID)
+
+    return job?.job_status === 'Completed'
+  })
+}
+
 export function selectTechnicianJobHistory(entityState, technician_ID) {
   const historyRelationships = getCollection(entityState, 'jobHistory')
   const workRelationships = getCollection(entityState, 'work')
@@ -143,6 +154,95 @@ export function selectTechnicianJobHistory(entityState, technician_ID) {
       const workRelationship = job ? workByJobId.get(job.job_ID) : null
 
       return workRelationship ? createJobViewModel(workRelationship, indexes) : null
+    })
+    .filter(Boolean)
+}
+
+export function selectTechnicianFollowUps(entityState, technician_ID) {
+  const bookings = getCollection(entityState, 'bookings')
+  const workRelationships = getCollection(entityState, 'work')
+  const serviceReports = getCollection(entityState, 'serviceReports')
+  const indexes = createEntityIndexes(entityState)
+  const followUpBookingIds = new Set(
+    bookings
+      .filter(
+        (booking) =>
+          booking.technician_ID === technician_ID && booking.isFollowup === true,
+      )
+      .map((booking) => booking.booking_ID),
+  )
+  const reportByJobId = new Map()
+  const seenRelationships = new Set()
+
+  serviceReports.forEach((report) => {
+    if (!reportByJobId.has(report.job_id)) {
+      reportByJobId.set(report.job_id, report)
+    }
+  })
+
+  return workRelationships
+    .filter((relationship) => followUpBookingIds.has(relationship.booking_ID))
+    .map((relationship) => {
+      const relationshipKey = `${relationship.booking_ID}:${relationship.job_ID}`
+
+      if (seenRelationships.has(relationshipKey)) return null
+      seenRelationships.add(relationshipKey)
+
+      const booking = indexes.bookingById.get(relationship.booking_ID)
+      const job = indexes.jobById.get(relationship.job_ID)
+      const jobViewModel = createJobViewModel(relationship, indexes)
+
+      if (!booking || !job || !jobViewModel) return null
+
+      const report = reportByJobId.get(job.job_ID)
+      const followUpViewModel = {
+        bookingID: booking.booking_ID,
+        jobID: job.job_ID,
+        customerID: booking.customer_ID,
+        technicianID: booking.technician_ID,
+        id: jobViewModel.id,
+        customerName: jobViewModel.customerName,
+        customerPhone: jobViewModel.customerPhone,
+        customerEmail: jobViewModel.customerEmail,
+        // Compatibility label until the Service entity/API contract is available.
+        serviceName: jobViewModel.serviceType,
+        serviceType: jobViewModel.serviceType,
+        serviceCategory: jobViewModel.serviceCategory,
+        date: booking.date,
+        formattedDate: jobViewModel.formattedDate,
+        time: booking.time,
+        estimatedDuration: jobViewModel.estimatedDuration,
+        location: booking.location,
+        address: booking.location,
+        postalCode: jobViewModel.postalCode,
+        unitType: jobViewModel.unitType,
+        notes: jobViewModel.notes,
+        status: booking.status || job.job_status,
+        jobStatus: job.job_status,
+        isFollowupBooking: true,
+      }
+
+      if (booking.status) {
+        followUpViewModel.bookingStatus = booking.status
+      }
+
+      if (job.serviceID !== null && job.serviceID !== undefined) {
+        followUpViewModel.serviceID = job.serviceID
+      }
+
+      if (typeof job.isFollowup === 'boolean') {
+        followUpViewModel.isFollowupJob = job.isFollowup
+      }
+
+      if (report) {
+        followUpViewModel.reportID = report.reportID
+
+        if (typeof report.isFollowup === 'boolean') {
+          followUpViewModel.isFollowupReport = report.isFollowup
+        }
+      }
+
+      return followUpViewModel
     })
     .filter(Boolean)
 }
@@ -161,6 +261,12 @@ export function selectAssignedJobViewModels(
   return selectAssignedJobs(TECHNICIAN_MOCK_ENTITY_STATE, technician_ID)
 }
 
+export function selectReportableJobViewModels(
+  technician_ID = CURRENT_TECHNICIAN_ENTITY_ID,
+) {
+  return selectReportableJobs(TECHNICIAN_MOCK_ENTITY_STATE, technician_ID)
+}
+
 export function selectCurrentInventoryItems() {
   return selectInventoryItems(TECHNICIAN_MOCK_ENTITY_STATE)
 }
@@ -169,6 +275,30 @@ export function selectCurrentTechnicianJobHistoryViewModels(
   technician_ID = CURRENT_TECHNICIAN_ENTITY_ID,
 ) {
   return selectTechnicianJobHistory(TECHNICIAN_MOCK_ENTITY_STATE, technician_ID)
+}
+
+export function selectCurrentTechnicianFollowUpViewModels(
+  technician_ID = CURRENT_TECHNICIAN_ENTITY_ID,
+) {
+  return selectCurrentTechnicianFollowUpDataSource(technician_ID).records
+}
+
+export function selectCurrentTechnicianFollowUpDataSource(
+  technician_ID = CURRENT_TECHNICIAN_ENTITY_ID,
+) {
+  const entityRecords = selectTechnicianFollowUps(
+    TECHNICIAN_MOCK_ENTITY_STATE,
+    technician_ID,
+  )
+
+  if (entityRecords.length > 0) {
+    return { records: entityRecords, source: 'entity' }
+  }
+
+  return {
+    records: selectTechnicianFollowUpDemoViewModels(technician_ID),
+    source: 'demo',
+  }
 }
 
 export function selectCurrentTechnicianJobViewModels() {
