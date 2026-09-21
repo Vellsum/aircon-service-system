@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import Sidebar from "../components/Sidebar";
-import RecordModal from "../components/RecordModal";
-import "../styles/shared.css";
+import React, { useState, useEffect, useCallback } from "react";
+import Sidebar from "../../components/admin/Sidebar";
+import RecordModal from "../../components/admin/RecordModal";
+import "../../styles/shared.css";
 
 const statusTone = {
   "In Stock": "success",
@@ -9,56 +9,190 @@ const statusTone = {
   "Out of Stock": "danger",
 };
 
-const initialInventory = [
-  { id: "#IN001", item: "R32 Refrigerant Gas (kg)", category: "Refrigerant", sku: "REF-R32", stock: 48, reorderAt: 20, price: "$18", status: "In Stock" },
-  { id: "#IN002", item: "Compressor Capacitor 35uF", category: "Spare Parts", sku: "CAP-35UF", stock: 12, reorderAt: 15, price: "$9", status: "Low Stock" },
-  { id: "#IN003", item: "PVC Drain Pipe (5m)", category: "Installation", sku: "PVC-5M", stock: 30, reorderAt: 10, price: "$6", status: "In Stock" },
-  { id: "#IN004", item: "Aircon Filter Mesh (Standard)", category: "Spare Parts", sku: "FLT-STD", stock: 0, reorderAt: 10, price: "$4", status: "Out of Stock" },
-  { id: "#IN005", item: "Copper Piping 1/4\" (per m)", category: "Installation", sku: "CU-14", stock: 65, reorderAt: 20, price: "$5", status: "In Stock" },
-  { id: "#IN006", item: "PCB Control Board (Universal)", category: "Spare Parts", sku: "PCB-UNI", stock: 6, reorderAt: 8, price: "$45", status: "Low Stock" },
-  { id: "#IN007", item: "Insulation Foam Tape", category: "Installation", sku: "FOAM-TP", stock: 22, reorderAt: 10, price: "$3", status: "In Stock" },
-];
-
 const statusFilters = ["All", "In Stock", "Low Stock", "Out of Stock"];
 
 const inventoryFields = [
-  { key: "item", label: "Item Name", type: "text" },
-  { key: "category", label: "Category", type: "select", options: ["Refrigerant", "Spare Parts", "Installation"] },
+  { key: "item", label: "Item Name", type: "text", required: true },
+  { key: "category", label: "Category", type: "select", options: ["Refrigerant", "Spare Parts", "Installation", "Tool", "Other"] },
   { key: "sku", label: "SKU", type: "text" },
-  { key: "stock", label: "Stock", type: "number" },
+  { key: "stock", label: "Stock", type: "number", required: true },
   { key: "reorderAt", label: "Reorder At", type: "number" },
-  { key: "price", label: "Unit Price", type: "text" },
-  { key: "status", label: "Status", type: "select", options: ["In Stock", "Low Stock", "Out of Stock"] },
+  { key: "price", label: "Unit Price ($)", type: "text" },
+  { key: "description", label: "Description", type: "text" },
 ];
 
 const inventoryViewFields = [{ key: "id", label: "Item ID" }, ...inventoryFields];
 
 const ManageInventory = () => {
-  const [inventory, setInventory] = useState(initialInventory);
+  const [inventory, setInventory] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeStatus, setActiveStatus] = useState("All");
   const [modal, setModal] = useState(null);
+  const [toast, setToast] = useState(null);
 
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // 1. HTTP GET: Fetch inventory records from Azure SQL database
+  const fetchInventory = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token") || "";
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch("http://localhost:5000/api/admin/inventory", { headers });
+      const data = await res.json();
+
+      if (res.ok && data.success && Array.isArray(data.items)) {
+        // Map database record properties to frontend display fields
+        const formatted = data.items.map((item) => {
+          const rawId = item.itemID || 0;
+          const currentStock = parseInt(item.stock, 10) || 0;
+          const minReorder = parseInt(item.reorderAmount, 10) || 5;
+
+          // Determine status label dynamically
+          let itemStatus = item.stockStatus || "In Stock";
+          if (currentStock === 0) itemStatus = "Out of Stock";
+          else if (currentStock <= minReorder) itemStatus = "Low Stock";
+
+          return {
+            itemID: rawId,
+            id: item.SKU ? item.SKU : `#IN${String(rawId).padStart(3, "0")}`,
+            item: item.itemName || "Unnamed Item",
+            category: item.itemType || "Spare Parts",
+            sku: item.SKU || `SKU-${rawId}`,
+            stock: currentStock,
+            reorderAt: minReorder,
+            price: `$${parseFloat(item.price || 0).toFixed(2)}`,
+            rawPrice: item.price || 0,
+            status: itemStatus,
+            description: item.description || "",
+          };
+        });
+        setInventory(formatted);
+      }
+    } catch (err) {
+      console.error("Error fetching inventory data:", err);
+      showToast("Failed to load inventory from database.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Run fetch on mount
+  useEffect(() => {
+    fetchInventory();
+  }, [fetchInventory]);
+
+  // 2. Filter & Search Logic
   const filtered = inventory.filter((item) => {
     const matchesStatus = activeStatus === "All" || item.status === activeStatus;
     const matchesSearch =
-      item.item.toLowerCase().includes(search.toLowerCase()) ||
-      item.sku.toLowerCase().includes(search.toLowerCase());
+      (item.item && item.item.toLowerCase().includes(search.toLowerCase())) ||
+      (item.sku && item.sku.toLowerCase().includes(search.toLowerCase()));
     return matchesStatus && matchesSearch;
   });
 
-  const handleSave = (formData) => {
+  // 3. HTTP POST / PUT: Save new item or update existing item in database
+  const handleSave = async (formData) => {
+    const token = localStorage.getItem("token") || "";
+
+    // Parse monetary string
+    const cleanPrice = typeof formData.price === "string" 
+      ? parseFloat(formData.price.replace(/[^0-9.]/g, "")) || 0
+      : formData.price || 0;
+
+    const payload = {
+      itemName: formData.item || "New Spare Part",
+      itemType: formData.category || "Spare Parts",
+      SKU: formData.sku || `SKU-${Date.now()}`,
+      stock: parseInt(formData.stock, 10) || 0,
+      reorderAmount: parseInt(formData.reorderAt, 10) || 5,
+      price: cleanPrice,
+      description: formData.description || "Aircon spare part",
+    };
+
     if (modal.mode === "create") {
-      const newId = `#IN${String(inventory.length + 1).padStart(3, "0")}`;
-      setInventory([{ ...formData, id: newId }, ...inventory]);
-    } else {
-      setInventory(inventory.map((i) => (i.id === modal.record.id ? { ...i, ...formData } : i)));
+      try {
+        const res = await fetch("http://localhost:5000/api/admin/inventory", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Failed to add inventory item");
+
+        showToast("Inventory item added successfully!");
+        setModal(null);
+        fetchInventory(); // Refresh table from DB
+      } catch (err) {
+        showToast(`Error: ${err.message}`);
+      }
+    } else if (modal.mode === "edit") {
+      try {
+        const targetId = formData.itemID || (modal.record && modal.record.itemID);
+
+        const res = await fetch(`http://localhost:5000/api/admin/inventory/${targetId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Failed to update item");
+
+        showToast("Inventory item updated successfully!");
+        setModal(null);
+        fetchInventory(); // Refresh table from DB
+      } catch (err) {
+        showToast(`Error: ${err.message}`);
+      }
     }
-    setModal(null);
   };
 
-  const handleReorder = (item) => {
-    setInventory(inventory.map((i) => (i.id === item.id ? { ...i, status: "In Stock", stock: i.reorderAt + 20 } : i)));
+  // 4. HTTP PUT: Reorder stock action (increases stock in DB by reorderAt + 20)
+  const handleReorder = async (item) => {
+    try {
+      const token = localStorage.getItem("token") || "";
+      const targetId = item.itemID;
+      const newStock = item.stock + item.reorderAt + 20;
+
+      const res = await fetch(`http://localhost:5000/api/admin/inventory/${targetId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          itemName: item.item,
+          itemType: item.category,
+          SKU: item.sku,
+          stock: newStock,
+          reorderAmount: item.reorderAt,
+          price: item.rawPrice,
+          description: item.description,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to restock item");
+
+      showToast(`Restocked ${item.item} (+${item.reorderAt + 20} units)`);
+      fetchInventory(); // Refresh table from DB
+    } catch (err) {
+      showToast(`Error: ${err.message}`);
+    }
   };
 
   return (
@@ -76,6 +210,7 @@ const ManageInventory = () => {
           </button>
         </header>
 
+        {/* Live Stat Cards */}
         <section className="dash-stats">
           <div className="dash-stat dash-stat-accent">
             <p className="dash-stat-label">Total Items</p>
@@ -133,31 +268,41 @@ const ManageInventory = () => {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((item) => (
-                  <tr key={item.id}>
-                    <td className="dash-mono">{item.id}</td>
-                    <td>{item.item}</td>
-                    <td>{item.category}</td>
-                    <td className="dash-mono">{item.sku}</td>
-                    <td className="dash-mono">{item.stock}</td>
-                    <td className="dash-mono">{item.reorderAt}</td>
-                    <td className="dash-mono">{item.price}</td>
-                    <td>
-                      <span className={`dash-status dash-status-${statusTone[item.status]}`}>
-                        <i />
-                        {item.status}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="dash-row-actions">
-                        <button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: item })}>Edit</button>
-                        <button className="dash-row-btn" onClick={() => handleReorder(item)}>Reorder</button>
-                      </div>
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} style={{ textAlign: "center", padding: "24px" }}>
+                      Loading inventory stock from database...
                     </td>
                   </tr>
-                ))}
-
-                {filtered.length === 0 && (
+                ) : filtered.length > 0 ? (
+                  filtered.map((item) => (
+                    <tr key={item.itemID || item.id}>
+                      <td className="dash-mono">{item.id}</td>
+                      <td><strong>{item.item}</strong></td>
+                      <td>{item.category}</td>
+                      <td className="dash-mono">{item.sku}</td>
+                      <td className="dash-mono">{item.stock}</td>
+                      <td className="dash-mono">{item.reorderAt}</td>
+                      <td className="dash-mono">{item.price}</td>
+                      <td>
+                        <span className={`dash-status dash-status-${statusTone[item.status] || "accent"}`}>
+                          <i />
+                          {item.status}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="dash-row-actions">
+                          <button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: item })}>
+                            Edit
+                          </button>
+                          <button className="dash-row-btn" onClick={() => handleReorder(item)}>
+                            Reorder
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
                     <td colSpan={9} style={{ textAlign: "center", padding: "24px", color: "var(--text-secondary)" }}>
                       No items match your search.
@@ -188,6 +333,8 @@ const ManageInventory = () => {
           onSave={handleSave}
         />
       )}
+
+      {toast && <div className="dash-toast">{toast}</div>}
     </div>
   );
 };

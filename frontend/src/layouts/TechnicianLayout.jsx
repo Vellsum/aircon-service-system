@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import TechnicianSidebar from '../components/technician/TechnicianSidebar'
+import "../styles/technician.css";
 
 /**
  * TechnicianLayout Component

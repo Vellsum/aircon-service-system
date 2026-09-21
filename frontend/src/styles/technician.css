@@ -1,0 +1,3364 @@
+/* ==========================================================================
+   Layout Shell
+   ========================================================================== */
+
+.technician-portal-wrapper {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* ---- Sidebar ---- */
+.technician-sidebar {
+  width: 260px;
+  background-color: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 1040;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 991.98px) {
+  .technician-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  }
+  .technician-sidebar.show {
+    transform: translateX(0);
+  }
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(3px);
+    z-index: 1030;
+  }
+}
+
+/* Brand */
+.sidebar-brand-header {
+  padding: 1.45rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+
+.brand-logo-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--primary-600);
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.3px;
+}
+
+.brand-subtitle {
+  font-size: 0.68rem;
+  color: #60a5fa;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* Nav Items */
+.sidebar-nav-menu {
+  flex-grow: 1;
+  padding: 1.15rem 0.7rem;
+  overflow-y: auto;
+}
+
+.sidebar-nav-menu .nav-item {
+  margin-bottom: 2px;
+}
+
+.sidebar-nav-menu .nav-link {
+  color: var(--sidebar-text);
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  position: relative;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.sidebar-nav-menu .nav-link:hover {
+  color: #e2e8f0;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-nav-menu .nav-link.active {
+  color: #ffffff;
+  background-color: rgba(37, 99, 235, 0.2);
+  font-weight: 600;
+}
+
+.sidebar-nav-menu .nav-link.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 3px;
+  background-color: var(--primary-500);
+  border-radius: 0 3px 3px 0;
+}
+
+.sidebar-nav-menu .nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--sidebar-border);
+}
+
+.sidebar-profile-card {
+  padding: 0.55rem 0.65rem;
+  background-color: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+}
+
+.tech-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--primary-600);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+
+.tech-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.tech-role {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.duty-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.duty-dot-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  animation: pulse-dot 2.5s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ==========================================================================
+   Main Content & Topbar
+   ========================================================================== */
+
+.technician-main-container {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background-color: var(--bg-app);
+}
+
+.technician-topbar {
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+}
+
+.topbar-portal-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: transparent;
+  border: 0;
+  padding: 4px 0;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.topbar-date-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  padding: 4px 0;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.topbar-alert-btn {
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background-color: #ffffff;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease;
+}
+
+.topbar-alert-btn:hover {
+  background-color: var(--surface-muted);
+}
+
+.technician-content-area {
+  max-width: 1320px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ==========================================================================
+   Page Headers — Clear Typographic Scale
+   ========================================================================== */
+
+.page-kicker {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--primary-600);
+  margin-bottom: 2px;
+}
+
+.page-title {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.15rem;
+  letter-spacing: -0.5px;
+  line-height: 1.25;
+}
+
+.page-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   KPI Metric Cards — Clean, Minimal
+   ========================================================================== */
+
+.kpi-card-wrapper {
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 1.15rem 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.kpi-card-wrapper:hover {
+  border-color: var(--border-default);
+}
+
+/* Keep KPI cards neutral so status colours remain meaningful elsewhere. */
+.kpi-card-wrapper::before {
+  display: none;
+}
+
+.kpi-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kpi-icon-today,
+.kpi-icon-progress,
+.kpi-icon-upcoming,
+.kpi-icon-completed,
+.kpi-icon-rating {
+  background-color: var(--primary-50);
+  color: var(--primary-600);
+}
+
+.kpi-stat-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.15;
+  letter-spacing: -0.3px;
+}
+
+.kpi-stat-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 1px;
+}
+
+/* ==========================================================================
+   Dashboard Components
+   ========================================================================== */
+
+/* Schedule Job Card — simplified, no nested boxes */
+.dashboard-schedule-card {
+  background-color: transparent;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  border-radius: 0;
+  padding: 1.3rem 0 1.25rem 1rem;
+  margin-bottom: 0;
+  border-left: 2px solid var(--primary-200);
+  transition: border-color 0.15s ease;
+}
+
+.dashboard-schedule-card:first-child {
+  border-top: 0;
+  padding-top: 0.25rem;
+}
+
+.dashboard-schedule-card:last-child {
+  margin-bottom: 0;
+}
+
+.dashboard-schedule-card.in-progress-border {
+  border-left-color: #f59e0b;
+}
+
+.dashboard-schedule-card.upcoming-border {
+  border-left-color: var(--primary-500);
+}
+
+.dashboard-schedule-card:hover {
+  border-color: var(--border-subtle);
+  border-left-color: var(--primary-500);
+}
+
+.dashboard-schedule-card.in-progress-border:hover {
+  border-left-color: #f59e0b;
+}
+
+.dashboard-schedule-card .bg-light {
+  background-color: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0.2rem 0 !important;
+}
+
+.dashboard-schedule-card .small {
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.dashboard-schedule-card .text-danger {
+  color: var(--primary-600) !important;
+}
+
+.schedule-service-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  background-color: var(--primary-50);
+  color: var(--primary-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Panel Card (Quick Actions, Performance) */
+.dashboard-panel-card {
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.dashboard-panel-header {
+  padding: 1.05rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.dashboard-panel-body {
+  padding: 1.25rem;
+}
+
+/* Quick Action Buttons */
+.quick-action-primary-btn {
+  background-color: var(--primary-600);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.quick-action-primary-btn:hover {
+  background-color: var(--primary-700);
+  color: #ffffff;
+}
+
+.quick-action-outline-btn {
+  background-color: var(--surface-muted);
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.quick-action-outline-btn:hover {
+  background-color: var(--primary-50);
+  border-color: transparent;
+  color: var(--text-primary);
+}
+
+/* Performance Stats */
+.performance-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.performance-stat-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.performance-progress-bar {
+  height: 5px;
+  background-color: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.performance-progress-fill {
+  height: 100%;
+  background-color: var(--primary-500);
+  border-radius: 9999px;
+}
+
+/* ==========================================================================
+   Technician Dashboard — Operations Workspace
+   ========================================================================== */
+
+.technician-dashboard-page {
+  padding-bottom: 1rem;
+}
+
+.technician-dashboard-page .dashboard-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 1.35rem;
+}
+
+.technician-dashboard-page .dashboard-hero-copy {
+  min-width: 0;
+}
+
+.technician-dashboard-page .dashboard-hero .page-title {
+  margin: 0 0 0.3rem;
+  font-size: clamp(1.55rem, 2vw, 1.9rem);
+}
+
+.technician-dashboard-page .dashboard-hero .page-subtitle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin: 0;
+}
+
+.technician-dashboard-page .dashboard-hero .page-subtitle strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.technician-dashboard-page .dashboard-header-separator {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background-color: #94a3b8;
+}
+
+.technician-dashboard-page .dashboard-shift-status {
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding: 0.55rem 0.8rem;
+  border-color: #bbf7d0;
+  background-color: #f0fdf4;
+  color: #166534;
+  font-size: 0.76rem;
+}
+
+.technician-dashboard-page .dashboard-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 1.4rem;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.technician-dashboard-page .dashboard-kpi-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+  padding: 1rem 1.15rem;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.technician-dashboard-page .dashboard-kpi-item:last-child {
+  border-right: 0;
+}
+
+.technician-dashboard-page .kpi-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+}
+
+.technician-dashboard-page .dashboard-kpi-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.technician-dashboard-page .kpi-stat-label {
+  order: 1;
+  margin: 0.15rem 0 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.technician-dashboard-page .kpi-stat-value {
+  order: 0;
+  font-size: 1.45rem;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.technician-dashboard-page .dashboard-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.85fr) minmax(290px, 0.85fr);
+  align-items: start;
+  gap: 1.4rem;
+}
+
+.technician-dashboard-page .dashboard-side-column {
+  display: grid;
+  gap: 1.4rem;
+}
+
+.technician-dashboard-page .dashboard-panel-card {
+  border-color: #dfe6ef;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.035);
+}
+
+.technician-dashboard-page .dashboard-panel-header {
+  padding: 1.15rem 1.25rem;
+}
+
+.technician-dashboard-page .dashboard-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.technician-dashboard-page .dashboard-section-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.technician-dashboard-page .dashboard-section-header p {
+  margin: 0.2rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.technician-dashboard-page .dashboard-section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.technician-dashboard-page .dashboard-count-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.technician-dashboard-page .dashboard-view-all-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  color: var(--primary-600);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.technician-dashboard-page .dashboard-view-all-link:hover {
+  color: var(--primary-700);
+}
+
+.technician-dashboard-page .dashboard-schedule-list {
+  padding: 0 1.25rem;
+}
+
+.technician-dashboard-page .dashboard-schedule-card {
+  position: relative;
+  padding: 1.25rem 0;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  background-color: transparent;
+}
+
+.technician-dashboard-page .dashboard-schedule-card:first-child {
+  padding-top: 1.25rem;
+  border-top: 0;
+}
+
+.technician-dashboard-page .dashboard-schedule-card + .dashboard-schedule-card {
+  margin-top: 0;
+}
+
+.technician-dashboard-page .dashboard-schedule-card::before {
+  content: '';
+  position: absolute;
+  top: 1.25rem;
+  bottom: 1.25rem;
+  left: -1.25rem;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background-color: var(--primary-500);
+}
+
+.technician-dashboard-page .dashboard-schedule-card.in-progress-border::before {
+  background-color: #f59e0b;
+}
+
+.technician-dashboard-page .dashboard-schedule-card:hover,
+.technician-dashboard-page .dashboard-schedule-card.in-progress-border:hover {
+  border-top-color: var(--border-subtle);
+  border-left-color: transparent;
+}
+
+.technician-dashboard-page .dashboard-job-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.05rem;
+}
+
+.technician-dashboard-page .dashboard-job-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.technician-dashboard-page .schedule-service-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+}
+
+.technician-dashboard-page .dashboard-job-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.technician-dashboard-page .dashboard-job-title-row h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.96rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.technician-dashboard-page .dashboard-job-identity p {
+  margin: 0.2rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.technician-dashboard-page .dashboard-job-details {
+  display: grid;
+  grid-template-columns: minmax(125px, 0.7fr) minmax(220px, 1.5fr) minmax(150px, 1fr);
+  gap: 0;
+  margin-left: 3.25rem;
+  padding: 0.9rem 0;
+  border-top: 1px solid #edf1f6;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.technician-dashboard-page .dashboard-job-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0 1rem;
+  border-left: 1px solid #edf1f6;
+}
+
+.technician-dashboard-page .dashboard-job-detail:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.technician-dashboard-page .dashboard-detail-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  color: var(--primary-600);
+}
+
+.technician-dashboard-page .dashboard-job-detail > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.technician-dashboard-page .dashboard-detail-label {
+  margin-bottom: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+}
+
+.technician-dashboard-page .dashboard-job-detail strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+
+.technician-dashboard-page .dashboard-job-detail small {
+  margin-top: 0.15rem;
+  color: var(--text-muted);
+  font-size: 0.71rem;
+  line-height: 1.35;
+}
+
+.technician-dashboard-page .dashboard-job-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.technician-dashboard-page .dashboard-job-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 34px;
+  padding: 0.38rem 0.75rem;
+  border-radius: 7px;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.technician-dashboard-page .dashboard-secondary-action {
+  border-color: #d5dde8;
+  color: var(--text-secondary);
+}
+
+.technician-dashboard-page .dashboard-primary-action {
+  min-width: 124px;
+}
+
+.technician-dashboard-page .dashboard-continue-action {
+  border-color: #f59e0b;
+  background-color: #f59e0b;
+  color: #422006;
+}
+
+.technician-dashboard-page .dashboard-quick-actions-list {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.65rem;
+}
+
+.technician-dashboard-page .quick-action-primary-btn,
+.technician-dashboard-page .quick-action-outline-btn {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 48px;
+  padding: 0.45rem 0.65rem;
+  border: 0;
+  border-radius: 8px;
+  font-size: 0.79rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: left;
+}
+
+.technician-dashboard-page .quick-action-primary-btn {
+  background-color: var(--primary-600);
+  color: #ffffff;
+}
+
+.technician-dashboard-page .quick-action-outline-btn {
+  background-color: transparent;
+  color: var(--text-secondary);
+}
+
+.technician-dashboard-page .quick-action-outline-btn:hover {
+  background-color: var(--surface-muted);
+  color: var(--text-primary);
+}
+
+.technician-dashboard-page .dashboard-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  background-color: var(--primary-50);
+  color: var(--primary-600);
+}
+
+.technician-dashboard-page .quick-action-primary-btn .dashboard-action-icon {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.technician-dashboard-page .dashboard-action-arrow {
+  color: #94a3b8;
+}
+
+.technician-dashboard-page .quick-action-primary-btn .dashboard-action-arrow {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.technician-dashboard-page .dashboard-performance-list {
+  padding: 0 1.25rem 1.15rem;
+}
+
+.technician-dashboard-page .dashboard-performance-item {
+  padding: 0.95rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.technician-dashboard-page .dashboard-performance-with-progress {
+  display: block;
+}
+
+.technician-dashboard-page .performance-stat-row {
+  gap: 1rem;
+  padding: 0;
+  border: 0;
+}
+
+.technician-dashboard-page .performance-stat-row > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.technician-dashboard-page .performance-stat-row strong {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.technician-dashboard-page .performance-stat-row span {
+  margin-top: 0.15rem;
+  color: var(--text-muted);
+  font-size: 0.69rem;
+  line-height: 1.35;
+}
+
+.technician-dashboard-page .performance-stat-row b {
+  flex-shrink: 0;
+  color: var(--text-primary);
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+.technician-dashboard-page .dashboard-performance-success {
+  color: #15803d !important;
+}
+
+.technician-dashboard-page .dashboard-performance-primary {
+  color: var(--primary-600) !important;
+}
+
+.technician-dashboard-page .performance-progress-bar {
+  height: 5px;
+  margin-top: 0.65rem;
+  background-color: #e8edf4;
+}
+
+.technician-dashboard-page .dashboard-readiness-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background-color: var(--surface-muted);
+}
+
+.technician-dashboard-page .dashboard-readiness-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.technician-dashboard-page .dashboard-readiness-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--primary-600);
+}
+
+.technician-dashboard-page .dashboard-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  color: #15803d;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+@media (max-width: 1199.98px) {
+  .technician-dashboard-page .dashboard-workspace {
+    grid-template-columns: minmax(0, 1.65fr) minmax(270px, 0.85fr);
+  }
+
+  .technician-dashboard-page .dashboard-job-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 0.85rem;
+  }
+
+  .technician-dashboard-page .dashboard-job-equipment {
+    grid-column: 1 / -1;
+    padding: 0.85rem 0 0;
+    border-top: 1px solid #edf1f6;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .technician-dashboard-page .dashboard-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .technician-dashboard-page .dashboard-side-column {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .technician-dashboard-page .dashboard-hero {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .technician-dashboard-page .dashboard-kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-dashboard-page .dashboard-kpi-item:nth-child(2) {
+    border-right: 0;
+  }
+
+  .technician-dashboard-page .dashboard-kpi-item:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .technician-dashboard-page .dashboard-side-column {
+    grid-template-columns: 1fr;
+  }
+
+  .technician-dashboard-page .dashboard-job-details {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .technician-dashboard-page .dashboard-hero .page-subtitle {
+    display: block;
+  }
+
+  .technician-dashboard-page .dashboard-header-separator {
+    display: none;
+  }
+
+  .technician-dashboard-page .dashboard-hero .page-subtitle strong {
+    display: block;
+    margin-bottom: 0.1rem;
+  }
+
+  .technician-dashboard-page .dashboard-kpi-item {
+    gap: 0.65rem;
+    padding: 0.85rem;
+  }
+
+  .technician-dashboard-page .kpi-icon-box {
+    width: 34px;
+    height: 34px;
+  }
+
+  .technician-dashboard-page .kpi-stat-value {
+    font-size: 1.25rem;
+  }
+
+  .technician-dashboard-page .kpi-stat-label {
+    font-size: 0.61rem;
+  }
+
+  .technician-dashboard-page .dashboard-section-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .technician-dashboard-page .dashboard-view-all-link {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .technician-dashboard-page .dashboard-job-heading {
+    align-items: flex-start;
+  }
+
+  .technician-dashboard-page .dashboard-job-details {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .technician-dashboard-page .dashboard-job-detail,
+  .technician-dashboard-page .dashboard-job-equipment {
+    grid-column: auto;
+    padding: 0.65rem 0;
+    border-top: 1px solid #edf1f6;
+    border-left: 0;
+  }
+
+  .technician-dashboard-page .dashboard-job-detail:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .technician-dashboard-page .dashboard-job-equipment {
+    padding-bottom: 0;
+  }
+
+  .technician-dashboard-page .dashboard-job-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-dashboard-page .dashboard-primary-action {
+    min-width: 0;
+  }
+}
+
+/* ==========================================================================
+   Assigned Jobs Card & Toolbar
+   ========================================================================== */
+
+.jobs-main-card {
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* Filter Tabs — Segmented Control */
+.filter-tabs-container {
+  display: inline-flex;
+  background-color: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.filter-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.filter-tab-btn.active {
+  background-color: #ffffff;
+  color: var(--primary-600);
+  box-shadow: none;
+}
+
+.tab-count-badge {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background-color: #e2e8f0;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.tab-count-badge.active {
+  background-color: var(--primary-50);
+  color: var(--primary-600);
+}
+
+/* Search & Filters */
+.search-input-wrapper {
+  position: relative;
+  min-width: 240px;
+}
+
+.search-input-wrapper .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.search-input-wrapper .search-input {
+  padding-left: 32px;
+  padding-right: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  font-size: 0.84rem;
+  background-color: #ffffff;
+  color: var(--text-primary);
+  font-weight: 400;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.search-input-wrapper .search-input:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+  outline: none;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.status-select-filter {
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  min-width: 140px;
+}
+
+.status-select-filter:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+}
+
+/* ==========================================================================
+   Job Data Table
+   ========================================================================== */
+
+.job-table {
+  margin-bottom: 0;
+}
+
+.job-table thead th {
+  background-color: transparent;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+  border-top: none;
+  padding: 0.85rem 1rem;
+}
+
+.job-table tbody td {
+  padding: 1.05rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.job-table tbody td .small,
+.job-mobile-card .small {
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.job-table-row:hover td {
+  background-color: #fbfdff !important;
+}
+
+/* Job ID Chip */
+.job-id-chip {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  font-size: 0.76rem;
+  color: var(--primary-700);
+  background-color: var(--primary-50);
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+
+/* Customer Avatar */
+.customer-avatar-sm {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Service Category Tag */
+.service-category-tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background-color: var(--surface-muted);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* View Button */
+.action-view-btn {
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border: 1px solid var(--border-subtle);
+  background-color: #ffffff;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.action-view-btn:hover {
+  background-color: var(--primary-600);
+  border-color: var(--primary-600);
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   Status Badges — Meaningful Colour Only
+   ========================================================================== */
+
+.job-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* In Progress — amber */
+.status-badge-in-progress {
+  background-color: #fffbeb;
+  color: #92400e;
+}
+.status-dot-in-progress {
+  background-color: #f59e0b;
+}
+
+/* Upcoming — blue */
+.status-badge-upcoming {
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+}
+.status-dot-upcoming {
+  background-color: var(--primary-500);
+}
+
+/* Completed — green */
+.status-badge-completed {
+  background-color: #ecfdf5;
+  color: #065f46;
+}
+.status-dot-completed {
+  background-color: #10b981;
+}
+
+/* Default */
+.status-badge-default {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+.status-dot-default {
+  background-color: #64748b;
+}
+
+/* ==========================================================================
+   Mobile Job Cards
+   ========================================================================== */
+
+.job-mobile-card {
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+}
+
+.job-mobile-card .bg-light {
+  background-color: var(--surface-muted) !important;
+  border: 0 !important;
+}
+
+/* ==========================================================================
+   Job Details Modal
+   ========================================================================== */
+
+.job-details-modal-content {
+  border-radius: 12px;
+  border: 0;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.14);
+}
+
+.job-modal-section-card {
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0.15rem 0;
+}
+
+.job-details-modal-content .modal-header,
+.job-details-modal-content .modal-footer {
+  background-color: #ffffff !important;
+  border-color: var(--border-subtle) !important;
+}
+
+.job-modal-section-card .bg-white {
+  background-color: var(--surface-muted) !important;
+  border: 0 !important;
+  border-left: 2px solid var(--primary-200) !important;
+}
+
+.section-subtitle {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--text-muted);
+  margin-bottom: 0.65rem;
+}
+
+.customer-avatar-lg {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.info-icon-box {
+  width: 34px;
+  height: 34px;
+  background-color: var(--primary-50);
+  border: 0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.empty-state-box {
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.empty-state-icon-wrap {
+  width: 48px;
+  height: 48px;
+  background-color: var(--surface-muted);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  font-size: 1.35rem;
+}
+
+/* ==========================================================================
+   Technician Service Report
+   ========================================================================== */
+
+.technician-submit-report-page {
+  width: 100%;
+  max-width: 1180px;
+}
+
+.report-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.65rem;
+}
+
+.report-page-header .btn,
+.report-form-actions .btn {
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  min-height: 42px;
+  padding: 0.58rem 1.05rem;
+  white-space: nowrap;
+}
+
+.service-report-form {
+  overflow: hidden;
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+}
+
+.report-section {
+  padding: 1.7rem 1.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.report-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.35rem;
+}
+
+.report-section-heading h3 {
+  margin: 0 0 0.25rem;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.15px;
+  line-height: 1.35;
+}
+
+.report-section-heading p {
+  max-width: 700px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.report-section-heading-with-action {
+  align-items: center;
+}
+
+.report-section-heading-with-action .btn {
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.report-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem 1.25rem;
+}
+
+.report-field {
+  min-width: 0;
+}
+
+.report-field-full {
+  grid-column: 1 / -1;
+}
+
+.report-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.report-label > span[aria-hidden='true'] {
+  color: #dc2626;
+}
+
+.report-optional-label {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 400;
+}
+
+.report-control {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.66rem 0.8rem;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+textarea.report-control {
+  min-height: auto;
+  padding-top: 0.72rem;
+  padding-bottom: 0.72rem;
+  resize: vertical;
+}
+
+.report-control::placeholder {
+  color: var(--text-dim);
+}
+
+.report-control:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.09);
+  outline: none;
+}
+
+.report-control[aria-invalid='true'] {
+  border-color: #dc2626;
+}
+
+.report-control[aria-invalid='true']:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
+
+.report-field-error {
+  display: block;
+  margin-top: 0.35rem;
+  color: #b91c1c;
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.report-notice {
+  margin-bottom: 1rem;
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.report-notice-info {
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.report-notice-success {
+  background-color: #ecfdf5;
+  color: #065f46;
+}
+
+.report-notice-error {
+  background-color: #fef2f2;
+  color: #991b1b;
+}
+
+/* Selected Job Summary */
+.selected-job-summary {
+  margin-top: 1.35rem;
+  padding: 1.1rem 1.15rem;
+  border-radius: 8px;
+  background-color: var(--surface-muted);
+}
+
+.selected-job-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.selected-job-summary-header > div {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.selected-job-summary-header strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected-job-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.5rem;
+  margin: 0;
+}
+
+.selected-job-details div {
+  min-width: 0;
+}
+
+.selected-job-details dt,
+.report-confirmation-summary dt {
+  margin-bottom: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.45px;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.selected-job-details dd,
+.report-confirmation-summary dd {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* Service Checklist */
+.service-checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem 1.5rem;
+}
+
+.service-checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.58rem 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.service-checklist-item input,
+.report-option-row input,
+.customer-acknowledgement input {
+  width: 18px;
+  height: 18px;
+  margin: 0.06rem 0 0;
+  flex-shrink: 0;
+  accent-color: var(--primary-600);
+}
+
+/* Parts & Materials */
+.materials-list {
+  width: 100%;
+}
+
+.materials-grid {
+  display: grid;
+  grid-template-columns: minmax(190px, 2fr) minmax(90px, 0.65fr) minmax(130px, 1fr) minmax(115px, 0.9fr) 36px;
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.materials-grid-header {
+  padding: 0 0.15rem 0.55rem;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.materials-grid-row {
+  padding: 0.95rem 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.materials-field {
+  min-width: 0;
+}
+
+.technician-submit-report-page .materials-inventory-details {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.45rem;
+  color: var(--text-muted);
+}
+
+.technician-submit-report-page .materials-inventory-details > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.technician-submit-report-page .materials-inventory-details small {
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.materials-field-label {
+  display: none;
+}
+
+.materials-row-total {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+}
+
+.materials-row-total strong {
+  font-weight: 700;
+}
+
+.materials-delete-btn {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  margin-top: 4px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.materials-delete-btn:hover,
+.materials-delete-btn:focus-visible {
+  background-color: #fef2f2;
+  color: #dc2626;
+  outline: none;
+}
+
+.materials-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+}
+
+.materials-summary strong {
+  min-width: 110px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  text-align: right;
+}
+
+.report-empty-inline {
+  padding: 1rem;
+  border-radius: 8px;
+  background-color: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+/* Follow-Up & Completion */
+.follow-up-choice {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.follow-up-choice legend {
+  width: auto;
+  margin-bottom: 0.5rem;
+}
+
+.report-option-row {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.report-option-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.follow-up-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.35rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.customer-acknowledgement {
+  display: flex;
+  align-items: flex-start;
+  min-height: 44px;
+  gap: 0.65rem;
+  padding: 0.72rem 0.85rem;
+  border-radius: 8px;
+  background-color: var(--surface-muted);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.customer-acknowledgement > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.customer-acknowledgement strong {
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.customer-acknowledgement small {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.report-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.85rem;
+  padding: 1.25rem 1.75rem;
+  background-color: var(--surface-muted);
+}
+
+.report-form-actions .btn-outline-secondary {
+  min-width: 96px;
+}
+
+.report-form-actions .btn-primary {
+  min-width: 140px;
+}
+
+/* Confirmation */
+.report-confirmation-modal {
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.14);
+}
+
+.report-confirmation-modal .modal-header,
+.report-confirmation-modal .modal-footer {
+  border-color: var(--border-subtle);
+}
+
+.report-confirmation-modal .modal-title {
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.report-confirmation-modal .modal-body {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.report-confirmation-summary {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+  padding: 1rem;
+  border-radius: 8px;
+  background-color: var(--surface-muted);
+}
+
+.report-confirmation-note {
+  margin-top: 1rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+@media (min-width: 992px) {
+  .selected-job-details {
+    grid-template-columns: 0.85fr 0.95fr 1.35fr 1.35fr;
+  }
+
+  .service-checklist-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .report-page-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .report-page-header .btn {
+    align-self: flex-start;
+  }
+
+  .report-section {
+    padding: 1.2rem;
+  }
+
+  .report-fields-grid,
+  .selected-job-details,
+  .service-checklist-grid,
+  .follow-up-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .materials-grid-header {
+    display: none;
+  }
+
+  .materials-grid-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 0.75rem;
+    padding: 1rem;
+    border: 0;
+    border-radius: 8px;
+    background-color: var(--surface-muted);
+  }
+
+  .materials-item-field {
+    grid-column: 1 / -1;
+  }
+
+  .materials-field-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  .materials-row-total {
+    min-height: auto;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .materials-delete-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    margin: 0;
+  }
+
+  .materials-grid-row {
+    position: relative;
+  }
+
+  .materials-item-field {
+    padding-right: 2.5rem;
+  }
+
+  .materials-summary {
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .report-section-heading-with-action {
+    align-items: flex-start;
+  }
+
+  .selected-job-summary-header {
+    align-items: flex-start;
+  }
+
+  .selected-job-summary-header > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .service-checklist-grid {
+    gap: 0;
+  }
+
+  .report-form-actions {
+    padding: 1rem 1.2rem;
+  }
+
+  .report-form-actions .btn {
+    flex: 1;
+  }
+}
+
+/* ==========================================================================
+   Assigned Jobs — Operations Workspace
+   All rules are page-scoped to protect other Technician experiences.
+   ========================================================================== */
+
+.technician-assigned-jobs-page {
+  padding-bottom: 1rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 1.35rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-header .page-title {
+  margin: 0 0 0.3rem;
+  font-size: clamp(1.55rem, 2vw, 1.9rem);
+}
+
+.technician-assigned-jobs-page .assigned-jobs-header .page-subtitle {
+  max-width: 680px;
+  margin: 0;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 1.4rem;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+  padding: 1rem 1.15rem;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary-item:last-child {
+  border-right: 0;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary .kpi-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary .kpi-stat-label {
+  order: 1;
+  margin: 0.15rem 0 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-summary .kpi-stat-value {
+  order: 0;
+  font-size: 1.45rem;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.technician-assigned-jobs-page .jobs-main-card {
+  overflow: hidden;
+  border-color: #dfe6ef;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.035);
+}
+
+.technician-assigned-jobs-page .jobs-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.15rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: #ffffff;
+}
+
+.technician-assigned-jobs-page .filter-tabs-container {
+  flex-shrink: 0;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  border-radius: 8px;
+  background-color: var(--surface-muted);
+}
+
+.technician-assigned-jobs-page .filter-tab-btn {
+  gap: 0.45rem;
+  min-height: 34px;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.technician-assigned-jobs-page .filter-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.technician-assigned-jobs-page .filter-tab-btn.active {
+  background-color: #ffffff;
+  color: var(--primary-700);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.technician-assigned-jobs-page .tab-count-badge {
+  min-width: 19px;
+  padding: 0.1rem 0.35rem;
+  background-color: #e2e8f0;
+  color: #64748b;
+  font-size: 0.65rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.technician-assigned-jobs-page .tab-count-badge.active {
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.technician-assigned-jobs-page .assigned-jobs-filter-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.technician-assigned-jobs-page .search-input-wrapper {
+  width: min(320px, 30vw);
+  min-width: 220px;
+}
+
+.technician-assigned-jobs-page .search-input-wrapper .search-input,
+.technician-assigned-jobs-page .status-select-filter {
+  min-height: 36px;
+  border-color: #d9e1eb;
+  border-radius: 7px;
+  background-color: #ffffff;
+  font-size: 0.79rem;
+}
+
+.technician-assigned-jobs-page .search-input-wrapper .search-input {
+  padding-left: 2.1rem;
+  padding-right: 1.9rem;
+}
+
+.technician-assigned-jobs-page .search-input-wrapper .search-icon {
+  left: 0.7rem;
+  color: #7c8ba1;
+}
+
+.technician-assigned-jobs-page .search-clear-btn {
+  right: 0.45rem;
+}
+
+.technician-assigned-jobs-page .status-select-filter {
+  width: 146px;
+  min-width: 146px;
+  padding-left: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.technician-assigned-jobs-page .assigned-jobs-table-view {
+  background-color: #ffffff;
+}
+
+.technician-assigned-jobs-page .job-table {
+  min-width: 1000px;
+  table-layout: fixed;
+}
+
+.technician-assigned-jobs-page .job-table thead th {
+  padding: 0.8rem 0.9rem;
+  border-bottom-color: #dfe6ef;
+  background-color: #f8fafc;
+  color: #65758b;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+}
+
+.technician-assigned-jobs-page .job-table tbody td {
+  padding: 1rem 0.9rem;
+  border-bottom-color: #e8edf3;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.technician-assigned-jobs-page .job-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.technician-assigned-jobs-page .job-table-row {
+  transition: background-color 0.15s ease;
+}
+
+.technician-assigned-jobs-page .job-table-row:hover td {
+  background-color: #f8fbff !important;
+}
+
+.technician-assigned-jobs-page .job-table .customer-avatar-sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: #eef5ff;
+  color: var(--primary-700);
+  font-size: 0.72rem;
+}
+
+.technician-assigned-jobs-page .job-table td:nth-child(2) .fw-bold {
+  font-size: 0.83rem;
+  font-weight: 650 !important;
+}
+
+.technician-assigned-jobs-page .job-table td:nth-child(3) .fw-semibold,
+.technician-assigned-jobs-page .job-table td:nth-child(4) .fw-semibold {
+  font-size: 0.81rem;
+  font-weight: 600 !important;
+}
+
+.technician-assigned-jobs-page .job-table tbody td .small {
+  margin-top: 0.2rem !important;
+  color: #68788d !important;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.technician-assigned-jobs-page .job-table tbody td .small svg {
+  flex-shrink: 0;
+  color: #7c8ba1;
+}
+
+.technician-assigned-jobs-page .job-id-chip {
+  padding: 0.22rem 0.45rem;
+  border-radius: 5px;
+  background-color: #eef5ff;
+  color: var(--primary-700);
+  font-size: 0.7rem;
+  letter-spacing: -0.01em;
+}
+
+.technician-assigned-jobs-page .service-category-tag {
+  flex-shrink: 0;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  background-color: #f1f5f9;
+  color: #64748b;
+  font-size: 0.62rem;
+  line-height: 1.3;
+}
+
+.technician-assigned-jobs-page .job-status-badge {
+  min-height: 24px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.69rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.technician-assigned-jobs-page .status-dot {
+  width: 5px;
+  height: 5px;
+}
+
+.technician-assigned-jobs-page .action-view-btn {
+  justify-content: center;
+  min-width: 72px;
+  min-height: 32px;
+  padding: 0.35rem 0.65rem;
+  border-color: #cfd9e6;
+  border-radius: 7px;
+  background-color: #ffffff;
+  color: var(--primary-700);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.technician-assigned-jobs-page .action-view-btn:hover {
+  border-color: var(--primary-600);
+  background-color: var(--primary-600);
+  color: #ffffff;
+}
+
+.technician-assigned-jobs-page .empty-state-box {
+  max-width: 390px;
+  margin: 0 auto;
+}
+
+.technician-assigned-jobs-page .empty-state-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background-color: var(--primary-50);
+  font-size: 1.15rem;
+}
+
+.technician-assigned-jobs-page .empty-state-box h6,
+.technician-assigned-jobs-page .assigned-jobs-mobile-view h6 {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.technician-assigned-jobs-page .empty-state-box p,
+.technician-assigned-jobs-page .assigned-jobs-mobile-view > .text-center p {
+  color: var(--text-muted) !important;
+  font-size: 0.78rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-mobile-view {
+  padding: 1rem;
+  background-color: #f8fafc;
+}
+
+.technician-assigned-jobs-page .job-mobile-card {
+  position: relative;
+  margin-bottom: 0.75rem !important;
+  padding: 1rem !important;
+  overflow: hidden;
+  border-color: #dfe6ef;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
+}
+
+.technician-assigned-jobs-page .job-mobile-card:last-child {
+  margin-bottom: 0 !important;
+}
+
+.technician-assigned-jobs-page .job-mobile-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background-color: var(--primary-500);
+}
+
+.technician-assigned-jobs-page .job-mobile-card:has(.status-badge-in-progress)::before {
+  background-color: #f59e0b;
+}
+
+.technician-assigned-jobs-page .job-mobile-card:has(.status-badge-completed)::before {
+  background-color: #10b981;
+}
+
+.technician-assigned-jobs-page .job-mobile-card .customer-avatar-sm {
+  width: 36px;
+  height: 36px;
+}
+
+.technician-assigned-jobs-page .job-mobile-card > .d-flex:nth-child(2) {
+  margin-bottom: 0.85rem !important;
+}
+
+.technician-assigned-jobs-page .job-mobile-card > .bg-light {
+  margin-bottom: 0.75rem !important;
+  padding: 0.75rem 0 !important;
+  border-top: 1px solid #edf1f6 !important;
+  border-bottom: 1px solid #edf1f6 !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+}
+
+.technician-assigned-jobs-page .job-mobile-card > .border-top {
+  padding-top: 0 !important;
+  border-top: 0 !important;
+}
+
+.technician-assigned-jobs-page .job-mobile-card .fw-bold {
+  font-size: 0.84rem;
+  font-weight: 650 !important;
+}
+
+.technician-assigned-jobs-page .job-mobile-card .small {
+  color: #68788d !important;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.technician-assigned-jobs-page .job-mobile-card .action-view-btn {
+  min-width: 108px;
+}
+
+.technician-assigned-jobs-page .jobs-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 1.15rem;
+  border-top: 1px solid var(--border-subtle);
+  background-color: #f8fafc;
+}
+
+.technician-assigned-jobs-page .jobs-card-footer .small {
+  color: #68788d !important;
+  font-size: 0.73rem;
+  line-height: 1.4;
+}
+
+.technician-assigned-jobs-page .jobs-card-footer .text-dark {
+  color: var(--text-primary) !important;
+  font-weight: 650;
+}
+
+.technician-assigned-jobs-page .jobs-card-footer .duty-dot-pulse {
+  width: 5px !important;
+  height: 5px !important;
+  animation: none;
+}
+
+@media (max-width: 991.98px) {
+  .technician-assigned-jobs-page .jobs-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .technician-assigned-jobs-page .filter-tabs-container {
+    align-self: flex-start;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-filter-controls {
+    justify-content: flex-start;
+  }
+
+  .technician-assigned-jobs-page .search-input-wrapper {
+    width: min(100%, 420px);
+  }
+}
+
+@media (max-width: 767.98px) {
+  .technician-assigned-jobs-page .assigned-jobs-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-summary-item:nth-child(2) {
+    border-right: 0;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-summary-item:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .technician-assigned-jobs-page .jobs-toolbar {
+    padding: 0.85rem;
+  }
+
+  .technician-assigned-jobs-page .filter-tabs-container {
+    width: 100%;
+  }
+
+  .technician-assigned-jobs-page .filter-tab-btn {
+    justify-content: center;
+    flex: 1;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-filter-controls {
+    width: 100%;
+  }
+
+  .technician-assigned-jobs-page .search-input-wrapper {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .technician-assigned-jobs-page .assigned-jobs-header {
+    margin-bottom: 1.1rem;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-summary-item {
+    gap: 0.65rem;
+    padding: 0.85rem;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-summary .kpi-icon-box {
+    width: 34px;
+    height: 34px;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-summary .kpi-stat-value {
+    font-size: 1.25rem;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-summary .kpi-stat-label {
+    font-size: 0.61rem;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-filter-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .technician-assigned-jobs-page .status-select-filter {
+    width: 100%;
+  }
+
+  .technician-assigned-jobs-page .assigned-jobs-mobile-view {
+    padding: 0.75rem;
+  }
+
+  .technician-assigned-jobs-page .job-mobile-card {
+    padding: 0.9rem !important;
+  }
+
+  .technician-assigned-jobs-page .jobs-card-footer {
+    padding: 0.8rem 0.9rem;
+  }
+}
+
+/* ==========================================================================
+   Job History — Completed Work & Report Detail
+   All rules are page-scoped to protect other Technician experiences.
+   ========================================================================== */
+
+.technician-job-history-page {
+  padding-bottom: 1rem;
+}
+
+.technician-job-history-page .job-history-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 1.35rem;
+}
+
+.technician-job-history-page .job-history-page-header .page-title {
+  margin: 0 0 0.3rem;
+  font-size: clamp(1.55rem, 2vw, 1.9rem);
+}
+
+.technician-job-history-page .job-history-page-header .page-subtitle {
+  max-width: 680px;
+  margin: 0;
+}
+
+.technician-job-history-page .job-history-record-count {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: max-content;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: var(--text-muted);
+  font-size: 0.73rem;
+  font-weight: 600;
+}
+
+.technician-job-history-page .job-history-record-count strong {
+  color: var(--primary-700);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.technician-job-history-page .job-history-list-panel,
+.technician-job-history-page .job-history-report-card,
+.technician-job-history-page .job-history-feedback-card {
+  overflow: hidden;
+  border: 1px solid #dfe6ef;
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.035);
+}
+
+.technician-job-history-page .job-history-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.technician-job-history-page .job-history-search-field {
+  width: min(390px, 40%);
+}
+
+.technician-job-history-page .job-history-search-field > label,
+.technician-job-history-page .job-history-date-filters label {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.technician-job-history-page .job-history-search-control {
+  position: relative;
+}
+
+.technician-job-history-page .job-history-search-control > svg {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  color: #7c8ba1;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.technician-job-history-page .job-history-search-control input,
+.technician-job-history-page .job-history-date-filters input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #d9e1eb;
+  border-radius: 7px;
+  background-color: #ffffff;
+  color: var(--text-primary);
+  font-size: 0.79rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.technician-job-history-page .job-history-search-control input {
+  padding: 0.45rem 2rem 0.45rem 2.2rem;
+}
+
+.technician-job-history-page .job-history-date-filters input {
+  min-width: 138px;
+  padding: 0.4rem 0.65rem;
+}
+
+.technician-job-history-page .job-history-search-control input:focus,
+.technician-job-history-page .job-history-date-filters input:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.11);
+}
+
+.technician-job-history-page .job-history-search-control button {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 1.1rem;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.technician-job-history-page .job-history-date-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.55rem;
+}
+
+.technician-job-history-page .job-history-date-filters > span {
+  padding-bottom: 0.58rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.technician-job-history-page .job-history-reset-button {
+  min-height: 38px;
+  padding: 0.4rem 0.25rem;
+  border: 0;
+  background-color: transparent;
+  color: var(--primary-700);
+  font-size: 0.74rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.technician-job-history-page .job-history-reset-button:hover {
+  text-decoration: underline;
+}
+
+.technician-job-history-page .job-history-table-wrapper {
+  overflow-x: auto;
+}
+
+.technician-job-history-page .job-history-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.technician-job-history-page .job-history-table th {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid #dfe6ef;
+  background-color: #f8fafc;
+  color: #65758b;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(1) {
+  width: 130px;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(2) {
+  width: 210px;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(4) {
+  width: 155px;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(5) {
+  width: 90px;
+}
+
+.technician-job-history-page .job-history-table th:nth-child(6) {
+  width: 95px;
+  text-align: right;
+}
+
+.technician-job-history-page .job-history-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #e8edf3;
+  color: var(--text-primary);
+  font-size: 0.81rem;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.technician-job-history-page .job-history-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.technician-job-history-page .job-history-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.technician-job-history-page .job-history-table tbody tr:hover {
+  background-color: #f8fbff;
+}
+
+.technician-job-history-page .job-history-table td strong,
+.technician-job-history-page .job-history-table td small {
+  display: block;
+}
+
+.technician-job-history-page .job-history-table td strong {
+  overflow: hidden;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.technician-job-history-page .job-history-table td small {
+  margin-top: 0.2rem;
+  overflow: hidden;
+  color: #68788d;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.technician-job-history-page .job-history-id-chip {
+  display: inline-flex;
+  padding: 0.22rem 0.45rem;
+  border-radius: 5px;
+  background-color: #eef5ff;
+  color: var(--primary-700);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.technician-job-history-page .job-history-unavailable-value {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.technician-job-history-page .job-history-view-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 32px;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #cfd9e6;
+  border-radius: 7px;
+  background-color: #ffffff;
+  color: var(--primary-700);
+  font-size: 0.74rem;
+  font-weight: 650;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.technician-job-history-page .job-history-view-button:hover,
+.technician-job-history-page .job-history-view-button:focus-visible {
+  border-color: var(--primary-600);
+  background-color: var(--primary-600);
+  color: #ffffff;
+}
+
+.technician-job-history-page .job-history-table td:last-child {
+  text-align: right;
+}
+
+.technician-job-history-page .job-history-mobile-list {
+  padding: 0.8rem;
+  background-color: #f8fafc;
+}
+
+.technician-job-history-page .job-history-mobile-card {
+  padding: 1rem;
+  border: 1px solid #dfe6ef;
+  border-radius: 10px;
+  background-color: #ffffff;
+}
+
+.technician-job-history-page .job-history-mobile-card + .job-history-mobile-card {
+  margin-top: 0.75rem;
+}
+
+.technician-job-history-page .job-history-mobile-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.technician-job-history-page .job-history-mobile-card h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.technician-job-history-page .job-history-mobile-card > p {
+  margin: 0.2rem 0 0.8rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.technician-job-history-page .job-history-mobile-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 0.9rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.technician-job-history-page .job-history-mobile-card dl > div:nth-child(2) {
+  grid-column: 1 / -1;
+}
+
+.technician-job-history-page .job-history-mobile-card dt,
+.technician-job-history-page .job-history-report-information dt {
+  margin-bottom: 0.2rem;
+  color: #718096;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.technician-job-history-page .job-history-mobile-card dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.77rem;
+  font-weight: 600;
+}
+
+.technician-job-history-page .job-history-mobile-card .job-history-view-button {
+  width: 100%;
+}
+
+.technician-job-history-page .job-history-empty-state {
+  padding: 3.25rem 1rem;
+  border-top: 1px solid var(--border-subtle);
+  text-align: center;
+}
+
+.technician-job-history-page .job-history-empty-state > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 0.85rem;
+  border-radius: 10px;
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+  font-size: 1.25rem;
+}
+
+.technician-job-history-page .job-history-empty-state h3 {
+  margin: 0 0 0.3rem;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.technician-job-history-page .job-history-empty-state p {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.technician-job-history-page .job-history-list-footer {
+  padding: 0.8rem 1.15rem;
+  border-top: 1px solid var(--border-subtle);
+  background-color: #f8fafc;
+  color: #68788d;
+  font-size: 0.73rem;
+}
+
+.technician-job-history-page .job-history-list-footer strong {
+  color: var(--text-primary);
+  font-weight: 650;
+}
+
+.technician-job-history-page .job-history-detail-header {
+  align-items: center;
+}
+
+.technician-job-history-page .job-history-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 38px;
+  border-color: #cfd9e6;
+  border-radius: 7px;
+  font-size: 0.77rem;
+  font-weight: 600;
+}
+
+.technician-job-history-page .job-history-report-card {
+  margin-bottom: 1rem;
+}
+
+.technician-job-history-page .job-history-report-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.35rem 1.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.technician-job-history-page .job-history-service-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.technician-job-history-page .job-history-report-identity > span,
+.technician-job-history-page .job-history-section-label {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: #718096;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.technician-job-history-page .job-history-report-identity h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.technician-job-history-page .job-history-report-identity p {
+  margin: 0.2rem 0 0;
+  color: var(--primary-700);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.technician-job-history-page .job-history-report-information {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0.2rem 1.5rem;
+}
+
+.technician-job-history-page .job-history-report-information > div {
+  min-width: 0;
+  padding: 1.15rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.technician-job-history-page .job-history-report-information > div:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+.technician-job-history-page .job-history-report-information dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.technician-job-history-page .job-history-feedback-card {
+  padding: 1.3rem 1.5rem;
+}
+
+.technician-job-history-page .job-history-feedback-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.technician-job-history-page .job-history-feedback-heading h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.technician-job-history-page .job-history-rating-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.technician-job-history-page .job-history-rating-placeholder span {
+  color: #94a3b8;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+}
+
+.technician-job-history-page .job-history-rating-placeholder strong {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.technician-job-history-page .job-history-feedback-card > p {
+  margin: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 991.98px) {
+  .technician-job-history-page .job-history-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .technician-job-history-page .job-history-search-field {
+    width: min(100%, 480px);
+  }
+
+  .technician-job-history-page .job-history-date-filters {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .technician-job-history-page .job-history-page-header {
+    align-items: flex-start;
+  }
+
+  .technician-job-history-page .job-history-list-panel {
+    overflow: visible;
+  }
+
+  .technician-job-history-page .job-history-empty-state {
+    border: 1px solid #dfe6ef;
+    border-radius: 10px;
+    background-color: #ffffff;
+  }
+
+  .technician-job-history-page .job-history-report-information {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-job-history-page .job-history-report-information > div:nth-last-child(-n + 3) {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .technician-job-history-page .job-history-report-information > div:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .technician-job-history-page .job-history-page-header {
+    flex-direction: column;
+    gap: 0.85rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .technician-job-history-page .job-history-record-count {
+    align-self: flex-start;
+  }
+
+  .technician-job-history-page .job-history-toolbar {
+    padding: 0.9rem;
+  }
+
+  .technician-job-history-page .job-history-date-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .technician-job-history-page .job-history-date-filters > span {
+    display: none;
+  }
+
+  .technician-job-history-page .job-history-date-filters input {
+    min-width: 0;
+  }
+
+  .technician-job-history-page .job-history-reset-button {
+    grid-column: 1 / -1;
+    justify-self: start;
+    min-height: auto;
+  }
+
+  .technician-job-history-page .job-history-mobile-list {
+    padding: 0.7rem;
+  }
+
+  .technician-job-history-page .job-history-list-footer {
+    padding: 0.75rem 0.9rem;
+  }
+
+  .technician-job-history-page .job-history-back-button {
+    align-self: flex-start;
+  }
+
+  .technician-job-history-page .job-history-report-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 1.1rem;
+  }
+
+  .technician-job-history-page .job-history-report-summary .job-status-badge {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .technician-job-history-page .job-history-report-information {
+    grid-template-columns: 1fr;
+    padding: 0.2rem 1.1rem;
+  }
+
+  .technician-job-history-page .job-history-report-information > div,
+  .technician-job-history-page .job-history-report-information > div:nth-last-child(-n + 2) {
+    padding: 0.95rem 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .technician-job-history-page .job-history-report-information > div:last-child {
+    border-bottom: 0;
+  }
+
+  .technician-job-history-page .job-history-feedback-card {
+    padding: 1.1rem;
+  }
+
+  .technician-job-history-page .job-history-feedback-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

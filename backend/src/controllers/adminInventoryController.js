@@ -1,138 +1,162 @@
-const { sql, poolPromise } = require('../config/db');
+/**
+ * Cool Fix - Admin Inventory Controller
+ * Table Schema: [inventory].[inventoryItem]
+ * Columns: itemID (PK), itemType, itemName, stock, description, isDeleted, SKU, reorderAmount, price, stockStatus
+ */
 
-// 1. GET /api/admin/inventory - Fetch all active inventory items
-const getAllInventory = async (req, res) => {
-    try {
-        const pool = await poolPromise;
-        const result = await pool.request().query(`
-            SELECT 
-                i.itemID,
-                i.itemName,
-                i.itemType,
-                i.stock,
-                i.description,
-                i.isDeleted,
-                a.aircon_ID,
-                a.aircon_model,
-                a.aircon_make,
-                a.aircon_type,
-                a.aircon_serialNumber,
-                a.aircon_warrantyNumber,
-                a.isInstalled
-            FROM inventory.inventoryItem i
-            LEFT JOIN inventory.aircon a ON i.itemID = a.itemID
-            WHERE i.isDeleted = 0
-            ORDER BY i.itemID DESC
-        `);
+const { poolPromise, sql } = require('../config/db');
 
-        res.status(200).json({
-            success: true,
-            count: result.recordset.length,
-            data: result.recordset
-        });
-    } catch (error) {
-        console.error('Error fetching inventory:', error);
-        res.status(500).json({ success: false, message: 'Database query failed', error: error.message });
-    }
+/**
+ * GET /api/admin/inventory
+ * Fetches all non-deleted inventory items from Azure SQL
+ */
+exports.getAllInventory = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    if (!pool) return res.status(200).json({ success: true, items: [] });
+
+    // Select all valid inventory items
+    const query = `
+      SELECT 
+        itemID,
+        ISNULL(itemType, 'Spare Parts') AS itemType,
+        ISNULL(itemName, 'Unnamed Item') AS itemName,
+        ISNULL(stock, 0) AS stock,
+        ISNULL(description, '') AS description,
+        ISNULL(SKU, 'SKU-NONE') AS SKU,
+        ISNULL(reorderAmount, 5) AS reorderAmount,
+        ISNULL(price, 0.0) AS price,
+        ISNULL(stockStatus, 'In Stock') AS stockStatus
+      FROM [inventory].[inventoryItem]
+      WHERE ISNULL(isDeleted, 0) = 0
+      ORDER BY itemID DESC
+    `;
+
+    const result = await pool.request().query(query);
+    console.log(`[Cool Fix] Fetched ${result.recordset.length} inventory items from DB.`);
+    return res.status(200).json({ success: true, items: result.recordset || [] });
+  } catch (err) {
+    console.error('[Cool Fix] GET Inventory Error:', err.message);
+    res.status(500).json({ success: false, message: err.message, items: [] });
+  }
 };
 
-// 2. POST /api/admin/inventory - Add a new inventory item
-const addInventoryItem = async (req, res) => {
-    const { itemName, itemType, stock, description } = req.body;
+/**
+ * POST /api/admin/inventory
+ * Creates a new inventory record satisfying all NOT NULL column constraints
+ */
+exports.createItem = async (req, res) => {
+  try {
+    const { item, itemName, category, itemType, sku, SKU, stock, reorderAt, reorderAmount, price, description } = req.body;
 
-    if (!itemName || !itemType || stock === undefined) {
-        return res.status(400).json({ success: false, message: 'itemName, itemType, and stock are required.' });
+    const pool = await poolPromise;
+    if (!pool) return res.status(500).json({ success: false, message: 'Database connection offline' });
+
+    // Standardize input keys to handle variations from different form fields
+    const finalName = item || itemName || "New Spare Part";
+    const finalType = category || itemType || "Spare Parts";
+    const finalSKU = sku || SKU || `SKU-${Date.now()}`;
+    const currentStock = parseInt(stock, 10) || 0;
+    const minReorder = parseInt(reorderAt || reorderAmount, 10) || 5;
+
+    // Sanitize monetary string input if typed with a '$' symbol
+    let cleanPrice = 0.0;
+    if (typeof price === "string") {
+      cleanPrice = parseFloat(price.replace(/[^0-9.]/g, "")) || 0.0;
+    } else if (typeof price === "number") {
+      cleanPrice = price;
     }
 
-    try {
-        const pool = await poolPromise;
-        const result = await pool.request()
-            .input('itemName', sql.VarChar(100), itemName)
-            .input('itemType', sql.VarChar(100), itemType)
-            .input('stock', sql.Int, stock)
-            .input('description', sql.VarChar(255), description || null)
-            .query(`
-                INSERT INTO inventory.inventoryItem (itemName, itemType, stock, description, isDeleted)
-                VALUES (@itemName, @itemType, @stock, @description, 0);
-                SELECT SCOPE_IDENTITY() AS itemID;
-            `);
+    // Determine stock status flag
+    let stockStatus = 'In Stock';
+    if (currentStock === 0) stockStatus = 'Out of Stock';
+    else if (currentStock <= minReorder) stockStatus = 'Low Stock';
 
-        res.status(201).json({
-            success: true,
-            message: 'Inventory item added successfully.',
-            itemID: result.recordset[0].itemID
-        });
-    } catch (error) {
-        console.error('Error adding inventory item:', error);
-        res.status(500).json({ success: false, message: 'Failed to add inventory item.', error: error.message });
-    }
+    // Insert into [inventory].[inventoryItem]
+    const insertQuery = `
+      INSERT INTO [inventory].[inventoryItem] 
+        (itemType, itemName, stock, description, isDeleted, SKU, reorderAmount, price, stockStatus)
+      VALUES 
+        (@itemType, @itemName, @stock, @description, 0, @SKU, @reorderAmount, @price, @stockStatus)
+    `;
+
+    await pool.request()
+      .input('itemType', sql.VarChar(100), finalType)
+      .input('itemName', sql.VarChar(100), finalName)
+      .input('stock', sql.Int, currentStock)
+      .input('description', sql.VarChar(255), description || 'Cool Fix Inventory Item')
+      .input('SKU', sql.VarChar(100), finalSKU)
+      .input('reorderAmount', sql.Int, minReorder)
+      .input('price', sql.Float, cleanPrice)
+      .input('stockStatus', sql.VarChar(100), stockStatus)
+      .query(insertQuery);
+
+    console.log('[Cool Fix] Inventory item created successfully in Azure SQL!');
+    res.status(201).json({ success: true, message: 'Inventory item added successfully!' });
+  } catch (err) {
+    console.error('[Cool Fix] SQL POST Inventory Error:', err.message);
+    res.status(500).json({ success: false, message: `SQL Error: ${err.message}` });
+  }
 };
 
-// 3. PUT /api/admin/inventory/:itemId/stock - Update stock level
-const updateStock = async (req, res) => {
+/**
+ * PUT /api/admin/inventory/:itemId
+ * Updates stock levels, prices, or reorder parameters for an item
+ */
+exports.updateItem = async (req, res) => {
+  try {
     const { itemId } = req.params;
-    const { stock } = req.body;
+    const { item, itemName, category, itemType, sku, SKU, stock, reorderAt, reorderAmount, price, description } = req.body;
 
-    if (stock === undefined || stock < 0) {
-        return res.status(400).json({ success: false, message: 'Valid stock quantity is required.' });
+    const pool = await poolPromise;
+    if (!pool) return res.status(500).json({ success: false, message: 'Database connection offline' });
+
+    const finalName = item || itemName;
+    const finalType = category || itemType;
+    const finalSKU = sku || SKU;
+    const currentStock = parseInt(stock, 10) || 0;
+    const minReorder = parseInt(reorderAt || reorderAmount, 10) || 5;
+
+    let cleanPrice = 0.0;
+    if (typeof price === "string") {
+      cleanPrice = parseFloat(price.replace(/[^0-9.]/g, "")) || 0.0;
+    } else if (typeof price === "number") {
+      cleanPrice = price;
     }
 
-    try {
-        const pool = await poolPromise;
-        const result = await pool.request()
-            .input('itemID', sql.Int, itemId)
-            .input('stock', sql.Int, stock)
-            .query(`
-                UPDATE inventory.inventoryItem
-                SET stock = @stock
-                WHERE itemID = @itemID AND isDeleted = 0
-            `);
+    let stockStatus = 'In Stock';
+    if (currentStock === 0) stockStatus = 'Out of Stock';
+    else if (currentStock <= minReorder) stockStatus = 'Low Stock';
 
-        if (result.rowsAffected[0] === 0) {
-            return res.status(404).json({ success: false, message: 'Item not found or has been deleted.' });
-        }
+    const updateQuery = `
+      UPDATE [inventory].[inventoryItem]
+      SET itemName = ISNULL(@itemName, itemName),
+          itemType = ISNULL(@itemType, itemType),
+          stock = @stock,
+          price = @price,
+          SKU = ISNULL(@SKU, SKU),
+          reorderAmount = @reorderAmount,
+          description = ISNULL(@description, description),
+          stockStatus = @stockStatus
+      WHERE itemID = @itemId
+    `;
 
-        res.status(200).json({
-            success: true,
-            message: `Stock updated to ${stock} for item ID ${itemId}.`
-        });
-    } catch (error) {
-        console.error('Error updating stock:', error);
-        res.status(500).json({ success: false, message: 'Failed to update stock.', error: error.message });
-    }
-};
+    await pool.request()
+      .input('itemId', sql.Int, Number(itemId))
+      .input('itemName', sql.VarChar(100), finalName || null)
+      .input('itemType', sql.VarChar(100), finalType || null)
+      .input('stock', sql.Int, currentStock)
+      .input('price', sql.Float, cleanPrice)
+      .input('SKU', sql.VarChar(100), finalSKU || null)
+      .input('reorderAmount', sql.Int, minReorder)
+      .input('description', sql.VarChar(255), description || null)
+      .input('stockStatus', sql.VarChar(100), stockStatus)
+      .query(updateQuery);
 
-// 4. DELETE /api/admin/inventory/:itemId - Soft delete item
-const softDeleteInventoryItem = async (req, res) => {
-    const { itemId } = req.params;
-
-    try {
-        const pool = await poolPromise;
-        const result = await pool.request()
-            .input('itemID', sql.Int, itemId)
-            .query(`
-                UPDATE inventory.inventoryItem
-                SET isDeleted = 1
-                WHERE itemID = @itemID
-            `);
-
-        if (result.rowsAffected[0] === 0) {
-            return res.status(404).json({ success: false, message: 'Item not found.' });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: `Inventory item ID ${itemId} soft-deleted successfully.`
-        });
-    } catch (error) {
-        console.error('Error deleting item:', error);
-        res.status(500).json({ success: false, message: 'Failed to delete item.', error: error.message });
-    }
-};
-
-module.exports = {
-    getAllInventory,
-    addInventoryItem,
-    updateStock,
-    softDeleteInventoryItem
+    console.log(`[Cool Fix] Updated inventory item #${itemId} successfully!`);
+    res.status(200).json({ success: true, message: 'Item updated successfully!' });
+  } catch (err) {
+    console.error('[Cool Fix] SQL PUT Inventory Error:', err.message);
+    res.status(500).json({ success: false, message: `SQL Error: ${err.message}` });
+  }
 };

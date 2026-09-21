@@ -1,19 +1,18 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import "./Sidebar.css";
+import "../../styles/Sidebar.css";
 
 const navItems = [
-  { label: "Dashboard", path: "/" },
-  { label: "Manage Bookings", path: "/bookings" },
-  { label: "Manage Technicians", path: "/technicians" },
-  { label: "Manage Customers", path: "/customers" },
-  { label: "Manage Aircon", path: "/aircons" },
-  { label: "Manage Services", path: "/services" },
-  { label: "Manage Packages", path: "/packages" },
-  { label: "Manage Promotions", path: "/promotions" },
-  { label: "Manage Inventory", path: "/inventory" },
-  { label: "View Reports", path: "/reports" },
-  { label: "Analytics", path: "/analytics" },
+  { label: "Dashboard", path: "/admin/dashboard" },
+  { label: "Manage Bookings", path: "/admin/bookings" },
+  { label: "Manage Technicians", path: "/admin/technicians" },
+  { label: "Manage Customers", path: "/admin/customers" },
+  { label: "Manage Aircon", path: "/admin/aircon" },
+  { label: "Manage Services", path: "/admin/services" },
+  { label: "Manage Packages", path: "/admin/packages" },
+  { label: "Manage Promotions", path: "/admin/promotions" },
+  { label: "Manage Inventory", path: "/admin/inventory" },
+  { label: "View Reports", path: "/admin/reports" },
 ];
 
 // Highlighting is handled by NavLink itself based on the current URL.

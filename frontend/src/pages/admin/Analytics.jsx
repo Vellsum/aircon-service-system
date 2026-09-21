@@ -1,6 +1,6 @@
-import React from "react";
-import Sidebar from "../components/Sidebar";
-import "../styles/shared.css";
+import Sidebar from "../../components/admin/Sidebar";
+import RecordModal from "../../components/admin/RecordModal";
+import "../../styles/shared.css";
 
 const kpis = [
   { label: "Total Revenue (YTD)", value: "$142,300", delta: "↑ 18% vs last year", tone: "success" },

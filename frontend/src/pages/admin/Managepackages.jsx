@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import Sidebar from "../components/Sidebar";
-import RecordModal from "../components/RecordModal";
-import "../styles/shared.css";
+import Sidebar from "../../components/admin/Sidebar";
+import RecordModal from "../../components/admin/RecordModal";
+import "../../styles/shared.css";
 
 const statusTone = {
   Active: "success",
