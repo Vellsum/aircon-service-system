@@ -1,4 +1,3 @@
-// backend/src/server.js
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -10,38 +9,38 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Import Routes Admin - Meet
+// Debug logger to trace incoming requests in terminal
+app.use((req, res, next) => {
+  console.log(`[REQUEST] ${req.method} ${req.url}`);
+  next();
+});
+
+// Import Routes
 const authRoutes = require('./routes/authRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const adminUserRoutes = require('./routes/adminUserRoutes');
 const adminInventoryRoutes = require('./routes/adminInventoryRoutes');
 const adminBookingRoutes = require('./routes/adminBookingRoutes');
-
-// Import Routes Technician - Billie
 const technicianRoutes = require('./routes/technicianRoutes');
 
-// Import Routes Customer - Scott
-
-
-// Mount Routes admin - meet
+// Mount Routes (Standard structure)
 app.use('/api/auth', authRoutes);
 app.use('/api/bookings', bookingRoutes);
-app.use('/api/admin/inventory', adminInventoryRoutes);
 app.use('/api/admin/users', adminUserRoutes);
+//app.use('/api/admin/inventory', adminInventoryRoutes);
+// Register Inventory API route
+app.use('/api/admin/inventory', require('./routes/adminInventoryRoutes'));
+// Register Dashboard API route
+app.use('/api/admin/dashboard', require('./routes/adminDashboardRoutes'));
 app.use('/api/admin/bookings', adminBookingRoutes);
-
-// Mount Routes technician - billie
 app.use('/api/technician', technicianRoutes);
 
-// Mount Routes customer - scott
-// app.use('/api/customer', customerRoutes);
-
-// Test route
-app.get("/", (req, res) => {
-    res.json({ message: "AirCon Care backend is running!" });
+// Test Root Route
+app.get('/', (req, res) => {
+  res.json({ message: 'AirCon Care backend is running!' });
 });
 
-// Start server
+// Start Server
 app.listen(PORT, () => {
-    console.log(`AirCon Care backend running on http://localhost:${PORT}`);
+  console.log(`AirCon Care backend running on http://localhost:${PORT}`);
 });

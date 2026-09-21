@@ -1,6 +1,7 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import "../../styles/shared.css";
-import "./Home.css";
+import "../../styles/Home.css"; // Local style import
 
 const trustStats = [
   { value: "500+", label: "Happy Customers" },
@@ -23,6 +24,8 @@ const promotions = [
 ];
 
 const Home = () => {
+  const navigate = useNavigate(); // Initialize hook inside component
+
   return (
     <div>
       <nav className="site-nav">
@@ -37,8 +40,19 @@ const Home = () => {
           <a href="#contact">Contact</a>
         </div>
         <div className="site-nav-actions">
-          <button className="dash-btn dash-btn-outline">Login</button>
-          <button className="dash-btn dash-btn-primary">Book a Service</button>
+          {/* Working routing to /login */}
+          <button 
+            className="dash-btn dash-btn-outline" 
+            onClick={() => navigate("/login")}
+          >
+            Login
+          </button>
+          <button 
+            className="dash-btn dash-btn-primary" 
+            onClick={() => navigate("/login")}
+          >
+            Book a Service
+          </button>
         </div>
       </nav>
 
@@ -50,8 +64,15 @@ const Home = () => {
           keep your home and business running cool, clean, and efficient.
         </p>
         <div className="site-hero-actions">
-          <button className="dash-btn dash-btn-primary">Book a Service</button>
-          <button className="dash-btn dash-btn-outline">View Services</button>
+          <button 
+            className="dash-btn dash-btn-primary" 
+            onClick={() => navigate("/login")}
+          >
+            Book a Service
+          </button>
+          <a href="#services">
+            <button className="dash-btn dash-btn-outline">View Services</button>
+          </a>
         </div>
       </section>
 
@@ -123,7 +144,12 @@ const Home = () => {
       <div className="site-cta">
         <h2>Ready to book your next service?</h2>
         <p>Get a certified technician at your door as soon as tomorrow.</p>
-        <button className="dash-btn dash-btn-primary">Book a Service Now</button>
+        <button 
+          className="dash-btn dash-btn-primary" 
+          onClick={() => navigate("/login")}
+        >
+          Book a Service Now
+        </button>
       </div>
 
       <footer className="site-footer" id="contact">

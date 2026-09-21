@@ -1,4 +1,5 @@
 import client from './client'; // Base Axios/Fetch instance pointing to your Express server
+import { mockJobs } from '../data/technician/mockJobs';
 
 // 1. Fetch assigned jobs for a technician
 export async function getAssignedJobs(technicianId = 1) {

@@ -1,6 +1,6 @@
-import React from "react";
-import Sidebar from "../components/Sidebar";
-import "../styles/shared.css";
+import Sidebar from "../../components/admin/Sidebar";
+import RecordModal from "../../components/admin/RecordModal";
+import "../../styles/shared.css";
 
 const reports = [
   { name: "Monthly Revenue Report", meta: "Last generated 01 Sep 2026 · PDF" },

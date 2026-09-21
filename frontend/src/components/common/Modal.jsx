@@ -1,5 +1,6 @@
 import React from "react";
 
+
 // Generic modal shell. Pass any content as children.
 // Usage: <Modal title="..." onClose={...}>...content...</Modal>
 const Modal = ({ title, onClose, children }) => {

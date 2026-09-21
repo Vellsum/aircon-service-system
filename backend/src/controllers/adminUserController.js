@@ -1,130 +1,136 @@
-const { sql, poolPromise } = require('../config/db');
+/**
+ * Cool Fix - Admin User Controller
+ * Manages [user3].[newCustomer] and [user3].[technician]
+ */
 
-// 1. GET /api/admin/users - Fetch all users with their role details
-const getAllUsers = async (req, res) => {
-    try {
-        const pool = await poolPromise;
-        const result = await pool.request().query(`
-            SELECT 
-                u.user_ID,
-                u.username,
-                u.accountType,
-                u.isDeleted,
-                c.customer_ID,
-                c.customer_name,
-                c.customer_address,
-                c.customer_aircons,
-                c.loyaltyPoints,
-                t.technician_ID,
-                t.technician_name,
-                t.technician_rating,
-                a.admin_id,
-                a.admin_name,
-                a.authorityKey
-            FROM user3.topUser u
-            LEFT JOIN user3.newCustomer c ON u.user_ID = c.user_ID
-            LEFT JOIN user3.technician t ON u.user_ID = t.user_ID
-            LEFT JOIN user3.admin a ON u.user_ID = a.user_ID
-            WHERE u.isDeleted = 0
-            ORDER BY u.user_ID DESC
-        `);
+const { poolPromise, sql } = require('../config/db');
 
-        res.status(200).json({
-            success: true,
-            count: result.recordset.length,
-            data: result.recordset
-        });
-    } catch (error) {
-        console.error('Error fetching users:', error);
-        res.status(500).json({ success: false, message: 'Database query failed', error: error.message });
-    }
+// ==========================================
+// CUSTOMERS MANAGEMENT ([user3].[newCustomer])
+// ==========================================
+
+/**
+ * GET /api/admin/users/customers
+ * Fetches all registered customers
+ */
+exports.getAllCustomers = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    if (!pool) return res.status(200).json({ success: true, customers: [] });
+
+    const query = `
+      SELECT 
+        customer_ID,
+        customer_name,
+        customer_aircons,
+        loyaltyPoints,
+        cccustomer_address,
+        bought_packages,
+        user_ID,
+        totalBookings,
+        totalSpent
+      FROM [user3].[newCustomer]
+      ORDER BY customer_ID DESC
+    `;
+
+    const result = await pool.request().query(query);
+    res.status(200).json({ success: true, customers: result.recordset || [] });
+  } catch (err) {
+    console.error('[Cool Fix] GET Customers Error:', err.message);
+    res.status(500).json({ success: false, message: err.message, customers: [] });
+  }
 };
 
-// 2. POST /api/admin/users/technician - Create a new Technician account
-const createTechnician = async (req, res) => {
-    const { username, password, technician_name } = req.body;
+/**
+ * POST /api/admin/users/customers
+ * Creates a new customer row
+ */
+exports.createCustomer = async (req, res) => {
+  try {
+    const { customer_name, cccustomer_address, loyaltyPoints } = req.body;
 
-    if (!username || !password || !technician_name) {
-        return res.status(400).json({ success: false, message: 'Username, password, and technician name are required.' });
-    }
+    const pool = await poolPromise;
+    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
 
-    try {
-        const pool = await poolPromise;
-        const transaction = pool.transaction();
-        await transaction.begin();
+    const query = `
+      INSERT INTO [user3].[newCustomer] 
+        (customer_name, customer_aircons, loyaltyPoints, cccustomer_address, bought_packages, totalBookings, totalSpent)
+      VALUES 
+        (@name, '1', ISNULL(@points, 0), ISNULL(@address, 'Singapore'), 0, 0, 0.0)
+    `;
 
-        try {
-            // Insert into parent table user3.topUser
-            const userResult = await transaction.request()
-                .input('username', sql.VarChar(100), username)
-                .input('salt', sql.VarChar(100), 'default_salt')
-                .input('hash', sql.VarChar(100), password) // In production, hash with bcrypt
-                .input('accountType', sql.VarChar(100), 'Technician')
-                .query(`
-                    INSERT INTO user3.topUser (username, salt, hash, accountType, isDeleted)
-                    VALUES (@username, @salt, @hash, @accountType, 0);
-                    SELECT SCOPE_IDENTITY() AS user_ID;
-                `);
+    await pool.request()
+      .input('name', sql.VarChar(100), customer_name || 'New Customer')
+      .input('points', sql.Int, parseInt(loyaltyPoints, 10) || 0)
+      .input('address', sql.VarChar(100), cccustomer_address || 'Singapore')
+      .query(query);
 
-            const newUserID = userResult.recordset[0].user_ID;
-
-            // Insert into child table user3.technician
-            await transaction.request()
-                .input('technician_name', sql.VarChar(100), technician_name)
-                .input('technician_rating', sql.Int, 5) // Initial rating default
-                .input('user_ID', sql.Int, newUserID)
-                .query(`
-                    INSERT INTO user3.technician (technician_name, technician_rating, user_ID)
-                    VALUES (@technician_name, @technician_rating, @user_ID);
-                `);
-
-            await transaction.commit();
-
-            res.status(201).json({
-                success: true,
-                message: 'Technician account created successfully.',
-                user_ID: newUserID
-            });
-        } catch (err) {
-            await transaction.rollback();
-            throw err;
-        }
-    } catch (error) {
-        console.error('Error creating technician:', error);
-        res.status(500).json({ success: false, message: 'Failed to create technician account.', error: error.message });
-    }
+    res.status(201).json({ success: true, message: 'Customer added successfully!' });
+  } catch (err) {
+    console.error('[Cool Fix] POST Customer Error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
 };
 
-// 3. DELETE /api/admin/users/:userId - Soft delete user account
-const softDeleteUser = async (req, res) => {
-    const { userId } = req.params;
+// ==========================================
+// TECHNICIANS MANAGEMENT ([user3].[technician])
+// ==========================================
 
-    try {
-        const pool = await poolPromise;
-        const result = await pool.request()
-            .input('user_ID', sql.Int, userId)
-            .query(`
-                UPDATE user3.topUser
-                SET isDeleted = 1
-                WHERE user_ID = @user_ID
-            `);
+/**
+ * GET /api/admin/users/technicians
+ * Fetches all field service technicians
+ */
+exports.getAllTechnicians = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    if (!pool) return res.status(200).json({ success: true, technicians: [] });
 
-        if (result.rowsAffected[0] === 0) {
-            return res.status(404).json({ success: false, message: 'User not found.' });
-        }
+    const query = `
+      SELECT 
+        technician_ID,
+        technician_name,
+        technician_rating,
+        user_ID,
+        specialty,
+        jobsDone
+      FROM [user3].[technician]
+      ORDER BY technician_ID DESC
+    `;
 
-        res.status(200).json({
-            success: true,
-            message: `User ID ${userId} has been soft-deleted successfully.`
-        });
-    } catch (error) {
-        console.error('Error deleting user:', error);
-        res.status(500).json({ success: false, message: 'Failed to delete user.', error: error.message });
-    }
+    const result = await pool.request().query(query);
+    res.status(200).json({ success: true, technicians: result.recordset || [] });
+  } catch (err) {
+    console.error('[Cool Fix] GET Technicians Error:', err.message);
+    res.status(500).json({ success: false, message: err.message, technicians: [] });
+  }
 };
 
-module.exports = {
-    getAllUsers,
-    createTechnician,
-    softDeleteUser
+/**
+ * POST /api/admin/users/technicians
+ * Creates a new technician row
+ */
+exports.createTechnician = async (req, res) => {
+  try {
+    const { technician_name, specialty } = req.body;
+
+    const pool = await poolPromise;
+    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
+
+    const query = `
+      INSERT INTO [user3].[technician] 
+        (technician_name, technician_rating, specialty, jobsDone)
+      VALUES 
+        (@name, '5.0', ISNULL(@specialty, 'General Servicing'), 0)
+    `;
+
+    await pool.request()
+      .input('name', sql.VarChar(100), technician_name || 'New Technician')
+      .input('specialty', sql.VarChar(100), specialty || 'Aircon Servicing')
+      .query(query);
+
+    res.status(201).json({ success: true, message: 'Technician added successfully!' });
+  } catch (err) {
+    console.error('[Cool Fix] POST Technician Error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
 };

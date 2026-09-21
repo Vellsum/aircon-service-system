@@ -1,15 +1,19 @@
-import React, { useState } from "react";
-import Modal from "./Modal";
+import React, { useState, useEffect } from "react";
+import Modal from "../common/Modal";
 
-// Generic view/edit/create modal driven by a field schema, so the same
-// component works for bookings, technicians, customers, services, etc.
-//
-// fields: [{ key, label, type: "text" | "number" | "select", options?: [] }]
-// mode: "view" (read-only) | "edit" (prefilled form) | "create" (blank form)
-// data: current values (for view/edit) or {} for create
-// onSave: called with the updated data object (edit/create only)
 const RecordModal = ({ mode, title, fields, data, onClose, onSave }) => {
   const [form, setForm] = useState(data || {});
+
+  // Compute local timezone YYYY-MM-DD string to block past calendar dates
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const todayDateString = `${year}-${month}-${day}`;
+
+  useEffect(() => {
+    setForm(data || {});
+  }, [data]);
 
   const handleChange = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -27,7 +31,7 @@ const RecordModal = ({ mode, title, fields, data, onClose, onSave }) => {
           {fields.map((field) => (
             <div className="dash-view-row" key={field.key}>
               <span className="dash-view-row-label">{field.label}</span>
-              <span className="dash-view-row-value">{data[field.key]}</span>
+              <span className="dash-view-row-value">{data ? data[field.key] : "N/A"}</span>
             </div>
           ))}
         </div>
@@ -48,25 +52,36 @@ const RecordModal = ({ mode, title, fields, data, onClose, onSave }) => {
             <div className="dash-form-row" key={field.key}>
               <label className="dash-form-label">{field.label}</label>
 
+              {/* Render Dropdown Select */}
               {field.type === "select" ? (
                 <select
                   className="dash-form-select"
                   value={form[field.key] ?? ""}
                   onChange={(e) => handleChange(field.key, e.target.value)}
                 >
-                  {field.options.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
+                  <option value="">-- Select Option --</option>
+                  {(field.options || []).map((opt, idx) => {
+                    const isObj = typeof opt === "object" && opt !== null;
+                    const val = isObj ? opt.value : opt;
+                    const lbl = isObj ? opt.label : opt;
+
+                    return (
+                      <option key={isObj ? opt.value : idx} value={val}>
+                        {lbl}
+                      </option>
+                    );
+                  })}
                 </select>
               ) : (
+                /* Native Date Input: Applies min={todayDateString} to disable past dates */
                 <input
                   className="dash-form-input"
-                  type={field.type === "number" ? "number" : "text"}
+                  type={field.type || "text"}
+                  min={field.type === "date" ? todayDateString : undefined} // Blocks dates before today
                   value={form[field.key] ?? ""}
                   onChange={(e) => handleChange(field.key, e.target.value)}
-                  required
+                  readOnly={field.readOnly || false}
+                  required={field.required !== false && !field.readOnly}
                 />
               )}
             </div>

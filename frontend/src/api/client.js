@@ -1,26 +1,19 @@
-// Base API helper wrapper using native fetch
-const API_BASE_URL = 'http://localhost:5000';
+// src/api/client.js
+const API_BASE_URL = "http://localhost:5000/api"; // Adjust port to match backend server
 
-const client = {
-  async get(endpoint) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return { data: await response.json() };
-  },
+export async function loginUser(credentials) {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(credentials),
+  });
 
-  async put(endpoint, body) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return { data: await response.json() };
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || "Login failed");
   }
-};
 
-export default client;
+  return response.json();
+}

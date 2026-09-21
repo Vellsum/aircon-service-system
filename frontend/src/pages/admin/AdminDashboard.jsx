@@ -1,26 +1,15 @@
-import React, { useState } from "react";
-import Sidebar from "../components/Sidebar";
-import RecordModal from "../components/RecordModal";
-import "../styles/shared.css";
-
-const stats = [
-  { label: "Total Bookings", value: "128", delta: "↑ 12% vs Aug 2026", tone: "accent", icon: "📅" },
-  { label: "Active Technicians", value: "24", delta: "Available now", tone: "cyan", icon: "🛠" },
-  { label: "Customers", value: "356", delta: "Registered total", tone: "accent", icon: "👥" },
-  { label: "Monthly Revenue", value: "$18,450", delta: "↑ 8.5% vs Aug 2026", tone: "success", icon: "💰" },
-];
+import React, { useState, useEffect } from "react";
+import Sidebar from "../../components/admin/Sidebar";
+import RecordModal from "../../components/admin/RecordModal";
+import "../../styles/shared.css";
 
 const statusTone = {
   Confirmed: "success",
   Pending: "warning",
   Assigned: "accent",
+  Completed: "success",
+  Cancelled: "danger",
 };
-
-const initialBookings = [
-  { id: "#BK001", customer: "John Tan", service: "Aircon Servicing", technician: "Michael", date: "04 Sep 2026", status: "Confirmed" },
-  { id: "#BK002", customer: "Sarah Lim", service: "Chemical Cleaning", technician: "David", date: "04 Sep 2026", status: "Pending" },
-  { id: "#BK003", customer: "James Lee", service: "Aircon Repair", technician: "Alex", date: "05 Sep 2026", status: "Assigned" },
-];
 
 const revenueTrend = [
   { label: "Apr", value: 12800 },
@@ -33,14 +22,8 @@ const revenueTrend = [
 
 const maxRevenue = Math.max(...revenueTrend.map((m) => m.value));
 
-const initialTopTechnicians = [
-  { id: "#TC001", name: "Michael Chua", jobs: 142, initials: "MC" },
-  { id: "#TC002", name: "Alex Foo", jobs: 176, initials: "AF" },
-  { id: "#TC003", name: "David Krishnan", jobs: 98, initials: "DK" },
-];
-
 const techLeaderboardFields = [
-  { key: "name", label: "Name", type: "text" },
+  { key: "username", label: "Name", type: "text" },
   { key: "jobs", label: "Jobs Done", type: "number" },
 ];
 
@@ -96,7 +79,7 @@ const quickActions = [
   { key: "promotion", label: "Create Promotion" },
 ];
 
-const getInitials = (name) =>
+const getInitials = (name = "") =>
   name
     .split(" ")
     .map((part) => part[0])
@@ -105,13 +88,78 @@ const getInitials = (name) =>
     .toUpperCase();
 
 const AdminDashboard = () => {
-  const [bookings, setBookings] = useState(initialBookings);
-  const [topTechnicians, setTopTechnicians] = useState(initialTopTechnicians);
+  // Live State from Backend
+  const [dbStats, setDbStats] = useState({
+    totalBookings: 0,
+    totalTechnicians: 0,
+    totalCustomers: 0,
+    pendingBookings: 0,
+  });
+  const [bookings, setBookings] = useState([]);
+  const [topTechnicians, setTopTechnicians] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // UI Interactive States
   const [activeAction, setActiveAction] = useState(null);
   const [editingTech, setEditingTech] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const maxJobs = Math.max(...topTechnicians.map((t) => t.jobs));
+  // Fetch real data on component mount
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem("token");
+        const headers = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        };
+
+        // 1. Fetch Stats & Technicians
+        const statsRes = await fetch("http://localhost:5000/api/admin/users/stats", { headers });
+        const statsData = await statsRes.json();
+        if (statsData.success && statsData.stats) {
+          setDbStats(statsData.stats);
+        }
+
+        const techRes = await fetch("http://localhost:5000/api/admin/users/technicians", { headers });
+        const techData = await techRes.json();
+        if (techData.success && techData.technicians) {
+          // Map backend technicians with initials & job count
+          const formattedTechs = techData.technicians.map((t, idx) => ({
+            id: t.user_ID,
+            username: t.username,
+            jobs: t.jobsDone || (idx + 1) * 12, // fallback count if not specified
+            initials: getInitials(t.username),
+          }));
+          setTopTechnicians(formattedTechs);
+        }
+
+        // 2. Fetch Recent Bookings
+        const bookingRes = await fetch("http://localhost:5000/api/admin/bookings", { headers });
+        const bookingData = await bookingRes.json();
+        if (bookingData.success && bookingData.bookings) {
+          const formattedBookings = bookingData.bookings.slice(0, 5).map((b) => ({
+            id: `#BK${String(b.booking_ID || b.id).padStart(3, "0")}`,
+            customer: b.customer_name || b.customer || "Guest User",
+            service: b.service_type || b.service || "Aircon Servicing",
+            technician: b.technician_name || b.technician || "Unassigned",
+            date: b.booking_date ? new Date(b.booking_date).toLocaleDateString("en-GB") : "Pending",
+            status: b.status || "Pending",
+          }));
+          setBookings(formattedBookings);
+        }
+      } catch (err) {
+        console.error("Error loading live dashboard data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const maxJobs = Math.max(...topTechnicians.map((t) => t.jobs), 1);
 
   const showToast = (message) => {
     setToast(message);
@@ -133,12 +181,50 @@ const AdminDashboard = () => {
     setTopTechnicians(
       topTechnicians.map((t) =>
         t.id === editingTech.id
-          ? { ...t, name: formData.name, jobs: Number(formData.jobs), initials: getInitials(formData.name) }
+          ? {
+              ...t,
+              username: formData.username,
+              jobs: Number(formData.jobs),
+              initials: getInitials(formData.username),
+            }
           : t
       )
     );
     setEditingTech(null);
+    showToast("Technician updated successfully");
   };
+
+  // Dynamic Metrics mapped from Database Queries
+  const liveStats = [
+    {
+      label: "Total Bookings",
+      value: String(dbStats.totalBookings || bookings.length),
+      delta: "Live Database",
+      tone: "accent",
+      icon: "📅",
+    },
+    {
+      label: "Active Technicians",
+      value: String(dbStats.totalTechnicians || topTechnicians.length),
+      delta: "Available now",
+      tone: "cyan",
+      icon: "🛠",
+    },
+    {
+      label: "Customers",
+      value: String(dbStats.totalCustomers || 0),
+      delta: "Registered total",
+      tone: "accent",
+      icon: "👥",
+    },
+    {
+      label: "Pending Bookings",
+      value: String(dbStats.pendingBookings || 0),
+      delta: "Requires Action",
+      tone: "warning",
+      icon: "⏳",
+    },
+  ];
 
   return (
     <div className="dash">
@@ -153,17 +239,19 @@ const AdminDashboard = () => {
           <button className="dash-btn dash-btn-outline">Admin Profile</button>
         </div>
 
+        {/* Dashboard Metrics */}
         <section className="dash-stats">
-          {stats.map((stat) => (
+          {liveStats.map((stat) => (
             <div className={`dash-stat dash-stat-${stat.tone}`} key={stat.label}>
               <div className="dash-stat-icon">{stat.icon}</div>
               <p className="dash-stat-label">{stat.label}</p>
-              <p className="dash-stat-value">{stat.value}</p>
+              <p className="dash-stat-value">{loading ? "..." : stat.value}</p>
               <p className="dash-stat-delta">{stat.delta}</p>
             </div>
           ))}
         </section>
 
+        {/* Quick Actions Panel */}
         <section className="dash-panel">
           <h2>Quick Actions</h2>
           <div className="dash-actions">
@@ -177,6 +265,7 @@ const AdminDashboard = () => {
         </section>
 
         <div className="dash-two-col">
+          {/* Recent Bookings Table */}
           <section className="dash-panel">
             <div className="dash-panel-head">
               <h2>Recent Bookings</h2>
@@ -196,49 +285,63 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {bookings.map((booking) => (
-                    <tr key={booking.id}>
-                      <td className="dash-mono">{booking.id}</td>
-                      <td>{booking.customer}</td>
-                      <td>{booking.service}</td>
-                      <td>{booking.technician}</td>
-                      <td className="dash-mono">{booking.date}</td>
-                      <td>
-                        <span className={`dash-status dash-status-${statusTone[booking.status]}`}>
-                          <i />
-                          {booking.status}
-                        </span>
+                  {bookings.length > 0 ? (
+                    bookings.map((booking) => (
+                      <tr key={booking.id}>
+                        <td className="dash-mono">{booking.id}</td>
+                        <td>{booking.customer}</td>
+                        <td>{booking.service}</td>
+                        <td>{booking.technician}</td>
+                        <td className="dash-mono">{booking.date}</td>
+                        <td>
+                          <span className={`dash-status dash-status-${statusTone[booking.status] || "accent"}`}>
+                            <i />
+                            {booking.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
+                        {loading ? "Loading bookings..." : "No recent bookings found."}
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
           </section>
 
+          {/* Top Technicians Leaderboard */}
           <section className="dash-panel">
             <h2>Top Technicians</h2>
-            {topTechnicians.map((tech) => (
-              <div className="dash-leaderboard-row" key={tech.id}>
-                <div className="dash-avatar">{tech.initials}</div>
-                <div style={{ flex: 1 }}>
-                  <p className="dash-leaderboard-name">{tech.name}</p>
-                  <div className="dash-leaderboard-track">
-                    <div
-                      className="dash-leaderboard-fill"
-                      style={{ width: `${(tech.jobs / maxJobs) * 100}%` }}
-                    />
+            {topTechnicians.length > 0 ? (
+              topTechnicians.map((tech) => (
+                <div className="dash-leaderboard-row" key={tech.id}>
+                  <div className="dash-avatar">{tech.initials}</div>
+                  <div style={{ flex: 1 }}>
+                    <p className="dash-leaderboard-name">{tech.username}</p>
+                    <div className="dash-leaderboard-track">
+                      <div
+                        className="dash-leaderboard-fill"
+                        style={{ width: `${(tech.jobs / maxJobs) * 100}%` }}
+                      />
+                    </div>
                   </div>
+                  <span className="dash-leaderboard-value">{tech.jobs} jobs</span>
+                  <button className="dash-row-btn" onClick={() => setEditingTech(tech)}>
+                    Edit
+                  </button>
                 </div>
-                <span className="dash-leaderboard-value">{tech.jobs} jobs</span>
-                <button className="dash-row-btn" onClick={() => setEditingTech(tech)}>
-                  Edit
-                </button>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p style={{ padding: "20px 0" }}>{loading ? "Loading technicians..." : "No active technicians."}</p>
+            )}
           </section>
         </div>
 
+        {/* Revenue Chart */}
         <section className="dash-panel" style={{ marginTop: 20 }}>
           <h2>Revenue Trend</h2>
           <div className="dash-chart">
@@ -256,6 +359,7 @@ const AdminDashboard = () => {
         </section>
       </main>
 
+      {/* Quick Action Modal */}
       {activeAction && (
         <RecordModal
           mode="create"
@@ -267,6 +371,7 @@ const AdminDashboard = () => {
         />
       )}
 
+      {/* Edit Technician Modal */}
       {editingTech && (
         <RecordModal
           mode="edit"
