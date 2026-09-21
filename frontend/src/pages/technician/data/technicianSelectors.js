@@ -4,6 +4,7 @@ import {
   TECHNICIAN_MOCK_ENTITY_STATE,
 } from './technicianMockEntities'
 import { selectTechnicianFollowUpDemoViewModels } from './technicianFollowUpDemo'
+import { selectTechnicianPartsLogDemoViewModels } from './technicianPartsLogDemo'
 
 function indexBy(records, key) {
   return new Map(records.map((record) => [record[key], record]))
@@ -67,6 +68,64 @@ export function selectTechnicianContext(entityState, user_ID) {
     firstName: presentation?.firstName || technician.technician_name.split(' ')[0],
     roleLabel: presentation?.roleLabel || 'Technician',
     averageRating: presentation?.averageRating ?? null,
+  }
+}
+
+function createProfileInitials(name) {
+  const nameParts = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+
+  if (nameParts.length === 0) return '—'
+
+  return [nameParts[0], nameParts[nameParts.length - 1]]
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('')
+}
+
+export function selectTechnicianProfile(entityState, user_ID) {
+  const technicianContext = selectTechnicianContext(entityState, user_ID)
+
+  if (!technicianContext) return null
+
+  const assignedJobIDs = new Set(
+    selectAssignedJobs(entityState, technicianContext.technician_ID).map(
+      (job) => job.job_ID,
+    ),
+  )
+  const completedJobIDs = new Set(
+    selectTechnicianJobHistory(entityState, technicianContext.technician_ID).map(
+      (job) => job.job_ID,
+    ),
+  )
+
+  return {
+    userID: technicianContext.user_ID,
+    technicianID: technicianContext.technician_ID,
+    technicianName: technicianContext.technicianName,
+    initials: createProfileInitials(technicianContext.technicianName),
+    username: technicianContext.username,
+    accountType: technicianContext.accountType,
+    accountStatus: technicianContext.isDeleted ? 'Inactive' : 'Active',
+    technicianRating: technicianContext.technicianRating,
+    workSummary: {
+      assignedJobs: assignedJobIDs.size,
+      completedJobs: completedJobIDs.size,
+    },
+    presentation: {
+      roleLabel: technicianContext.roleLabel,
+    },
+    availability: {
+      rating: Number.isFinite(technicianContext.technicianRating),
+      phone: false,
+      email: false,
+      specialty: false,
+      avatar: false,
+      editing: false,
+      passwordChange: false,
+    },
   }
 }
 
@@ -158,6 +217,112 @@ export function selectTechnicianJobHistory(entityState, technician_ID) {
     .filter(Boolean)
 }
 
+function createMonthLabel(period) {
+  const [year, month] = period.split('-').map(Number)
+
+  if (!year || !month) return period
+
+  return new Intl.DateTimeFormat('en-SG', {
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(year, month - 1, 1))
+}
+
+export function selectTechnicianPerformance(entityState, technician_ID) {
+  const technician = getCollection(entityState, 'technicians').find(
+    (record) => record.technician_ID === technician_ID,
+  )
+
+  if (!technician) return null
+
+  const assignedJobs = selectAssignedJobs(entityState, technician_ID)
+  const completedHistoryJobs = Array.from(
+    new Map(
+      selectTechnicianJobHistory(entityState, technician_ID).map((job) => [
+        job.job_ID,
+        job,
+      ]),
+    ).values(),
+  )
+  const byStatus = {
+    upcoming: 0,
+    inProgress: 0,
+    completed: 0,
+  }
+  const completedByMonth = new Map()
+  const completedByService = new Map()
+
+  assignedJobs.forEach((job) => {
+    const normalizedStatus = job.status?.trim().toLowerCase()
+
+    if (normalizedStatus === 'upcoming') byStatus.upcoming += 1
+    if (normalizedStatus === 'in progress') byStatus.inProgress += 1
+    if (normalizedStatus === 'completed') byStatus.completed += 1
+  })
+
+  completedHistoryJobs.forEach((job) => {
+    const period = job.date?.slice(0, 7)
+
+    if (/^\d{4}-\d{2}$/.test(period)) {
+      completedByMonth.set(period, (completedByMonth.get(period) || 0) + 1)
+    }
+
+    if (job.serviceType) {
+      completedByService.set(
+        job.serviceType,
+        (completedByService.get(job.serviceType) || 0) + 1,
+      )
+    }
+  })
+
+  return {
+    technicianID: technician.technician_ID,
+    technicianName: technician.technician_name,
+    technicianRating: technician.technician_rating,
+    workload: {
+      assignedJobs: assignedJobs.length,
+      byStatus,
+    },
+    completedWork: {
+      total: completedHistoryJobs.length,
+      byMonth: Array.from(completedByMonth, ([period, count]) => ({
+        period,
+        label: createMonthLabel(period),
+        count,
+      })).sort((first, second) => second.period.localeCompare(first.period)),
+      byService: Array.from(completedByService, ([serviceName, count]) => ({
+        serviceName,
+        count,
+      })).sort(
+        (first, second) =>
+          second.count - first.count ||
+          first.serviceName.localeCompare(second.serviceName),
+      ),
+      recentJobs: completedHistoryJobs
+        .slice()
+        .sort((first, second) => second.date.localeCompare(first.date))
+        .map((job) => ({
+          jobID: job.job_ID,
+          bookingID: job.booking_ID,
+          displayJobCode: job.id,
+          serviceName: job.serviceType,
+          customerName: job.customerName,
+          date: job.date,
+          formattedDate: job.formattedDate,
+          status: job.status,
+        })),
+    },
+    availability: {
+      rating: Number.isFinite(technician.technician_rating),
+      customerSatisfaction: false,
+      onTimeArrival: false,
+      reports: false,
+      followUpPerformance: false,
+      performanceTrend: false,
+    },
+  }
+}
+
 export function selectTechnicianFollowUps(entityState, technician_ID) {
   const bookings = getCollection(entityState, 'bookings')
   const workRelationships = getCollection(entityState, 'work')
@@ -247,12 +412,94 @@ export function selectTechnicianFollowUps(entityState, technician_ID) {
     .filter(Boolean)
 }
 
+export function selectTechnicianPartsLog(entityState, technician_ID) {
+  const serviceReports = getCollection(entityState, 'serviceReports')
+  const partsUsed = getCollection(entityState, 'partsUsed')
+  const inventoryItems = getCollection(entityState, 'inventoryItems')
+  const workRelationships = getCollection(entityState, 'work')
+  const indexes = createEntityIndexes(entityState)
+  const inventoryById = indexBy(inventoryItems, 'itemID')
+  const workByJobId = indexBy(workRelationships, 'job_ID')
+  const partsByReportId = new Map()
+
+  partsUsed.forEach((relationship) => {
+    if (!partsByReportId.has(relationship.reportID)) {
+      partsByReportId.set(relationship.reportID, [])
+    }
+
+    partsByReportId.get(relationship.reportID).push(relationship)
+  })
+
+  return serviceReports
+    .filter(
+      (report) =>
+        report.technicianID === technician_ID &&
+        report.reportID !== null &&
+        report.reportID !== undefined,
+    )
+    .flatMap((report) => {
+      const reportParts = partsByReportId.get(report.reportID) || []
+      const job = indexes.jobById.get(report.job_id)
+      const workRelationship = job ? workByJobId.get(job.job_ID) : null
+      const booking = workRelationship
+        ? indexes.bookingById.get(workRelationship.booking_ID)
+        : null
+      const bookingPresentation = booking
+        ? indexes.bookingPresentationById.get(booking.booking_ID)
+        : null
+      const customerPresentation = booking
+        ? indexes.customerPresentationById.get(booking.customer_ID)
+        : null
+      const jobPresentation = job
+        ? indexes.jobPresentationById.get(job.job_ID)
+        : null
+
+      return reportParts
+        .map((relationship) => {
+          const inventoryItem = inventoryById.get(relationship.itemID)
+
+          // A usage record is valid only when its core report-item relationship
+          // resolves. Job, booking, customer, and service context remain optional.
+          if (!inventoryItem) return null
+
+          return {
+            reportID: report.reportID,
+            jobID: job?.job_ID ?? report.job_id ?? null,
+            bookingID: booking?.booking_ID ?? null,
+            technicianID: report.technicianID,
+            customerID: booking?.customer_ID ?? null,
+            itemID: inventoryItem.itemID,
+            itemName: inventoryItem.itemName,
+            itemType: inventoryItem.itemType,
+            itemDescription: inventoryItem.description,
+            currentStock: inventoryItem.stock,
+            bookingDate: booking?.date ?? null,
+            bookingTime: booking?.time ?? null,
+            location: booking?.location ?? null,
+            jobStatus: job?.job_status ?? null,
+            displayJobCode: jobPresentation?.displayJobCode ?? null,
+            customerName: customerPresentation?.customerName ?? null,
+            // Compatibility label until the Service entity/API is available.
+            serviceName: jobPresentation?.serviceType ?? null,
+            formattedDate: bookingPresentation?.formattedDate ?? null,
+          }
+        })
+        .filter(Boolean)
+    })
+}
+
 export function selectInventoryItems(entityState) {
   return getCollection(entityState, 'inventoryItems').filter((item) => !item.isDeleted)
 }
 
 export function selectCurrentTechnicianContext(user_ID = CURRENT_TECHNICIAN_USER_ID) {
   return selectTechnicianContext(TECHNICIAN_MOCK_ENTITY_STATE, user_ID)
+}
+
+export function selectCurrentTechnicianProfileViewModel(
+  user_ID = CURRENT_TECHNICIAN_USER_ID,
+) {
+  return selectTechnicianProfile(TECHNICIAN_MOCK_ENTITY_STATE, user_ID)
 }
 
 export function selectAssignedJobViewModels(
@@ -277,6 +524,15 @@ export function selectCurrentTechnicianJobHistoryViewModels(
   return selectTechnicianJobHistory(TECHNICIAN_MOCK_ENTITY_STATE, technician_ID)
 }
 
+export function selectCurrentTechnicianPerformanceViewModel(
+  technician_ID = CURRENT_TECHNICIAN_ENTITY_ID,
+) {
+  return selectTechnicianPerformance(
+    TECHNICIAN_MOCK_ENTITY_STATE,
+    technician_ID,
+  )
+}
+
 export function selectCurrentTechnicianFollowUpViewModels(
   technician_ID = CURRENT_TECHNICIAN_ENTITY_ID,
 ) {
@@ -297,6 +553,30 @@ export function selectCurrentTechnicianFollowUpDataSource(
 
   return {
     records: selectTechnicianFollowUpDemoViewModels(technician_ID),
+    source: 'demo',
+  }
+}
+
+export function selectCurrentTechnicianPartsLogViewModels(
+  technician_ID = CURRENT_TECHNICIAN_ENTITY_ID,
+) {
+  return selectCurrentTechnicianPartsLogDataSource(technician_ID).records
+}
+
+export function selectCurrentTechnicianPartsLogDataSource(
+  technician_ID = CURRENT_TECHNICIAN_ENTITY_ID,
+) {
+  const entityRecords = selectTechnicianPartsLog(
+    TECHNICIAN_MOCK_ENTITY_STATE,
+    technician_ID,
+  )
+
+  if (entityRecords.length > 0) {
+    return { records: entityRecords, source: 'entity' }
+  }
+
+  return {
+    records: selectTechnicianPartsLogDemoViewModels(technician_ID),
     source: 'demo',
   }
 }

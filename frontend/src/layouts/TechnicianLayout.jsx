@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import TechnicianSidebar from '../components/technician/TechnicianSidebar'
 import CoolFixLogo from '../components/technician/CoolFixLogo'
+import { TechnicianWorkflowProvider } from '../context/TechnicianWorkflowContext'
 
 /**
  * TechnicianLayout Component
@@ -98,9 +99,11 @@ function TechnicianLayout() {
           </div>
         </header>
 
-        <main className="technician-content-area">
-          <Outlet />
-        </main>
+        <TechnicianWorkflowProvider>
+          <main className="technician-content-area">
+            <Outlet />
+          </main>
+        </TechnicianWorkflowProvider>
       </div>
     </div>
   )

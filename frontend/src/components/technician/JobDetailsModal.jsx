@@ -1,9 +1,40 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import Modal from 'react-bootstrap/Modal'
 import JobStatusBadge from './JobStatusBadge'
 
-function JobDetailsModal({ job, show, onHide, onStartService }) {
+function JobDetailsModal({
+  job,
+  show,
+  onHide,
+  onStartService,
+  onCompleteService,
+  returnFocusRef,
+}) {
+  const fallbackFocusRef = useRef(null)
+
   if (!job) return null
+
+  const rememberFocusTarget = () => {
+    const trigger = returnFocusRef?.current
+    const jobRecord = trigger?.closest('tr, .cf-schedule-row, .job-mobile-card')
+    const recordButtons = jobRecord ? Array.from(jobRecord.querySelectorAll('button')) : []
+
+    fallbackFocusRef.current =
+      recordButtons.find(
+        (button) =>
+          button !== trigger && /view/i.test(button.textContent || ''),
+      ) || null
+  }
+
+  const restoreTriggerFocus = () => {
+    const focusTarget = returnFocusRef?.current?.isConnected
+      ? returnFocusRef.current
+      : fallbackFocusRef.current?.isConnected
+        ? fallbackFocusRef.current
+        : null
+
+    focusTarget?.focus()
+  }
 
   const initials = job.customerName
     ? job.customerName
@@ -20,6 +51,9 @@ function JobDetailsModal({ job, show, onHide, onStartService }) {
       onHide={onHide}
       centered
       size="lg"
+      restoreFocus={false}
+      onShow={rememberFocusTarget}
+      onExited={restoreTriggerFocus}
       contentClassName="job-details-modal-content cf-job-modal"
     >
       <Modal.Header closeButton className="cf-job-modal-header">
@@ -123,10 +157,13 @@ function JobDetailsModal({ job, show, onHide, onStartService }) {
           </button>
         )}
         {job.status === 'In Progress' && (
-          <button type="button" className="cf-button cf-button-primary cf-button-progress" onClick={onHide}>Continue Service</button>
-        )}
-        {job.status === 'Completed' && (
-          <button type="button" className="cf-button cf-button-secondary" onClick={onHide}>Completed Record</button>
+          <button
+            type="button"
+            className="cf-button cf-button-primary cf-button-progress"
+            onClick={() => (onCompleteService ? onCompleteService(job) : onHide())}
+          >
+            Complete Service
+          </button>
         )}
       </Modal.Footer>
     </Modal>

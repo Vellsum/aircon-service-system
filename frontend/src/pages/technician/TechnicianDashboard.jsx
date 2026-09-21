@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  selectAssignedJobViewModels,
   selectCurrentTechnicianContext,
+  selectCurrentTechnicianJobHistoryViewModels,
 } from './data/technicianSelectors'
+import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import JobDetailsModal from '../../components/technician/JobDetailsModal'
 
@@ -13,20 +14,35 @@ import JobDetailsModal from '../../components/technician/JobDetailsModal'
  */
 function TechnicianDashboard() {
   const [selectedJob, setSelectedJob] = useState(null)
+  const [showJobDetails, setShowJobDetails] = useState(false)
+  const jobDetailsTriggerRef = useRef(null)
   const technician = selectCurrentTechnicianContext()
-  const [technicianJobs, setTechnicianJobs] = useState(() =>
-    technician ? selectAssignedJobViewModels(technician.technician_ID) : [],
-  )
+  const {
+    assignedJobs: technicianJobs,
+    reportableJobs,
+    startService,
+    completeService,
+  } = useTechnicianWorkflow()
+  const historicalCompletedCount = selectCurrentTechnicianJobHistoryViewModels().length
+
+  const openJobDetails = (job) => {
+    jobDetailsTriggerRef.current = document.activeElement
+    setSelectedJob(job)
+    setShowJobDetails(true)
+  }
+
+  const closeJobDetails = () => {
+    setShowJobDetails(false)
+  }
 
   const handleStartService = (jobToStart) => {
-    setTechnicianJobs((currentJobs) =>
-      currentJobs.map((job) =>
-        job.job_ID === jobToStart.job_ID && job.status === 'Upcoming'
-          ? { ...job, status: 'In Progress' }
-          : job,
-      ),
-    )
-    setSelectedJob(null)
+    startService(jobToStart.job_ID)
+    closeJobDetails()
+  }
+
+  const handleCompleteService = (jobToComplete) => {
+    completeService(jobToComplete.job_ID)
+    closeJobDetails()
   }
 
   const todayJobs = technicianJobs.filter(
@@ -49,9 +65,9 @@ function TechnicianDashboard() {
       ),
     },
     {
-      label: 'Completed Week',
-      value: 12,
-      context: 'This week',
+      label: 'Historical Completed',
+      value: historicalCompletedCount,
+      context: 'Recorded in job history',
       tone: 'green',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true">
@@ -61,9 +77,9 @@ function TechnicianDashboard() {
       ),
     },
     {
-      label: 'Pending Reports',
-      value: 3,
-      context: 'Awaiting submission',
+      label: 'Report-ready Jobs',
+      value: reportableJobs.length,
+      context: 'Completed assignments eligible for report',
       tone: 'amber',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true">
@@ -75,9 +91,9 @@ function TechnicianDashboard() {
       ),
     },
     {
-      label: 'Average Rating',
-      value: '4.9',
-      context: 'Based on 28 ratings',
+      label: 'Rating',
+      value: 'Not available',
+      context: 'Awaiting technician rating data',
       tone: 'violet',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true">
@@ -177,14 +193,16 @@ function TechnicianDashboard() {
                   </div>
                 </div>
                 <div className="cf-schedule-actions">
-                  <button
-                    type="button"
-                    className={`cf-button cf-button-primary ${job.status === 'In Progress' ? 'cf-button-progress' : ''}`}
-                    onClick={() => setSelectedJob(job)}
-                  >
-                    {job.status === 'In Progress' ? 'Continue Service' : 'Start Service'}
-                  </button>
-                  <button type="button" className="cf-button cf-button-quiet" onClick={() => setSelectedJob(job)}>
+                  {job.status !== 'Completed' && (
+                    <button
+                      type="button"
+                      className={`cf-button cf-button-primary ${job.status === 'In Progress' ? 'cf-button-progress' : ''}`}
+                      onClick={() => openJobDetails(job)}
+                    >
+                      {job.status === 'In Progress' ? 'Continue Service' : 'Start Service'}
+                    </button>
+                  )}
+                  <button type="button" className="cf-button cf-button-quiet" onClick={() => openJobDetails(job)}>
                     View Details
                   </button>
                 </div>
@@ -239,12 +257,12 @@ function TechnicianDashboard() {
               <div><span className="cf-widget-kicker">Service quality</span><h2 id="readiness-title">Performance &amp; Readiness</h2></div>
             </header>
             <div className="cf-performance-hero">
-              <div className="cf-progress-ring"><span>97%</span></div>
-              <div><strong>On-Time Arrival Rate</strong><span>Target: &gt;95%</span></div>
+              <div className="cf-progress-ring"><span>—</span></div>
+              <div><strong>On-time arrival</strong><span>Awaiting arrival data</span></div>
             </div>
             <dl className="cf-performance-list">
-              <div><dt>Customer Satisfaction</dt><dd>4.9 / 5.0<small>28 ratings</small></dd></div>
-              <div><dt>Completed This Month</dt><dd>28 Jobs<small>July 2026</small></dd></div>
+              <div><dt>Customer satisfaction</dt><dd>Not available<small>Awaiting rating data</small></dd></div>
+              <div><dt>Historical completed</dt><dd>{historicalCompletedCount} Jobs<small>Recorded in job history</small></dd></div>
             </dl>
             <div className="cf-readiness-banner">
               <span className="cf-readiness-icon">
@@ -252,18 +270,20 @@ function TechnicianDashboard() {
                   <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                 </svg>
               </span>
-              <span><strong>Vehicle Tool &amp; Gas Kit</strong><small>Verification status</small></span>
-              <b>Verified OK</b>
+              <span><strong>Tool readiness</strong><small>Awaiting readiness data</small></span>
+              <b>Not available</b>
             </div>
           </section>
         </aside>
       </div>
 
       <JobDetailsModal
-        show={Boolean(selectedJob)}
+        show={showJobDetails}
         job={selectedJob}
-        onHide={() => setSelectedJob(null)}
+        onHide={closeJobDetails}
         onStartService={handleStartService}
+        onCompleteService={handleCompleteService}
+        returnFocusRef={jobDetailsTriggerRef}
       />
     </div>
   )

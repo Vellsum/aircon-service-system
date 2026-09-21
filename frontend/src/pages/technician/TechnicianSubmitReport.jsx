@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import Modal from 'react-bootstrap/Modal'
 import {
   selectCurrentInventoryItems,
-  selectCurrentTechnicianContext,
-  selectReportableJobViewModels,
 } from './data/technicianSelectors'
+import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import ServiceChecklist from '../../components/technician/ServiceChecklist'
 import PartsMaterialsTable from '../../components/technician/PartsMaterialsTable'
@@ -14,10 +13,6 @@ import FollowUpSection, {
 } from '../../components/technician/FollowUpSection'
 
 const DRAFT_STORAGE_KEY = 'aircon-care-technician-report-draft'
-const CURRENT_TECHNICIAN = selectCurrentTechnicianContext()
-const SELECTABLE_JOBS = CURRENT_TECHNICIAN
-  ? selectReportableJobViewModels(CURRENT_TECHNICIAN.technician_ID)
-  : []
 const AVAILABLE_INVENTORY_ITEMS = selectCurrentInventoryItems()
 const INVENTORY_ITEM_BY_ID = new Map(
   AVAILABLE_INVENTORY_ITEMS.map((item) => [item.itemID, item]),
@@ -178,7 +173,7 @@ function createInitialReport() {
   }
 }
 
-function loadLocalDraft() {
+function loadLocalDraft(reportableJobs) {
   const initialReport = createInitialReport()
 
   if (typeof window === 'undefined') return initialReport
@@ -191,7 +186,7 @@ function loadLocalDraft() {
     if (!isPlainObject(parsedDraft)) return initialReport
 
     const savedJobId = sanitizeString(parsedDraft.selectedJobId)
-    const selectedJobId = SELECTABLE_JOBS.some((job) => job.id === savedJobId)
+    const selectedJobId = reportableJobs.some((job) => job.id === savedJobId)
       ? savedJobId
       : ''
     const savedCondition = sanitizeString(parsedDraft.overallCondition)
@@ -331,14 +326,15 @@ function ReportMultiSelectField({
 
 function TechnicianSubmitReport() {
   const navigate = useNavigate()
-  const [report, setReport] = useState(loadLocalDraft)
+  const { reportableJobs } = useTechnicianWorkflow()
+  const [report, setReport] = useState(() => loadLocalDraft(reportableJobs))
   const [errors, setErrors] = useState({})
   const [notice, setNotice] = useState(null)
   const [showConfirmation, setShowConfirmation] = useState(false)
 
   const selectedJob = useMemo(
-    () => SELECTABLE_JOBS.find((job) => job.id === report.selectedJobId) || null,
-    [report.selectedJobId],
+    () => reportableJobs.find((job) => job.id === report.selectedJobId) || null,
+    [report.selectedJobId, reportableJobs],
   )
 
   const materialsTotal = useMemo(
@@ -586,7 +582,7 @@ function TechnicianSubmitReport() {
                     aria-describedby={errors.selectedJobId ? 'assigned-job-error' : undefined}
                   >
                     <option value="">Choose a completed job</option>
-                    {SELECTABLE_JOBS.map((job) => (
+                    {reportableJobs.map((job) => (
                       <option value={job.id} key={job.id}>
                         {job.id} · {job.customerName} · {job.serviceType} · {job.formattedDate}
                       </option>

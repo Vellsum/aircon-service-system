@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react'
-import { selectCurrentTechnicianJobViewModels } from './data/technicianSelectors'
+import React, { useMemo, useRef, useState } from 'react'
+import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import FilterTabs from '../../components/technician/FilterTabs'
 import JobRow from '../../components/technician/JobRow'
 import JobCard from '../../components/technician/JobCard'
@@ -9,22 +9,68 @@ const isTodayJob = (job) => job.timeframe === 'today' || job.date === '2026-07-2
 const isThisWeekJob = (job) =>
   job.timeframe === 'today' || job.timeframe === 'this-week'
 
+function AssignedJobsSummaryIcon({ type }) {
+  const iconPaths = {
+    today: (
+      <>
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M8 3v4M16 3v4M3 10h18" />
+      </>
+    ),
+    progress: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </>
+    ),
+    upcoming: (
+      <>
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M8 3v4M16 3v4M3 10h18M9 15h6M13 13l2 2-2 2" />
+      </>
+    ),
+    completed: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="m8 12 2.6 2.6L16.5 9" />
+      </>
+    ),
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      {iconPaths[type]}
+    </svg>
+  )
+}
+
 function TechnicianAssignedJobs() {
-  const [jobs, setJobs] = useState(() => selectCurrentTechnicianJobViewModels())
+  const { assignedJobs: jobs, startService, completeService } = useTechnicianWorkflow()
   const [activeTab, setActiveTab] = useState('today')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [selectedJob, setSelectedJob] = useState(null)
+  const [showJobDetails, setShowJobDetails] = useState(false)
+  const jobDetailsTriggerRef = useRef(null)
+
+  const openJobDetails = (job) => {
+    jobDetailsTriggerRef.current = document.activeElement
+    setSelectedJob(job)
+    setShowJobDetails(true)
+  }
+
+  const closeJobDetails = () => {
+    setShowJobDetails(false)
+  }
 
   const handleStartService = (jobToStart) => {
-    setJobs((currentJobs) =>
-      currentJobs.map((job) =>
-        job.job_ID === jobToStart.job_ID && job.status === 'Upcoming'
-          ? { ...job, status: 'In Progress' }
-          : job,
-      ),
-    )
-    setSelectedJob(null)
+    startService(jobToStart.job_ID)
+    closeJobDetails()
+  }
+
+  const handleCompleteService = (jobToComplete) => {
+    completeService(jobToComplete.job_ID)
+    closeJobDetails()
   }
 
   const tabCounts = useMemo(() => {
@@ -79,10 +125,10 @@ function TechnicianAssignedJobs() {
   }, [jobs, activeTab, statusFilter, searchQuery])
 
   const summaryItems = [
-    { label: 'Today', value: metrics.todayCount, tone: 'mint' },
-    { label: 'In Progress', value: metrics.inProgressCount, tone: 'amber' },
-    { label: 'Upcoming', value: metrics.upcomingCount, tone: 'blue' },
-    { label: 'Completed', value: metrics.completedCount, tone: 'green' },
+    { label: 'Today', value: metrics.todayCount, tone: 'mint', icon: 'today' },
+    { label: 'In Progress', value: metrics.inProgressCount, tone: 'amber', icon: 'progress' },
+    { label: 'Upcoming', value: metrics.upcomingCount, tone: 'blue', icon: 'upcoming' },
+    { label: 'Completed', value: metrics.completedCount, tone: 'green', icon: 'completed' },
   ]
 
   const resetFilters = () => {
@@ -110,9 +156,9 @@ function TechnicianAssignedJobs() {
           <article className="cf-job-stat-card" key={item.label}>
             <span className={`cf-job-stat-dot cf-job-stat-dot-${item.tone}`} aria-hidden="true" />
             <span><small>{item.label}</small><strong>{item.value}</strong></span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
+            <span className={`cf-job-stat-icon cf-job-stat-icon-${item.tone}`}>
+              <AssignedJobsSummaryIcon type={item.icon} />
+            </span>
           </article>
         ))}
       </section>
@@ -200,8 +246,8 @@ function TechnicianAssignedJobs() {
                       <JobRow
                         key={job.id}
                         job={job}
-                        onView={(selected) => setSelectedJob(selected)}
-                        onPrimaryAction={(selected) => setSelectedJob(selected)}
+                        onView={openJobDetails}
+                        onPrimaryAction={openJobDetails}
                       />
                     ))
                   ) : (
@@ -235,8 +281,8 @@ function TechnicianAssignedJobs() {
                 <JobCard
                   key={job.id}
                   job={job}
-                  onView={(selected) => setSelectedJob(selected)}
-                  onPrimaryAction={(selected) => setSelectedJob(selected)}
+                  onView={openJobDetails}
+                  onPrimaryAction={openJobDetails}
                 />
               ))
             ) : (
@@ -259,10 +305,12 @@ function TechnicianAssignedJobs() {
       </section>
 
       <JobDetailsModal
-        show={Boolean(selectedJob)}
+        show={showJobDetails}
         job={selectedJob}
-        onHide={() => setSelectedJob(null)}
+        onHide={closeJobDetails}
         onStartService={handleStartService}
+        onCompleteService={handleCompleteService}
+        returnFocusRef={jobDetailsTriggerRef}
       />
     </div>
   )

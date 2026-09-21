@@ -6,7 +6,9 @@ import TechnicianAssignedJobs from './pages/technician/TechnicianAssignedJobs'
 import TechnicianSubmitReport from './pages/technician/TechnicianSubmitReport'
 import TechnicianJobHistory from './pages/technician/TechnicianJobHistory'
 import TechnicianFollowUp from './pages/technician/TechnicianFollowUp'
-import TechnicianModulePlaceholder from './pages/technician/TechnicianModulePlaceholder'
+import TechnicianPartsLog from './pages/technician/TechnicianPartsLog'
+import TechnicianPerformance from './pages/technician/TechnicianPerformance'
+import TechnicianProfile from './pages/technician/TechnicianProfile'
 
 function App() {
   return (
@@ -23,9 +25,9 @@ function App() {
           <Route path="submit-report" element={<TechnicianSubmitReport />} />
           <Route path="follow-up" element={<TechnicianFollowUp />} />
           <Route path="job-history" element={<TechnicianJobHistory />} />
-          <Route path="parts-log" element={<TechnicianModulePlaceholder title="Parts Log" />} />
-          <Route path="performance" element={<TechnicianModulePlaceholder title="Performance" />} />
-          <Route path="profile" element={<TechnicianModulePlaceholder title="Profile" />} />
+          <Route path="parts-log" element={<TechnicianPartsLog />} />
+          <Route path="performance" element={<TechnicianPerformance />} />
+          <Route path="profile" element={<TechnicianProfile />} />
         </Route>
 
         {/* Fallback route */}
