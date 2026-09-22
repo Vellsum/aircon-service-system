@@ -17,10 +17,11 @@ const statusFilters = ["All", "Confirmed", "Pending", "Assigned", "Completed", "
 const ManageBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [technicians, setTechnicians] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeStatus, setActiveStatus] = useState("All");
-  const [modal, setModal] = useState(null); // Structure: { mode: 'view' | 'edit' | 'create', record }
+  const [modal, setModal] = useState(null);
   const [toast, setToast] = useState(null);
 
   const showToast = (msg) => {
@@ -28,19 +29,16 @@ const ManageBookings = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Safe converter for database dates to local YYYY-MM-DD
   const formatLocalDateString = (dateInput) => {
     if (!dateInput) return "";
     const d = new Date(dateInput);
     if (isNaN(d.getTime())) return "";
-
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
 
-  // Fetch bookings and technicians from Express backend
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -51,7 +49,6 @@ const ManageBookings = () => {
       // 1. Fetch Bookings
       const bookRes = await fetch("http://localhost:5000/api/admin/bookings", { headers });
       const bookData = await bookRes.json();
-
       if (bookRes.ok && bookData.success && Array.isArray(bookData.bookings)) {
         const formatted = bookData.bookings.map((b) => {
           const rawId = b.booking_ID || b.id || 0;
@@ -71,11 +68,18 @@ const ManageBookings = () => {
         setBookings(formatted);
       }
 
-      // 2. Fetch Technicians list directly from user3.technician table
+      // 2. Fetch Technicians
       const techRes = await fetch("http://localhost:5000/api/admin/bookings/technicians", { headers });
       const techData = await techRes.json();
       if (techRes.ok && techData.success && Array.isArray(techData.technicians)) {
         setTechnicians(techData.technicians);
+      }
+
+      // 3. Fetch Customers
+      const custRes = await fetch("http://localhost:5000/api/admin/users/customers", { headers });
+      const custData = await custRes.json();
+      if (custRes.ok && custData.success && Array.isArray(custData.customers)) {
+        setCustomers(custData.customers);
       }
     } catch (err) {
       console.error("Error fetching booking data:", err);
@@ -88,7 +92,6 @@ const ManageBookings = () => {
     fetchData();
   }, [fetchData]);
 
-  // Filter bookings based on active status filter and search query
   const filtered = bookings.filter((booking) => {
     const matchesStatus = activeStatus === "All" || booking.status === activeStatus;
     const matchesSearch =
@@ -97,21 +100,27 @@ const ManageBookings = () => {
     return matchesStatus && matchesSearch;
   });
 
-  // Modal schema configuration
   const isEditing = modal && modal.mode === "edit";
+
+  // Customer dropdown options (sorted A→Z)
+  const customerOptions = customers
+    .slice()
+    .sort((a, b) => (a.customer_name || "").localeCompare(b.customer_name || ""))
+    .map((c) => ({
+      label: `${c.customer_name} (ID ${c.customer_ID})`,
+      value: String(c.customer_ID),
+    }));
+
+  // Technician dropdown options
+  const technicianOptions = technicians.map((t) => ({
+    label: t.technician_name || t.username,
+    value: String(t.technician_ID),
+  }));
 
   const bookingFields = isEditing
     ? [
         { key: "customer_name", label: "Customer Name", type: "text", readOnly: true },
-        { 
-          key: "technician_ID", 
-          label: "Technician", 
-          type: "select", 
-          options: technicians.map((t) => ({ 
-            label: t.technician_name || t.username, 
-            value: String(t.technician_ID) // Strictly bind value to technician_ID
-          })) 
-        },
+        { key: "technician_ID", label: "Technician", type: "select", options: technicianOptions },
         { key: "booking_date", label: "Booking Date", type: "date" },
         {
           key: "status",
@@ -121,16 +130,8 @@ const ManageBookings = () => {
         },
       ]
     : [
-        { key: "customer_ID", label: "Customer ID (Number, e.g. 1)", type: "text", required: true },
-        { 
-          key: "technician_ID", 
-          label: "Technician", 
-          type: "select", 
-          options: technicians.map((t) => ({ 
-            label: t.technician_name || t.username, 
-            value: String(t.technician_ID) // Strictly bind value to technician_ID
-          })) 
-        },
+        { key: "customer_ID", label: "Customer", type: "select", required: true, options: customerOptions },
+        { key: "technician_ID", label: "Technician", type: "select", options: technicianOptions },
         { key: "booking_date", label: "Booking Date", type: "date" },
         {
           key: "status",
@@ -142,11 +143,9 @@ const ManageBookings = () => {
 
   const bookingViewFields = [{ key: "id", label: "Booking ID" }, ...bookingFields];
 
-  // Save handler for creating or updating bookings
   const handleSave = async (formData) => {
     const token = localStorage.getItem("token") || "";
 
-    // Parse date into YYYY-MM-DD string
     let formattedDate = formData.booking_date || null;
     if (formattedDate) {
       const d = new Date(formattedDate);
@@ -159,6 +158,12 @@ const ManageBookings = () => {
     }
 
     if (modal.mode === "create") {
+      // Validate: must select a customer
+      if (!formData.customer_ID) {
+        showToast("Error: Please select a customer");
+        return;
+      }
+
       try {
         const res = await fetch("http://localhost:5000/api/admin/bookings", {
           method: "POST",
@@ -167,21 +172,21 @@ const ManageBookings = () => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            customer_ID: parseInt(formData.customer_ID, 10) || 1, // Enforce integer ID
+            customer_ID: parseInt(formData.customer_ID, 10),
             technician_ID: formData.technician_ID ? parseInt(formData.technician_ID, 10) : null,
             booking_date: formattedDate,
-            time: "09:00:00", // Satisfy NOT NULL [time]
-            location: "Singapore Main Branch", // Satisfy NOT NULL [location]
-            isFollowup: 0, // Satisfy NOT NULL [isFollowup]
+            time: "09:00:00",
+            location: "Singapore Main Branch",
+            isFollowup: 0,
             status: formData.status || "Pending",
-            comments: "New booking request"
+            comments: "New booking request",
           }),
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed to create booking");
 
-        showToast("Cool Fix booking created successfully!");
+        showToast("Booking created successfully!");
         setModal(null);
         fetchData();
       } catch (err) {
@@ -190,7 +195,6 @@ const ManageBookings = () => {
     } else if (modal.mode === "edit") {
       try {
         const targetId = formData.booking_ID || (modal.record && modal.record.booking_ID);
-
         if (!targetId) throw new Error("Missing Booking ID for update request.");
 
         const res = await fetch(`http://localhost:5000/api/admin/bookings/${targetId}/status`, {
@@ -209,7 +213,7 @@ const ManageBookings = () => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed to update booking");
 
-        showToast("Cool Fix booking updated successfully!");
+        showToast("Booking updated successfully!");
         setModal(null);
         fetchData();
       } catch (err) {
@@ -268,7 +272,6 @@ const ManageBookings = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-
             <div className="dash-chips">
               {statusFilters.map((status) => (
                 <button
@@ -316,15 +319,9 @@ const ManageBookings = () => {
                       </td>
                       <td>
                         <div className="dash-row-actions">
-                          <button className="dash-row-btn" onClick={() => setModal({ mode: "view", record: booking })}>
-                            View
-                          </button>
-                          <button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: booking })}>
-                            Edit
-                          </button>
-                          <button className="dash-row-btn is-danger" onClick={() => handleCancel(booking)}>
-                            Cancel
-                          </button>
+                          <button className="dash-row-btn" onClick={() => setModal({ mode: "view", record: booking })}>View</button>
+                          <button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: booking })}>Edit</button>
+                          <button className="dash-row-btn is-danger" onClick={() => handleCancel(booking)}>Cancel</button>
                         </div>
                       </td>
                     </tr>

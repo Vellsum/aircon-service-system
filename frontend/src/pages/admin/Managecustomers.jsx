@@ -3,10 +3,23 @@ import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
 
-const customerFields = [
+const addCustomerFields = [
   { key: "customer_name", label: "Customer Name", type: "text", required: true },
-  { key: "cccustomer_address", label: "Address", type: "text" },
+  { key: "customer_address", label: "Address", type: "text" },
   { key: "loyaltyPoints", label: "Loyalty Points", type: "number" },
+];
+
+const editCustomerFields = [
+  { key: "customer_name", label: "Customer Name", type: "text", required: true },
+  { key: "customer_address", label: "Address", type: "text" },
+  { key: "loyaltyPoints", label: "Loyalty Points", type: "number" },
+];
+
+const viewCustomerFields = [
+  { key: "customer_ID", label: "Customer ID" },
+  { key: "customer_name", label: "Customer Name" },
+  { key: "customer_address", label: "Address" },
+  { key: "loyaltyPoints", label: "Loyalty Points" },
 ];
 
 const Managecustomers = () => {
@@ -21,7 +34,6 @@ const Managecustomers = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // HTTP GET: Fetch customers from Azure SQL
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
     try {
@@ -52,24 +64,76 @@ const Managecustomers = () => {
       String(c.customer_ID).includes(search)
   );
 
-  // HTTP POST: Save new customer
   const handleSave = async (formData) => {
     const token = localStorage.getItem("token") || "";
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+
+    if (modal.mode === "create") {
+      try {
+        const res = await fetch("http://localhost:5000/api/admin/users/customers", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            customer_name: formData.customer_name,
+            customer_address: formData.customer_address || "Singapore",
+            loyaltyPoints: parseInt(formData.loyaltyPoints, 10) || 0,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Failed to add customer");
+
+        showToast("Customer created successfully!");
+        setModal(null);
+        fetchCustomers();
+      } catch (err) {
+        showToast(`Error: ${err.message}`);
+      }
+    } else if (modal.mode === "edit") {
+      try {
+        const targetId = modal.record.customer_ID;
+        const res = await fetch(`http://localhost:5000/api/admin/users/customers/${targetId}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            customer_name: formData.customer_name,
+            customer_address: formData.customer_address,
+            loyaltyPoints: parseInt(formData.loyaltyPoints, 10) || 0,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Failed to update customer");
+
+        showToast("Customer updated successfully!");
+        setModal(null);
+        fetchCustomers();
+      } catch (err) {
+        showToast(`Error: ${err.message}`);
+      }
+    }
+  };
+
+  const handleRemove = async (customer) => {
+    if (!window.confirm(`Are you sure you want to remove ${customer.customer_name}?`)) return;
+
     try {
-      const res = await fetch("http://localhost:5000/api/admin/users/customers", {
-        method: "POST",
+      const token = localStorage.getItem("token") || "";
+      const res = await fetch(`http://localhost:5000/api/admin/users/customers/${customer.customer_ID}`, {
+        method: "DELETE",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to add customer");
+      if (!res.ok) throw new Error(data.message || "Failed to remove customer");
 
-      showToast("Customer created successfully!");
-      setModal(null);
+      showToast(`Removed ${customer.customer_name}`);
       fetchCustomers();
     } catch (err) {
       showToast(`Error: ${err.message}`);
@@ -110,12 +174,13 @@ const Managecustomers = () => {
                   <th>Customer Name</th>
                   <th>Address</th>
                   <th>Loyalty Points</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: "center", padding: "20px" }}>
+                    <td colSpan={5} style={{ textAlign: "center", padding: "20px" }}>
                       Loading customers from database...
                     </td>
                   </tr>
@@ -124,13 +189,20 @@ const Managecustomers = () => {
                     <tr key={c.customer_ID}>
                       <td className="dash-mono">#{c.customer_ID}</td>
                       <td><strong>{c.customer_name}</strong></td>
-                      <td>{c.cccustomer_address || "Singapore"}</td>
+                      <td>{c.customer_address || "Singapore"}</td>
                       <td className="dash-mono">{c.loyaltyPoints || 0} pts</td>
+                      <td>
+                        <div className="dash-row-actions">
+                          <button className="dash-row-btn" onClick={() => setModal({ mode: "view", record: c })}>View</button>
+                          <button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: c })}>Edit</button>
+                          <button className="dash-row-btn is-danger" onClick={() => handleRemove(c)}>Remove</button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: "center", padding: "20px", color: "var(--text-secondary)" }}>
+                    <td colSpan={5} style={{ textAlign: "center", padding: "20px", color: "var(--text-secondary)" }}>
                       No customers found.
                     </td>
                   </tr>
@@ -144,8 +216,8 @@ const Managecustomers = () => {
       {modal && (
         <RecordModal
           mode={modal.mode}
-          title="New Customer"
-          fields={customerFields}
+          title={modal.mode === "create" ? "New Customer" : modal.mode === "edit" ? "Edit Customer" : "Customer Details"}
+          fields={modal.mode === "create" ? addCustomerFields : modal.mode === "view" ? viewCustomerFields : editCustomerFields}
           data={modal.record}
           onClose={() => setModal(null)}
           onSave={handleSave}

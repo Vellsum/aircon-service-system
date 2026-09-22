@@ -5,7 +5,7 @@ import JobStatusBadge from './JobStatusBadge'
  * JobRow Component
  * High-polish desktop table row for Assigned Jobs.
  */
-function JobRow({ job, onView }) {
+function JobRow({ job, onView, onPrimaryAction }) {
   const initials = job.customerName
     ? job.customerName
         .split(' ')
@@ -77,27 +77,25 @@ function JobRow({ job, onView }) {
 
       {/* ACTIONS */}
       <td className="text-end pe-4">
-        <button
-          type="button"
-          className="action-view-btn"
-          onClick={() => onView(job)}
-          title={`View details for ${job.id}`}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="job-row-actions">
+          {job.status !== 'Completed' && (
+            <button
+              type="button"
+              className="job-primary-action"
+              onClick={() => onPrimaryAction(job)}
+            >
+              {job.status === 'In Progress' ? 'Continue' : 'Start'}
+            </button>
+          )}
+          <button
+            type="button"
+            className="action-view-btn"
+            onClick={() => onView(job)}
+            title={`View details for ${job.id}`}
           >
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          <span>View</span>
-        </button>
+            <span>View</span>
+          </button>
+        </div>
       </td>
     </tr>
   )

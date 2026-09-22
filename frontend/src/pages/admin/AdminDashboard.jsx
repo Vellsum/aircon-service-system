@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
@@ -43,10 +43,10 @@ const quickActionSchemas = {
     title: "Add Technician",
     icon: "🛠",
     fields: [
-      { key: "name", label: "Name", type: "text" },
-      { key: "phone", label: "Phone", type: "text" },
-      { key: "specialty", label: "Specialty", type: "text" },
-      { key: "status", label: "Status", type: "select", options: ["Available", "On Job", "Off Duty"] },
+      { key: "username", label: "Technician Name", type: "text" },
+      { key: "password", label: "Default Password", type: "password" },
+      { key: "phoneNumber", label: "Phone Number", type: "text" },
+      { key: "specialty", label: "Specialty", type: "select", options: ["Aircon Servicing", "Chemical Cleaning", "Aircon Repair", "Installation", "General"] },
     ],
   },
   service: {
@@ -72,6 +72,7 @@ const quickActionSchemas = {
   },
 };
 
+// FIX: Declared missing quickActions array
 const quickActions = [
   { key: "booking", label: "New Booking" },
   { key: "technician", label: "Add Technician" },
@@ -105,59 +106,65 @@ const AdminDashboard = () => {
   const [toast, setToast] = useState(null);
 
   // Fetch real data on component mount
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem("token");
-        const headers = {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        };
+  const fetchDashboardData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token") || "";
+      const headers = {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      };
 
-        // 1. Fetch Stats & Technicians
-        const statsRes = await fetch("http://localhost:5000/api/admin/users/stats", { headers });
+      // 1. Fetch Stats Metrics
+      const statsRes = await fetch("http://localhost:5000/api/admin/dashboard/stats", { headers });
+      if (statsRes.ok) {
         const statsData = await statsRes.json();
         if (statsData.success && statsData.stats) {
           setDbStats(statsData.stats);
         }
+      }
 
-        const techRes = await fetch("http://localhost:5000/api/admin/users/technicians", { headers });
+      // 2. Fetch Top Technicians Leaderboard
+      const techRes = await fetch("http://localhost:5000/api/admin/dashboard/technicians", { headers });
+      if (techRes.ok) {
         const techData = await techRes.json();
-        if (techData.success && techData.technicians) {
-          // Map backend technicians with initials & job count
-          const formattedTechs = techData.technicians.map((t, idx) => ({
+        if (techData.success && Array.isArray(techData.technicians)) {
+          const formattedTechs = techData.technicians.map((t) => ({
             id: t.user_ID,
-            username: t.username,
-            jobs: t.jobsDone || (idx + 1) * 12, // fallback count if not specified
-            initials: getInitials(t.username),
+            username: t.username || `Technician #${t.user_ID}`,
+            jobs: t.jobsDone || 0,
+            initials: getInitials(t.username || "Tech"),
           }));
           setTopTechnicians(formattedTechs);
         }
+      }
 
-        // 2. Fetch Recent Bookings
-        const bookingRes = await fetch("http://localhost:5000/api/admin/bookings", { headers });
+      // 3. Fetch Recent Bookings Table
+      const bookingRes = await fetch("http://localhost:5000/api/admin/dashboard/recent-bookings", { headers });
+      if (bookingRes.ok) {
         const bookingData = await bookingRes.json();
-        if (bookingData.success && bookingData.bookings) {
+        if (bookingData.success && Array.isArray(bookingData.bookings)) {
           const formattedBookings = bookingData.bookings.slice(0, 5).map((b) => ({
             id: `#BK${String(b.booking_ID || b.id).padStart(3, "0")}`,
-            customer: b.customer_name || b.customer || "Guest User",
-            service: b.service_type || b.service || "Aircon Servicing",
-            technician: b.technician_name || b.technician || "Unassigned",
-            date: b.booking_date ? new Date(b.booking_date).toLocaleDateString("en-GB") : "Pending",
+            customer: b.customer_name || "Guest Customer",
+            service: "Aircon Servicing",
+            technician: b.technician_name || "Unassigned",
+            date: b.booking_date || "Pending",
             status: b.status || "Pending",
           }));
           setBookings(formattedBookings);
         }
-      } catch (err) {
-        console.error("Error loading live dashboard data:", err);
-      } finally {
-        setLoading(false);
       }
-    };
-
-    fetchDashboardData();
+    } catch (err) {
+      console.error("Error loading live dashboard data:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const maxJobs = Math.max(...topTechnicians.map((t) => t.jobs), 1);
 
@@ -166,13 +173,34 @@ const AdminDashboard = () => {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const handleSave = (formData) => {
-    if (activeAction === "booking") {
-      const newId = `#BK${String(bookings.length + 1).padStart(3, "0")}`;
-      setBookings([{ ...formData, id: newId }, ...bookings]);
-      showToast("Booking created");
-    } else {
-      showToast(`${quickActionSchemas[activeAction].title} saved`);
+  const handleSave = async (formData) => {
+    if (activeAction === "technician") {
+      try {
+        const token = localStorage.getItem("token") || "";
+        const res = await fetch("http://localhost:5000/api/admin/users/technicians", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            username: String(formData.username || "").trim(),
+            password: String(formData.password || "tech123").trim(),
+            phoneNumber: String(formData.phoneNumber || "N/A").trim(),
+            specialty: String(formData.specialty || "Aircon Servicing").trim(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Failed to create technician");
+        showToast("Technician created successfully!");
+        fetchDashboardData();
+      } catch (err) {
+        showToast(`Error: ${err.message}`);
+      }
+    } else if (activeAction === "booking") {
+      showToast("Use Manage Bookings page to create bookings");
+    }else {
+      showToast(`${quickActionSchemas[activeAction].title}; saved`);
     }
     setActiveAction(null);
   };
@@ -194,7 +222,6 @@ const AdminDashboard = () => {
     showToast("Technician updated successfully");
   };
 
-  // Dynamic Metrics mapped from Database Queries
   const liveStats = [
     {
       label: "Total Bookings",

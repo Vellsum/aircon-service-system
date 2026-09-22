@@ -3,34 +3,42 @@ import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
 
+// CSS tone mapping for technician availability badges
 const statusTone = {
   Available: "success",
   "On Job": "accent",
   "Off Duty": "warning",
 };
 
+// Filter options displayed above the data table
 const statusFilters = ["All", "Available", "On Job", "Off Duty"];
 
-// Modal Field Schemas
+// Form schema for "Add New Technician" modal
 const addTechFields = [
-  { key: "username", label: "Username / Name", type: "text" },
+  { key: "username", label: "Technician Name", type: "text" },
   { key: "password", label: "Default Password", type: "password" },
   { key: "phoneNumber", label: "Phone Number", type: "text" },
+  { key: "specialty", label: "Specialty", type: "select", options: ["Aircon Servicing", "Chemical Cleaning", "Aircon Repair", "Installation", "General"] },
 ];
 
+// Form schema for "Edit Technician" modal
 const techFields = [
   { key: "name", label: "Name", type: "text" },
   { key: "phone", label: "Phone", type: "text" },
+  { key: "specialty", label: "Specialty", type: "select", options: ["Aircon Servicing", "Chemical Cleaning", "Aircon Repair", "Installation", "General"] },
 ];
 
+// Form schema for "View Technician Details" modal
 const techViewFields = [
   { key: "id", label: "Technician ID" },
   { key: "name", label: "Name" },
   { key: "phone", label: "Phone" },
+  { key: "specialty", label: "Specialty" },
   { key: "jobsDone", label: "Jobs Assigned" },
 ];
 
 export default function ManageTechnicians() {
+  // Component States
   const [technicians, setTechnicians] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -38,12 +46,16 @@ export default function ManageTechnicians() {
   const [modal, setModal] = useState(null);
   const [toast, setToast] = useState(null);
 
+  // Toast notification helper (auto-dismisses after 3 seconds)
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
 
-  // 1. Fetch Technicians from API
+  /**
+   * 1. Fetch Technicians from Express Backend API
+   * Wrapped in useCallback to prevent infinite useEffect re-render loops
+   */
   const fetchTechnicians = useCallback(async () => {
     setLoading(true);
     try {
@@ -53,20 +65,25 @@ export default function ManageTechnicians() {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
+      // API call to fetch technician list from Azure SQL database
       const res = await fetch("http://localhost:5000/api/admin/users/technicians", { headers });
       const data = await res.json();
 
       if (res.ok && data.success && Array.isArray(data.technicians)) {
-        const formatted = data.technicians.map((t) => {
-          const rawId = t.user_ID || t.id || 0;
+        // Map database response fields into UI model format
+                const formatted = data.technicians.map((t) => {
+          const displayName = t.technician_name || t.username || t.name || `Technician #${t.technician_ID}`;
+          const displayPhone = t.technician_phone || t.phoneNumber || t.phone || "N/A";
+
           return {
-            user_ID: rawId,
-            id: `#TC${String(rawId).padStart(3, "0")}`,
-            name: t.username || t.name || "Technician",
-            phone: t.phoneNumber || t.phone || "N/A",
-            specialty: "Aircon Servicing",
+            technician_ID: t.technician_ID,
+            user_ID: t.user_ID,
+            id: `#TC${String(t.technician_ID).padStart(3, "0")}`,
+            name: displayName,
+            phone: displayPhone,
+            specialty: t.specialty || "Aircon Servicing",
             status: "Available",
-            jobsDone: t.totalJobs ?? t.jobsDone ?? 0,
+            jobsDone: t.jobsDone ?? t.totalJobs ?? 0,
           };
         });
         setTechnicians(formatted);
@@ -74,19 +91,23 @@ export default function ManageTechnicians() {
         setTechnicians([]);
       }
     } catch (err) {
-      console.error("Error fetching technicians:", err);
+      console.error("Error fetching technicians from backend:", err);
       setTechnicians([]);
     } finally {
-      // ALWAYS turns off the loading state
+      // Always turn off loading spinner/text
       setLoading(false);
     }
   }, []);
 
+  // Fetch technicians once on component mount
   useEffect(() => {
     fetchTechnicians();
   }, [fetchTechnicians]);
 
-  // 2. Filter Logic
+  /**
+   * 2. Filter Logic
+   * Filters list by search text (Name/ID) and active status filter
+   */
   const filtered = technicians.filter((tech) => {
     const matchesStatus = activeStatus === "All" || tech.status === activeStatus;
     const matchesSearch =
@@ -95,7 +116,9 @@ export default function ManageTechnicians() {
     return matchesStatus && matchesSearch;
   });
 
-  // 3. Save / Update Handler
+  /**
+   * 3. Modal Form Submit Handler (Create / Edit)
+   */
   const handleSave = async (formData) => {
     const token = localStorage.getItem("token") || "";
     const headers = { "Content-Type": "application/json" };
@@ -103,34 +126,39 @@ export default function ManageTechnicians() {
 
     if (modal.mode === "create") {
       try {
+        // Prepare clean string payload to avoid SQL decimal default errors
+        const payload = {
+          username: String(formData.username || formData.name || "").trim(),
+          password: String(formData.password || "default123").trim(),
+          phoneNumber: String(formData.phoneNumber || formData.phone || "N/A").trim(),
+          specialty: String(formData.specialty || "Aircon Servicing").trim(),
+        };
+
         const res = await fetch("http://localhost:5000/api/admin/users/technicians", {
           method: "POST",
           headers,
-          body: JSON.stringify({
-            username: formData.username || formData.name,
-            password: formData.password || "default123",
-            phoneNumber: formData.phoneNumber || formData.phone || "",
-          }),
+          body: JSON.stringify(payload),
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed to create technician");
 
         showToast("Technician created successfully!");
-        setModal(null);
-        fetchTechnicians();
+        setModal(null); // Close modal
+        fetchTechnicians(); // Refresh list immediately from database
       } catch (err) {
         showToast(`Error: ${err.message}`);
       }
     } else if (modal.mode === "edit") {
       try {
-        const targetId = modal.record.user_ID;
+        const targetId = modal.record.technician_ID;
         const res = await fetch(`http://localhost:5000/api/admin/users/technicians/${targetId}`, {
           method: "PUT",
           headers,
           body: JSON.stringify({
-            username: formData.name || formData.username,
-            phoneNumber: formData.phone || formData.phoneNumber,
+            username: String(formData.name || formData.username || "").trim(),
+            phoneNumber: String(formData.phone || formData.phoneNumber || "").trim(),
+            specialty: String(formData.specialty || "Aircon Servicing").trim(),
           }),
         });
 
@@ -138,8 +166,8 @@ export default function ManageTechnicians() {
         if (!res.ok) throw new Error(data.message || "Failed to update technician");
 
         showToast("Technician updated successfully!");
-        setModal(null);
-        fetchTechnicians();
+        setModal(null); // Close modal
+        fetchTechnicians(); // Refresh list immediately
       } catch (err) {
         showToast(`Error: ${err.message}`);
       }
@@ -148,14 +176,17 @@ export default function ManageTechnicians() {
     }
   };
 
-  // 4. Soft Delete Handler
+  /**
+   * Remove / Deactivate Technician Handler
+   */
   const handleRemove = async (tech) => {
-    const targetId = tech.user_ID || tech.id.replace("#TC", "").replace(/^0+/, "");
+    // Target technician_ID directly
+    const targetId = tech.technician_ID || tech.user_ID;
     if (!window.confirm(`Are you sure you want to deactivate ${tech.name}?`)) return;
 
     try {
       const token = localStorage.getItem("token") || "";
-      const headers = {};
+      const headers = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
       const res = await fetch(`http://localhost:5000/api/admin/users/technicians/${targetId}`, {
@@ -167,7 +198,7 @@ export default function ManageTechnicians() {
       if (!res.ok) throw new Error(data.message || "Failed to remove technician");
 
       showToast(`Deactivated ${tech.name}`);
-      fetchTechnicians();
+      fetchTechnicians(); // Refresh list from database
     } catch (err) {
       showToast(`Error: ${err.message}`);
     }

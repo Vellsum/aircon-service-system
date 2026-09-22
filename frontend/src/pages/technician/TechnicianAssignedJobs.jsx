@@ -1,75 +1,190 @@
-import React, { useState, useMemo } from 'react'
-import { selectCurrentTechnicianJobViewModels } from "../../data/technician/technicianSelectors";
+// =============================================================================
+// TechnicianAssignedJobs.jsx — Fixed Start Button + Date/Time
+//
+// FIXES:
+//   1. Start/Complete now use context directly (single API call)
+//   2. Context hook called properly (no try/catch around hook)
+//   3. Jobs come from context (single source of truth)
+//   4. formattedDate used for display
+// =============================================================================
+
+import React, { useMemo, useRef, useState } from 'react'
+import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import FilterTabs from '../../components/technician/FilterTabs'
 import JobRow from '../../components/technician/JobRow'
 import JobCard from '../../components/technician/JobCard'
 import JobDetailsModal from '../../components/technician/JobDetailsModal'
 
-const isTodayJob = (job) => job.timeframe === 'today' || job.date === '2026-07-29'
-const isThisWeekJob = (job) =>
-  job.timeframe === 'today' || job.timeframe === 'this-week'
+const todayStr = new Date().toISOString().split('T')[0]
 
-/**
- * TechnicianAssignedJobs Page Component
- * Refined enterprise-grade Assigned Jobs dashboard.
- */
+const isTodayJob = (job) =>
+  job.timeframe === 'today' ||
+  (job.date && job.date.includes(todayStr)) ||
+  job.status === 'In Progress'
+
+const isThisWeekJob = (job) =>
+  job.timeframe === 'today' ||
+  job.timeframe === 'this-week' ||
+  isTodayJob(job)
+
+function AssignedJobsSummaryIcon({ type }) {
+  const icons = {
+    today: '📅',
+    progress: '⏳',
+    upcoming: '📋',
+    completed: '✅'
+  }
+  const icon = icons[type] || '📌'
+  return <span className="summary-icon" aria-hidden="true">{icon}</span>
+}
+
+class JobListErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('[TechnicianAssignedJobs] Rendering error:', error, errorInfo)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="cf-error-state" style={{ padding: '32px', textAlign: 'center' }}>
+          <span aria-hidden="true" style={{ fontSize: '2rem' }}>⚠️</span>
+          <h3>Something went wrong</h3>
+          <p><small>{this.state.error?.message}</small></p>
+          <button
+            type="button"
+            className="cf-button cf-button-secondary"
+            onClick={() => this.setState({ hasError: false, error: null })}
+          >
+            Try Again
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 function TechnicianAssignedJobs() {
-  const [jobs] = useState(() => selectCurrentTechnicianJobViewModels())
-  const [activeTab, setActiveTab] = useState('today')
+  // ====================================================================
+  // ✅ FIXED: Use context properly — hook called unconditionally
+  // Context provides: assignedJobs, startService, completeService, loading
+  // This is the SINGLE SOURCE OF TRUTH for job data
+  // ====================================================================
+  const {
+    assignedJobs: jobs,
+    startService,
+    completeService,
+    loading,
+    refreshJobs,
+  } = useTechnicianWorkflow()
+
+  const [activeTab, setActiveTab] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [selectedJob, setSelectedJob] = useState(null)
+  const [showJobDetails, setShowJobDetails] = useState(false)
+  const [actionError, setActionError] = useState(null)
+  const jobDetailsTriggerRef = useRef(null)
 
-  // Calculate dynamic tab counts based on dataset
-  const tabCounts = useMemo(() => {
-    return {
-      today: jobs.filter(isTodayJob).length,
-      thisWeek: jobs.filter(isThisWeekJob).length,
-      all: jobs.length,
+  const openJobDetails = (job) => {
+    jobDetailsTriggerRef.current = document.activeElement
+    setSelectedJob(job)
+    setShowJobDetails(true)
+    setActionError(null)
+  }
+
+  const closeJobDetails = () => {
+    setShowJobDetails(false)
+    setActionError(null)
+  }
+    const handlePrimaryAction = (job) => {
+    const status = (job.status || '').toLowerCase()
+    if (status === 'in progress' || status === 'completed') {
+      openJobDetails(job)
+    } else {
+      // Start the service directly
+      if (typeof startService === 'function') {
+        startService(job.job_ID)
+      }
     }
-  }, [jobs])
+  }
 
-  // Summary KPI counts for top strip
-  const metrics = useMemo(() => {
-    const todayJobs = jobs.filter(isTodayJob)
-    return {
-      todayCount: todayJobs.length,
-      inProgressCount: jobs.filter((j) => j.status === 'In Progress').length,
-      upcomingCount: jobs.filter((j) => j.status === 'Upcoming').length,
-      completedCount: jobs.filter((j) => j.status === 'Completed').length,
+  // ====================================================================
+  // ✅ FIXED: Start Service — uses context's startService directly
+  // Context handles: API call + local state update + optimistic UI
+  // No duplicate API calls
+  // ====================================================================
+  const handleStartService = async (jobToStart) => {
+    setActionError(null)
+    try {
+      // Context's startService does:
+      // 1. Optimistic local state update (instant UI)
+      // 2. PUT API call to persist in database
+      if (typeof startService === 'function') {
+        startService(jobToStart.job_ID)
+      }
+      closeJobDetails()
+    } catch (err) {
+      console.error('Error starting service:', err)
+      setActionError('Failed to start service. Please try again.')
     }
-  }, [jobs])
+  }
 
-  // Filter jobs based on active tab, search query, and status dropdown
+  // ====================================================================
+  // ✅ FIXED: Complete Service — uses context's completeService directly
+  // ====================================================================
+  const handleCompleteService = async (jobToComplete) => {
+    setActionError(null)
+    try {
+      if (typeof completeService === 'function') {
+        completeService(jobToComplete.job_ID)
+      }
+      closeJobDetails()
+    } catch (err) {
+      console.error('Error completing service:', err)
+      setActionError('Failed to complete service. Please try again.')
+    }
+  }
+
+  // ---- Computed values ----
+  const tabCounts = useMemo(() => ({
+    today: jobs.filter(isTodayJob).length,
+    thisWeek: jobs.filter(isThisWeekJob).length,
+    all: jobs.length,
+  }), [jobs])
+
+  const metrics = useMemo(() => ({
+    todayCount: jobs.filter(isTodayJob).length,
+    inProgressCount: jobs.filter((j) => j.status === 'In Progress').length,
+    upcomingCount: jobs.filter(
+      (j) => j.status === 'Upcoming' || j.status === 'Assigned' || j.status === 'Pending'
+    ).length,
+    completedCount: jobs.filter((j) => j.status === 'Completed').length,
+  }), [jobs])
+
   const filteredJobs = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
 
     return jobs.filter((job) => {
-      // 1. Timeframe Tab filtering
-      if (activeTab === 'today') {
-        if (!isTodayJob(job)) return false
-      } else if (activeTab === 'this-week') {
-        if (!isThisWeekJob(job)) return false
-      }
+      if (activeTab === 'today' && !isTodayJob(job)) return false
+      if (activeTab === 'this-week' && !isThisWeekJob(job)) return false
 
-      // 2. Status Dropdown filtering
-      if (statusFilter !== 'ALL' && job.status.toLowerCase() !== statusFilter.toLowerCase()) {
+      if (statusFilter !== 'ALL' && job.status?.toLowerCase() !== statusFilter.toLowerCase()) {
         return false
       }
 
-      // 3. Search query filtering (by ID, customer, service, equipment, or address)
       if (normalizedQuery !== '') {
-        const matchesId = job.id.toLowerCase().includes(normalizedQuery)
-        const matchesCustomer = job.customerName.toLowerCase().includes(normalizedQuery)
-        const matchesService = job.serviceType.toLowerCase().includes(normalizedQuery)
-        const matchesEquipment = (job.unitType || '').toLowerCase().includes(normalizedQuery)
-        const matchesAddress = job.address.toLowerCase().includes(normalizedQuery)
-        return (
-          matchesId ||
-          matchesCustomer ||
-          matchesService ||
-          matchesEquipment ||
-          matchesAddress
+        return [
+          job.id, job.job_ID, job.customerName, job.customer_name,
+          job.serviceType, job.service_name, job.unitType, job.address
+        ].some((value) =>
+          String(value ?? '').toLowerCase().includes(normalizedQuery)
         )
       }
 
@@ -77,244 +192,230 @@ function TechnicianAssignedJobs() {
     })
   }, [jobs, activeTab, statusFilter, searchQuery])
 
+  const summaryItems = [
+    { label: 'Today', value: metrics.todayCount, tone: 'mint', icon: 'today' },
+    { label: 'In Progress', value: metrics.inProgressCount, tone: 'amber', icon: 'progress' },
+    { label: 'Upcoming', value: metrics.upcomingCount, tone: 'blue', icon: 'upcoming' },
+    { label: 'Completed', value: metrics.completedCount, tone: 'green', icon: 'completed' },
+  ]
+
+  const resetFilters = () => {
+    setSearchQuery('')
+    setStatusFilter('ALL')
+    setActiveTab('all')
+  }
+
+  // ====================================================================
+  // RENDER
+  // ====================================================================
   return (
-    <div className="technician-page-content technician-assigned-jobs-page">
-      {/* Page Title Header */}
-      <header className="assigned-jobs-header">
-        <div>
-          <div className="page-kicker">TECHNICIAN FIELD OPS</div>
-          <h2 className="page-title">Assigned Jobs</h2>
-          <p className="page-subtitle">
-            Review, track, and execute your scheduled air conditioning maintenance tasks.
-          </p>
-        </div>
-      </header>
+    <JobListErrorBoundary>
+      <div className="technician-page-content technician-assigned-jobs-page cf-jobs-page">
+        <header className="cf-page-header">
+          <div className="cf-page-heading">
+            <span className="cf-eyebrow">Work management</span>
+            <h1>Assigned Jobs</h1>
+            <p>Review your workload, begin scheduled service, and track active jobs.</p>
+          </div>
+          <div className="cf-page-header-status">
+            <span className="duty-dot-pulse" aria-hidden="true" />
+            <span>
+              <small>Field sync</small>
+              <strong>Active now</strong>
+            </span>
+          </div>
+        </header>
 
-      {/* KPI / Metric Summary Cards */}
-      <section className="assigned-jobs-summary" aria-label="Assigned jobs summary">
-        <div className="assigned-jobs-summary-item">
-          <div className="kpi-icon-box kpi-icon-today">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-          </div>
-          <div className="assigned-jobs-summary-copy">
-            <div className="kpi-stat-label">Today's Jobs</div>
-            <div className="kpi-stat-value">{metrics.todayCount}</div>
-          </div>
-        </div>
+        <section className="cf-jobs-stat-grid" aria-label="Assigned jobs summary">
+          {summaryItems.map((item) => (
+            <article className="cf-job-stat-card" key={item.label}>
+              <span className={`cf-job-stat-dot cf-job-stat-dot-${item.tone}`} aria-hidden="true" />
+              <span>
+                <small>{item.label}</small>
+                <strong>{item.value}</strong>
+              </span>
+              <span className={`cf-job-stat-icon cf-job-stat-icon-${item.tone}`}>
+                <AssignedJobsSummaryIcon type={item.icon} />
+              </span>
+            </article>
+          ))}
+        </section>
 
-        <div className="assigned-jobs-summary-item">
-          <div className="kpi-icon-box kpi-icon-progress">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 14 14" />
-            </svg>
-          </div>
-          <div className="assigned-jobs-summary-copy">
-            <div className="kpi-stat-label">In Progress</div>
-            <div className="kpi-stat-value">{metrics.inProgressCount}</div>
-          </div>
-        </div>
+        <section className="cf-workspace-card" aria-labelledby="assigned-jobs-workspace-title">
+          <header className="cf-workspace-heading">
+            <div>
+              <span className="cf-widget-kicker">Operational queue</span>
+              <h2 id="assigned-jobs-workspace-title">Job Workspace</h2>
+              <p>Filter assignments and open the next service task.</p>
+            </div>
+            <span className="cf-count-pill">{filteredJobs.length} shown</span>
+          </header>
 
-        <div className="assigned-jobs-summary-item">
-          <div className="kpi-icon-box kpi-icon-upcoming">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-          </div>
-          <div className="assigned-jobs-summary-copy">
-            <div className="kpi-stat-label">Upcoming</div>
-            <div className="kpi-stat-value">{metrics.upcomingCount}</div>
-          </div>
-        </div>
-
-        <div className="assigned-jobs-summary-item">
-          <div className="kpi-icon-box kpi-icon-completed">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-          </div>
-          <div className="assigned-jobs-summary-copy">
-            <div className="kpi-stat-label">Completed</div>
-            <div className="kpi-stat-value">{metrics.completedCount}</div>
-          </div>
-        </div>
-      </section>
-
-      {/* Main Jobs Card Section */}
-      <div className="jobs-main-card">
-        {/* Card Toolbar: Segmented Control on Left, Search & Filters on Right */}
-        <div className="jobs-toolbar">
-          <FilterTabs
-            activeTab={activeTab}
-            onTabChange={(tab) => setActiveTab(tab)}
-            counts={tabCounts}
-          />
-
-          <div className="assigned-jobs-filter-controls">
-            {/* Search Input with Clear Button */}
-            <div className="search-input-wrapper">
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="search-icon"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                type="text"
-                className="form-control form-control-sm search-input"
-                placeholder="Search job, customer, unit..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+          <div className="cf-jobs-toolbar jobs-toolbar">
+            <div className="cf-jobs-tabs">
+              <span className="cf-toolbar-label">Timeframe</span>
+              <FilterTabs
+                activeTab={activeTab}
+                onTabChange={(tab) => setActiveTab(tab)}
+                counts={tabCounts}
               />
-              {searchQuery && (
-                <button
-                  type="button"
-                  className="search-clear-btn"
-                  onClick={() => setSearchQuery('')}
-                  aria-label="Clear search"
+            </div>
+
+            <div className="assigned-jobs-filter-controls cf-job-filter-controls">
+              <div className="assigned-jobs-toolbar-field assigned-jobs-search-field">
+                <label htmlFor="assigned-jobs-search">Search jobs</label>
+                <div className="search-input-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="search-icon" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    id="assigned-jobs-search"
+                    type="text"
+                    className="form-control search-input"
+                    placeholder="Job ID, customer, service..."
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    aria-label="Search assigned jobs"
+                  />
+                  {searchQuery && (
+                    <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')} aria-label="Clear search">
+                      &times;
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="assigned-jobs-toolbar-field assigned-jobs-status-field">
+                <label htmlFor="assigned-jobs-status">Status</label>
+                <select
+                  id="assigned-jobs-status"
+                  className="form-select status-select-filter"
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                  aria-label="Filter by job status"
                 >
-                  &times;
-                </button>
+                  <option value="ALL">All Statuses</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Upcoming">Upcoming</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="cf-jobs-results">
+            {/* Action Error */}
+            {actionError && (
+              <div style={{ padding: '12px 24px', background: '#fff3f3', border: '1px solid #fcc', borderRadius: '8px', marginBottom: '16px', color: '#c33' }}>
+                <strong>⚠️</strong> {actionError}
+              </div>
+            )}
+
+            {/* Desktop Table */}
+            <div className="assigned-jobs-table-view d-none d-lg-block">
+              <div className="table-responsive">
+                <table className="table job-table mb-0">
+                  <thead>
+                    <tr>
+                      <th scope="col" className="ps-4">JOB ID</th>
+                      <th scope="col">CUSTOMER</th>
+                      <th scope="col">SERVICE &amp; EQUIPMENT</th>
+                      <th scope="col">DATE &amp; TIME</th>
+                      <th scope="col">STATUS</th>
+                      <th scope="col" className="text-end pe-4">ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan="6" style={{ textAlign: 'center', padding: '24px' }}>
+                          Loading field assignments...
+                        </td>
+                      </tr>
+                    ) : filteredJobs.length > 0 ? (
+                      filteredJobs.map((job) => (
+                        <JobRow
+                          key={job.id || job.job_ID}
+                          job={job}
+                          onView={openJobDetails}
+                          onPrimaryAction={handlePrimaryAction}
+                        />
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="6">
+                          <div className="cf-empty-state">
+                            <span aria-hidden="true">⌕</span>
+                            <h3>No assigned jobs found</h3>
+                            <p>
+                              {searchQuery || statusFilter !== 'ALL'
+                                ? 'No jobs match your active search and filter criteria.'
+                                : 'You have no scheduled jobs in this selected timeframe.'}
+                            </p>
+                            {(searchQuery || statusFilter !== 'ALL' || activeTab !== 'all') && (
+                              <button type="button" className="cf-button cf-button-secondary" onClick={resetFilters}>
+                                Reset Filters
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="assigned-jobs-mobile-view d-lg-none">
+              {loading ? (
+                <p style={{ textAlign: 'center', padding: '24px' }}>Loading jobs...</p>
+              ) : filteredJobs.length > 0 ? (
+                filteredJobs.map((job) => (
+                  <JobCard
+                    key={job.id || job.job_ID}
+                    job={job}
+                    onView={openJobDetails}
+                    onPrimaryAction={handlePrimaryAction}
+                  />
+                ))
+              ) : (
+                <div className="cf-empty-state">
+                  <span aria-hidden="true">⌕</span>
+                  <h3>No assigned jobs found</h3>
+                  <p>Try adjusting your search or active filters.</p>
+                  <button type="button" className="cf-button cf-button-secondary" onClick={resetFilters}>
+                    Reset Filters
+                  </button>
+                </div>
               )}
             </div>
-
-            {/* Status Filter Dropdown */}
-            <select
-              className="form-select form-select-sm status-select-filter"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              aria-label="Filter by job status"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Upcoming">Upcoming</option>
-              <option value="Completed">Completed</option>
-            </select>
           </div>
-        </div>
 
-        {/* Content View: Desktop Data Grid */}
-        <div className="assigned-jobs-table-view d-none d-md-block">
-          <div className="table-responsive">
-            <table className="table job-table mb-0">
-              <thead>
-                <tr>
-                  <th scope="col" className="ps-4" style={{ width: '130px' }}>JOB ID</th>
-                  <th scope="col" style={{ width: '260px' }}>CUSTOMER</th>
-                  <th scope="col">SERVICE & EQUIPMENT</th>
-                  <th scope="col" style={{ width: '190px' }}>DATE & TIME</th>
-                  <th scope="col" style={{ width: '140px' }}>STATUS</th>
-                  <th scope="col" className="text-end pe-4" style={{ width: '110px' }}>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredJobs.length > 0 ? (
-                  filteredJobs.map((job) => (
-                    <JobRow
-                      key={job.id}
-                      job={job}
-                      onView={(j) => setSelectedJob(j)}
-                    />
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="text-center py-5">
-                      <div className="empty-state-box">
-                        <div className="empty-state-icon-wrap mb-3">📋</div>
-                        <h6 className="fw-bold mb-1">No assigned jobs found</h6>
-                        <p className="text-muted small mb-3">
-                          {searchQuery || statusFilter !== 'ALL'
-                            ? 'No jobs match your active search and filter criteria.'
-                            : 'You have no scheduled jobs in this selected timeframe.'}
-                        </p>
-                        {(searchQuery || statusFilter !== 'ALL' || activeTab !== 'all') && (
-                          <button
-                            type="button"
-                            className="btn btn-outline-primary btn-sm px-3"
-                            onClick={() => {
-                              setSearchQuery('')
-                              setStatusFilter('ALL')
-                              setActiveTab('all')
-                            }}
-                          >
-                            Reset Filters
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          <footer className="cf-workspace-footer jobs-card-footer">
+            <span>
+              Showing <strong>{filteredJobs.length}</strong> of <strong>{jobs.length}</strong> assigned jobs
+            </span>
+            <span className="d-none d-sm-flex">
+              <span className="duty-dot-pulse" aria-hidden="true" /> Field sync active
+            </span>
+          </footer>
+        </section>
 
-        {/* Content View: Mobile Responsive Cards */}
-        <div className="assigned-jobs-mobile-view d-md-none">
-          {filteredJobs.length > 0 ? (
-            filteredJobs.map((job) => (
-              <JobCard
-                key={job.id}
-                job={job}
-                onView={(j) => setSelectedJob(j)}
-              />
-            ))
-          ) : (
-            <div className="text-center py-5">
-              <div className="empty-state-icon-wrap mb-3">📋</div>
-              <h6 className="fw-bold mb-1">No assigned jobs found</h6>
-              <p className="text-muted small mb-3">
-                Try adjusting your search or active filters.
-              </p>
-              <button
-                type="button"
-                className="btn btn-outline-primary btn-sm px-3"
-                onClick={() => {
-                  setSearchQuery('')
-                  setStatusFilter('ALL')
-                  setActiveTab('all')
-                }}
-              >
-                Reset Filters
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Card Footer: Summary & Sync Status */}
-        <div className="jobs-card-footer">
-          <span className="text-muted small">
-            Showing <strong className="text-dark">{filteredJobs.length}</strong> of{' '}
-            <strong className="text-dark">{jobs.length}</strong> total assigned jobs
-          </span>
-          <span className="text-muted small d-none d-sm-flex align-items-center gap-2">
-            <span className="duty-dot-pulse" style={{ width: '5px', height: '5px' }} />
-            <span>Field sync active</span>
-          </span>
-        </div>
+        {/* Job Details Modal */}
+        {showJobDetails && selectedJob && (
+          <JobDetailsModal
+            show={showJobDetails}
+            job={selectedJob}
+            onHide={closeJobDetails}
+            onStartService={handleStartService}
+            onCompleteService={handleCompleteService}
+            returnFocusRef={jobDetailsTriggerRef}
+          />
+        )}
       </div>
-
-      {/* Interactive Job Details Modal */}
-      <JobDetailsModal
-        show={Boolean(selectedJob)}
-        job={selectedJob}
-        onHide={() => setSelectedJob(null)}
-      />
-    </div>
+    </JobListErrorBoundary>
   )
 }
 

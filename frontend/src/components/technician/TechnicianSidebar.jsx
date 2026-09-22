@@ -1,15 +1,39 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
+import CoolFixLogo from './CoolFixLogo'
+import { useAuth } from '../../context/AuthContext'
 
 /**
  * TechnicianSidebar Component
- * Refined dark navy navigation sidebar for the AirCon Care Technician Portal.
+ * Navigation sidebar for the Cool Fix Technician Portal.
  */
 function TechnicianSidebar({ isOpen, onClose }) {
+  const {user} = useAuth()
+  const closeButtonRef = useRef(null)
+  
+
+  useEffect(() => {
+    if (!isOpen) return undefined
+
+    closeButtonRef.current?.focus()
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
   const navItems = [
     {
       to: '/technician/dashboard',
       label: 'Dashboard',
+      section: 'Workspace',
       icon: (
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -64,6 +88,7 @@ function TechnicianSidebar({ isOpen, onClose }) {
     {
       to: '/technician/parts-log',
       label: 'Parts Log',
+      section: 'Operations',
       icon: (
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
@@ -106,65 +131,67 @@ function TechnicianSidebar({ isOpen, onClose }) {
         />
       )}
 
-      <aside className={`technician-sidebar ${isOpen ? 'show' : ''}`}>
-        {/* Brand Header */}
-        <div className="sidebar-brand-header">
-          <div className="d-flex align-items-center gap-3">
-            <div className="brand-logo-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>
-                <path d="M12 12v9"/>
-                <path d="m8 17 4 4 4-4"/>
-              </svg>
-            </div>
-            <div>
-              <div className="brand-title">AirCon Care</div>
-              <div className="brand-subtitle">Technician Portal</div>
-            </div>
+      <aside
+        id="technician-sidebar-navigation"
+        className={`technician-sidebar cf-sidebar ${isOpen ? 'show' : ''}`}
+      >
+        <div className="sidebar-brand-header cf-sidebar-brand">
+          <div className="sidebar-brand-lockup cf-sidebar-brand-lockup">
+            <CoolFixLogo className="cool-fix-sidebar-logo" />
+            <div className="brand-subtitle">Technician Portal</div>
           </div>
           <button
+            ref={closeButtonRef}
             type="button"
-            className="btn-close btn-close-white d-lg-none"
+            className="btn-close d-lg-none"
             aria-label="Close sidebar"
             onClick={onClose}
           />
         </div>
 
-        {/* Navigation Menu */}
-        <nav className="sidebar-nav-menu">
+        <nav className="sidebar-nav-menu cf-sidebar-nav" aria-label="Technician navigation">
           <ul className="list-unstyled mb-0">
             {navItems.map((item) => (
-              <li key={item.to} className="nav-item">
-                <NavLink
-                  to={item.to}
-                  onClick={onClose}
-                  className={({ isActive }) =>
-                    `nav-link d-flex align-items-center gap-3 ${
-                      isActive ? 'active' : ''
-                    }`
-                  }
-                >
-                  <span className="nav-icon">{item.icon}</span>
-                  <span className="nav-label">{item.label}</span>
-                </NavLink>
-              </li>
+              <React.Fragment key={item.to}>
+                {item.section && (
+                  <li className="sidebar-nav-section" aria-hidden="true">
+                    {item.section}
+                  </li>
+                )}
+                <li className="nav-item">
+                  <NavLink
+                    to={item.to}
+                    onClick={onClose}
+                    className={({ isActive }) =>
+                      `nav-link d-flex align-items-center gap-3 ${
+                        isActive ? 'active' : ''
+                      }`
+                    }
+                  >
+                    <span className="nav-icon cf-nav-icon">{item.icon}</span>
+                    <span className="nav-label cf-nav-label">{item.label}</span>
+                  </NavLink>
+                </li>
+              </React.Fragment>
             ))}
           </ul>
         </nav>
 
-        {/* Technician Profile Card in Footer */}
-        <div className="sidebar-footer">
-          <div className="sidebar-profile-card d-flex align-items-center justify-content-between">
-            <div className="d-flex align-items-center gap-2 overflow-hidden">
-              <div className="tech-avatar">ML</div>
-              <div className="overflow-hidden">
-                <div className="tech-name text-truncate">Marcus Lee</div>
-                <div className="tech-role text-truncate">Field Technician</div>
-              </div>
+        <div className="sidebar-footer cf-sidebar-footer">
+          <div className="sidebar-profile-card cf-profile-card">
+            <div className="cf-profile-identity">
+            <div className="tech-avatar">
+              {(user?.username || user?.role || 'T').charAt(0).toUpperCase()}
             </div>
-            <div className="duty-status-badge">
+            <div className="cf-profile-copy">
+              <div className="tech-name text-truncate">
+                {user?.username || 'Technician'}
+              </div>
+              <div className="tech-role text-truncate">Field Technician</div>
+            </div>
+            </div>
+            <div className="cf-profile-status" aria-label="On duty">
               <span className="duty-dot-pulse" />
-              <span>On Duty</span>
             </div>
           </div>
         </div>

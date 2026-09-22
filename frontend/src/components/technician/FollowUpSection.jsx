@@ -1,8 +1,31 @@
 import React from 'react'
 
+export const FOLLOW_UP_REASON_OPTIONS = Object.freeze([
+  'Further diagnosis required',
+  'Replacement part required',
+  'Additional repair required',
+  'Monitor system condition',
+  'Customer requested another visit',
+  'Other',
+])
+
 function FollowUpSection({ value, errors = {}, onChange }) {
   const updateField = (field, fieldValue) => {
     onChange({ ...value, [field]: fieldValue })
+  }
+
+  const toggleReason = (reason) => {
+    const currentReasons = Array.isArray(value.reasons) ? value.reasons : []
+    const isSelected = currentReasons.includes(reason)
+    const reasons = isSelected
+      ? currentReasons.filter((currentReason) => currentReason !== reason)
+      : [...currentReasons, reason]
+
+    onChange({
+      ...value,
+      reasons,
+      otherReason: reason === 'Other' && isSelected ? '' : value.otherReason,
+    })
   }
 
   return (
@@ -42,27 +65,59 @@ function FollowUpSection({ value, errors = {}, onChange }) {
 
       {value.required === 'yes' && (
         <div className="follow-up-fields">
-          <div className="report-field report-field-full">
-            <label className="report-label" htmlFor="follow-up-reason">
+          <fieldset
+            className="report-multi-select report-field-full"
+            aria-required="true"
+            aria-invalid={Boolean(errors.reasons)}
+            aria-describedby={`follow-up-reason-hint${
+              errors.reasons ? ' follow-up-reason-error' : ''
+            }`}
+            tabIndex={errors.reasons ? -1 : undefined}
+          >
+            <legend className="report-label">
               Reason <span aria-hidden="true">*</span>
-            </label>
-            <textarea
-              id="follow-up-reason"
-              className="report-control"
-              rows="3"
-              value={value.reason}
-              placeholder="Describe the unresolved issue or recommended next action."
-              onChange={(event) => updateField('reason', event.target.value)}
-              aria-required="true"
-              aria-invalid={Boolean(errors.reason)}
-              aria-describedby={errors.reason ? 'follow-up-reason-error' : undefined}
-            />
-            {errors.reason && (
+            </legend>
+            <p className="report-choice-hint" id="follow-up-reason-hint">
+              Select all that apply.
+            </p>
+            <div className="service-checklist-grid">
+              {FOLLOW_UP_REASON_OPTIONS.map((reason, index) => {
+                const reasonId = `follow-up-reason-${index}`
+
+                return (
+                  <label className="service-checklist-item" htmlFor={reasonId} key={reason}>
+                    <input
+                      id={reasonId}
+                      type="checkbox"
+                      checked={value.reasons.includes(reason)}
+                      onChange={() => toggleReason(reason)}
+                    />
+                    <span>{reason}</span>
+                  </label>
+                )
+              })}
+            </div>
+            {value.reasons.includes('Other') && (
+              <div className="report-other-details">
+                <label className="report-label" htmlFor="follow-up-other-reason">
+                  Other explanation <span className="report-optional-label">(optional)</span>
+                </label>
+                <input
+                  id="follow-up-other-reason"
+                  type="text"
+                  className="report-control"
+                  value={value.otherReason}
+                  placeholder="Add any follow-up reason not covered above."
+                  onChange={(event) => updateField('otherReason', event.target.value)}
+                />
+              </div>
+            )}
+            {errors.reasons && (
               <span className="report-field-error" id="follow-up-reason-error">
-                {errors.reason}
+                {errors.reasons}
               </span>
             )}
-          </div>
+          </fieldset>
 
           <div className="report-field">
             <label className="report-label" htmlFor="follow-up-date">

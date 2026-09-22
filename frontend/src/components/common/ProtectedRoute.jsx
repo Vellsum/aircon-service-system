@@ -1,21 +1,32 @@
-import React from "react";
-import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import React from 'react';
+import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
-export default function ProtectedRoute({ allowedRoles }) {
-  const { user } = useAuth();
+export default function ProtectedRoute({ allowedRoles = [] }) {
+  const { user, initializing } = useAuth();
+  const token = localStorage.getItem('token') || localStorage.getItem('aircon_token');
 
-  if (!user) {
+  // Wait for AuthContext to finish loading from localStorage
+  if (initializing) {
+    return null; // Don't redirect yet — still loading
+  }
+
+  // If not logged in, redirect to login page
+  if (!token || !user) {
     return <Navigate to="/login" replace />;
   }
 
-  // Convert current user role and allowed roles to lowercase for clean comparison
-  const currentRole = (user.role || user.accountType || "").toLowerCase();
-  const normalizedAllowedRoles = allowedRoles.map((r) => r.toLowerCase());
+  const userRole = String(user.role || user.accountType || '').toLowerCase();
+  const normalizedAllowed = allowedRoles.map((r) => String(r).toLowerCase());
 
-  if (allowedRoles && !normalizedAllowedRoles.includes(currentRole)) {
+  // If logged in but accessing an unauthorized route, redirect to their home
+  if (normalizedAllowed.length > 0 && !normalizedAllowed.includes(userRole)) {
+    if (userRole === 'admin') return <Navigate to="/admin/dashboard" replace />;
+    if (userRole === 'technician') return <Navigate to="/technician/dashboard" replace />;
+    if (userRole === 'customer') return <Navigate to="/customer/portal" replace />;
     return <Navigate to="/" replace />;
   }
 
+  // Render protected child routes
   return <Outlet />;
 }

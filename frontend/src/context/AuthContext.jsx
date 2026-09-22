@@ -1,30 +1,62 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem("aircon_user");
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [initializing, setInitializing] = useState(true);
 
-  const login = (userData, token) => {
-    setUser(userData);
-    localStorage.setItem("aircon_user", JSON.stringify(userData));
-    if (token) localStorage.setItem("aircon_token", token);
+  // On mount, restore session from localStorage
+  useEffect(() => {
+    const savedToken = localStorage.getItem('token') || localStorage.getItem('aircon_token');
+    const savedUser = localStorage.getItem('user');
+
+    if (savedToken && savedUser) {
+      try {
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('aircon_token');
+        localStorage.removeItem('user');
+      }
+    }
+    setInitializing(false);
+  }, []);
+
+  const login = (userData, authToken) => {
+    const normalizedUser = {
+      ...userData,
+      role: String(userData.role || userData.accountType || '').toLowerCase(),
+    };
+
+    setUser(normalizedUser);
+    setToken(authToken);
+    localStorage.setItem('token', authToken);
+    localStorage.setItem('aircon_token', authToken);
+    localStorage.setItem('user', JSON.stringify(normalizedUser));
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("aircon_user");
-    localStorage.removeItem("aircon_token");
+    setToken(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('aircon_token');
+    localStorage.removeItem('user');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, token, login, logout, initializing }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
