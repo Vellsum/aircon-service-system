@@ -7,11 +7,18 @@ import Home from "../pages/public/Home";
 import Login from "../pages/public/Login";
 import Register from "../pages/public/Register";
 
-// Customer Module Page
+// Customer Module Pages (src/pages/customer/)
 import CustomerPortal from "../pages/customer/CustomerPortal";
+import CustomerDashboard from "../pages/customer/CustomerDashboard";
+import CustomerBookService from "../pages/customer/CustomerBookService";
+import CustomerBookings from "../pages/customer/CustomerBookings";
+import CustomerServiceCatalog from "../pages/customer/CustomerServiceCatalog";
+import CustomerMyUnits from "../pages/customer/CustomerMyUnits";
+import CustomerProfile from "../pages/customer/CustomerProfile";
 
 // Layouts
 import TechnicianLayout from '../layouts/TechnicianLayout';
+import CustomerLayout from '../layouts/CustomerLayout';
 
 // 1. Admin Module Pages (src/pages/admin/)
 import AdminDashboard from '../pages/admin/AdminDashboard';
@@ -66,6 +73,16 @@ export default function AppRoutes() {
 
       {/* Customer Protected Routes */}
       <Route element={<ProtectedRoute allowedRoles={["customer"]} />}>
+        <Route path="/customer" element={<CustomerLayout />}>
+          <Route index element={<Navigate to="/customer/dashboard" replace />} />
+          <Route path="dashboard" element={<CustomerDashboard />} />
+          <Route path="book" element={<CustomerBookService />} />
+          <Route path="bookings" element={<CustomerBookings />} />
+          <Route path="services" element={<CustomerServiceCatalog />} />
+          <Route path="units" element={<CustomerMyUnits />} />
+          <Route path="profile" element={<CustomerProfile />} />
+        </Route>
+        {/* Legacy link target — redirects to the dashboard */}
         <Route path="/customer/portal" element={<CustomerPortal />} />
       </Route>
 
