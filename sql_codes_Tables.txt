@@ -1,8 +1,11 @@
+- sql by weijie
+- last updated 210926
+
 ##schemas:
 user3
 new_jobBooking
 inventory
-
+payables2
 
 
 
@@ -423,5 +426,63 @@ add recommendations VARCHAR(200);
 add notes VARCHAR(200);
 add serviceChecklist VARCHAR(200);
 add comepletedDateTime VARCHAR(100);
+
+================================================================================================================
+//NEW payables schema;
+create SCHEMA payables2;
+
+
+CREATE TABLE payables2.promotions (
+    promo_id INT PRIMARY KEY,
+    promo_name VARCHAR(255) NOT NULL,
+    promo_start DATE NOT NULL,
+    promo_end DATE NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    promoCode VARCHAR(255) NOT NULL,
+    isdeleted VARCHAR(255) NOT NULL,
+discount float not null
+);
+
+CREATE TABLE payables2.purchases (
+    purchaseID INT PRIMARY KEY,
+    customerID INT NOT NULL,
+    promotionID INT,
+    serviceID INT NOT NULL
+);
+
+ALTER TABLE  payables2.purchases
+ADD CONSTRAINT FK_purchases_services_NEW 
+    FOREIGN KEY (serviceID) REFERENCES payables2.services(service_id);
+
+CREATE TABLE payables2.services (
+    service_id INT PRIMARY KEY,
+    service_name VARCHAR(255) NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    price float  NOT NULL,
+    isdeleted bit NOT NULL,
+duration varchar(100) not null,
+service_type varchar(50)
+);
+
+//drop old constraints to old table, n adding new constraint to new table-------------
+alter table payables.purchases
+drop constraint FK_purchases_customer;
+
+
+alter table new_jobBooking.job
+drop constraint fk_service_job;
+
+
+alter table payables2.purchases
+ADD CONSTRAINT FK_purchases_customer_NEW 
+    FOREIGN KEY (customerID) REFERENCES user3.newCustomer(customer_ID);
+
+alter table payables2.services
+ADD CONSTRAINT FK_services_job_NEW 
+FOREIGN KEY (service_id) references new_jobBooking.job (job_ID)
+
+
+
+
 
 

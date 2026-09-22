@@ -1,3 +1,6 @@
+- sql by weijie
+- last updated 160926
+
 //testing for making child without valid parent;=----------------
 
 -- Attempt to insert a customer linked to non-existent user_ID 99999
