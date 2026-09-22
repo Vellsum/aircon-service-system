@@ -5,7 +5,7 @@ import JobStatusBadge from './JobStatusBadge'
  * JobCard Component
  * Refined mobile and tablet card view for Assigned Jobs.
  */
-function JobCard({ job, onView }) {
+function JobCard({ job, onView, onPrimaryAction }) {
   const initials = job.customerName
     ? job.customerName
         .split(' ')
@@ -59,28 +59,26 @@ function JobCard({ job, onView }) {
       </div>
 
       {/* Date & Action */}
-      <div className="d-flex justify-content-between align-items-center pt-2 border-top">
+      <div className="job-mobile-card-footer d-flex justify-content-between align-items-center pt-2 border-top">
         <span className="text-secondary small fw-semibold">{job.formattedDate}</span>
-        <button
-          type="button"
-          className="action-view-btn px-3"
-          onClick={() => onView(job)}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="job-mobile-actions">
+          <button
+            type="button"
+            className="action-view-btn px-3"
+            onClick={() => onView(job)}
           >
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          <span>View Details</span>
-        </button>
+            <span>View</span>
+          </button>
+          {job.status !== 'Completed' && (
+            <button
+              type="button"
+              className="job-primary-action"
+              onClick={() => onPrimaryAction(job)}
+            >
+              {job.status === 'In Progress' ? 'Continue' : 'Start'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

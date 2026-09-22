@@ -26,55 +26,55 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
 
-  if (!email || !password) {
-    setError("Please enter both username/email and password.");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const response = await fetch("http://localhost:5000/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: email,
-        password: password,
-        role: selectedRole,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || "Login failed.");
+    if (!email || !password) {
+      setError("Please enter both username/email and password.");
+      return;
     }
 
-    // 1. Force normalized lowercase role ('Technician' -> 'technician')
-    const userRole = (data.user.role || data.user.accountType || selectedRole).toLowerCase();
+    setLoading(true);
 
-    const authenticatedUser = {
-      ...data.user,
-      role: userRole,
-    };
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: email,          // Changed from 'username' to 'email' state
+          password: password,
+          role: selectedRole,       // Changed from 'activeRole' to 'selectedRole' state
+        }),
+      });
 
-    // 2. Persist to AuthContext
-    login(authenticatedUser, data.token);
+      const data = await response.json();
 
-    // 3. Navigate explicitly to the technician portal
-    const targetDestination = roleDestinations[userRole] || "/technician/dashboard";
-    navigate(targetDestination, { replace: true });
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed.");
+      }
 
-  } catch (err) {
-    setError(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+      // 1. Force normalized lowercase role ('Technician' -> 'technician')
+      const userRole = (data.user.role || data.user.accountType || selectedRole).toLowerCase();
+
+      const authenticatedUser = {
+        ...data.user,
+        role: userRole,
+      };
+
+      // 2. Persist to AuthContext
+      login(authenticatedUser, data.token);
+
+      // 3. Navigate explicitly to the corresponding destination
+      const targetDestination = roleDestinations[userRole] || "/technician/dashboard";
+      navigate(targetDestination, { replace: true });
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="login-page">

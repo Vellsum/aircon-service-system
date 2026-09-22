@@ -10,9 +10,6 @@ import Register from "../pages/public/Register";
 // Customer Module Page
 import CustomerPortal from "../pages/customer/CustomerPortal";
 
-// Layouts
-import TechnicianLayout from '../layouts/TechnicianLayout';
-
 // 1. Admin Module Pages (src/pages/admin/)
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import ManageBookings from '../pages/admin/ManageBookings';
@@ -26,11 +23,15 @@ import ManagePackages from '../pages/admin/Managepackages';
 import ViewReports from '../pages/admin/Viewreports';
 
 // 2. Technician Module Pages (src/pages/technician/)
-import TechnicianDashboard from '../pages/technician/TechnicianDashboard';
-import TechnicianAssignedJobs from '../pages/technician/TechnicianAssignedJobs';
-import TechnicianSubmitReport from '../pages/technician/TechnicianSubmitReport';
-import TechnicianJobHistory from '../pages/technician/TechnicianJobHistory';
-
+import TechnicianLayout from "../layouts/TechnicianLayout";
+import TechnicianDashboard from "../pages/technician/TechnicianDashboard";
+import TechnicianAssignedJobs from "../pages/technician/TechnicianAssignedJobs";
+import TechnicianFollowUp from "../pages/technician/TechnicianFollowUp";
+import TechnicianJobHistory from "../pages/technician/TechnicianJobHistory";
+import TechnicianPartsLog from "../pages/technician/TechnicianPartsLog";
+import TechnicianPerformance from "../pages/technician/TechnicianPerformance";
+import TechnicianProfile from "../pages/technician/TechnicianProfile";
+import TechnicianSubmitReport from "../pages/technician/TechnicianSubmitReport";
 export default function AppRoutes() {
   return (
     <Routes>
@@ -56,11 +57,15 @@ export default function AppRoutes() {
       {/* Technician Protected Routes */}
       <Route element={<ProtectedRoute allowedRoles={["technician"]} />}>
         <Route path="/technician" element={<TechnicianLayout />}>
-          <Route index element={<Navigate to="/technician/dashboard" replace />} />
+          <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<TechnicianDashboard />} />
           <Route path="assigned-jobs" element={<TechnicianAssignedJobs />} />
-          <Route path="submit-report" element={<TechnicianSubmitReport />} />
+          <Route path="follow-up" element={<TechnicianFollowUp />} />
           <Route path="job-history" element={<TechnicianJobHistory />} />
+          <Route path="parts-log" element={<TechnicianPartsLog />} />
+          <Route path="performance" element={<TechnicianPerformance />} />
+          <Route path="profile" element={<TechnicianProfile />} />
+          <Route path="submit-report" element={<TechnicianSubmitReport />} />
         </Route>
       </Route>
 

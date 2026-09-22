@@ -1,18 +1,17 @@
-/**
- * Cool Fix - Admin User Routes
- * Mapped to adminUserController.js
- */
-
 const express = require('express');
 const router = express.Router();
 const adminUserController = require('../controllers/adminUserController');
 
-// Customer Endpoints
-router.get('/customers', adminUserController.getAllCustomers);
-router.post('/customers', adminUserController.createCustomer);
+// Technicians
+router.get('/users/technicians', adminUserController.getAllTechnicians);
+router.post('/users/technicians', adminUserController.createTechnician);
+router.put('/users/technicians/:id', adminUserController.updateTechnician);
+router.delete('/users/technicians/:id', adminUserController.deleteTechnician);
 
-// Technician Endpoints
-router.get('/technicians', adminUserController.getAllTechnicians);
-router.post('/technicians', adminUserController.createTechnician);
+// Customers
+router.get('/users/customers', adminUserController.getAllCustomers);
+router.post('/users/customers', adminUserController.createCustomer);
+router.put('/users/customers/:id', adminUserController.updateCustomer);
+router.delete('/users/customers/:id', adminUserController.deleteCustomer);
 
 module.exports = router;

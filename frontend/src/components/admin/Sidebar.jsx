@@ -15,21 +15,22 @@ const navItems = [
   { label: "View Reports", path: "/admin/reports" },
 ];
 
-// Highlighting is handled by NavLink itself based on the current URL.
 const Sidebar = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
     localStorage.removeItem("aircon_role");
     localStorage.removeItem("aircon_email");
+    localStorage.removeItem("token");
     navigate("/login");
   };
 
   return (
     <aside className="dash-sidebar">
+      {/* Cool Fix Admin Brand Title */}
       <div className="dash-brand">
         <span className="dash-brand-mark">❄</span>
-        <span className="dash-brand-name">Aircon Admin</span>
+        <span className="dash-brand-name">Cool Fix</span>
       </div>
 
       <nav className="dash-nav">
