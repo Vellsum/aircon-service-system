@@ -1,6 +1,6 @@
 /**
  * Mock data for Technician Assigned Jobs
- * Realistic air conditioning service assignments
+ * Realistic air conditioning service
  */
 
 export const MOCK_JOBS = [
