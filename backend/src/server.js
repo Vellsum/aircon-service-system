@@ -29,6 +29,8 @@ const technicianRoutes = require('./routes/technicianRoutes');
 const technicianReportRoutes = require('./routes/technicianReports');
 const adminPayablesRoutes = require('./routes/adminPayablesRoutes');
 
+const customerRoutes = require('./routes/customerRoutes');
+
 // Mount Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/bookings', bookingRoutes);
@@ -39,6 +41,8 @@ app.use('/api/admin/bookings', adminBookingRoutes);
 app.use('/api/technician', technicianRoutes);
 app.use('/api/technician/reports', technicianReportRoutes);
 app.use('/api/admin/payables', adminPayablesRoutes);
+
+app.use('/api/customer', customerRoutes);
 
 app.get('/', (req, res) =>! res.json({ message: 'Cool Fix backend active!' }));
 

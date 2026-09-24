@@ -7,8 +7,14 @@ import Home from "../pages/public/Home";
 import Login from "../pages/public/Login";
 import Register from "../pages/public/Register";
 
-// Customer Module Page
-import CustomerPortal from "../pages/customer/CustomerPortal";
+// Customer Module Pages
+import CustomerLayout from "../layouts/CustomerLayout";
+import CustomerDashboard from "../pages/customer/CustomerDashboard";
+import CustomerBookings from "../pages/customer/CustomerBookings";
+import CustomerBookService from "../pages/customer/CustomerBookService";
+import CustomerMyUnits from "../pages/customer/CustomerMyUnits";
+import CustomerProfile from "../pages/customer/CustomerProfile";
+import CustomerServiceCatalog from "../pages/customer/CustomerServiceCatalog";
 
 // 1. Admin Module Pages (src/pages/admin/)
 import AdminDashboard from '../pages/admin/AdminDashboard';
@@ -71,7 +77,19 @@ export default function AppRoutes() {
 
       {/* Customer Protected Routes */}
       <Route element={<ProtectedRoute allowedRoles={["customer"]} />}>
-        <Route path="/customer/portal" element={<CustomerPortal />} />
+        <Route path="/customer" element={<CustomerLayout />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<CustomerDashboard />} />
+          <Route path="bookings" element={<CustomerBookings />} />
+          <Route path="book-service" element={<CustomerBookService />} />
+          <Route path="my-units" element={<CustomerMyUnits />} />
+          <Route path="profile" element={<CustomerProfile />} />
+          <Route path="service-catalog" element={<CustomerServiceCatalog />} />
+          {/* Aliases for old links */}
+          <Route path="book" element={<Navigate to="/customer/book-service" replace />} />
+          <Route path="services" element={<Navigate to="/customer/service-catalog" replace />} />
+          <Route path="units" element={<Navigate to="/customer/my-units" replace />} />
+        </Route>
       </Route>
 
       {/* Fallback Catch-All */}

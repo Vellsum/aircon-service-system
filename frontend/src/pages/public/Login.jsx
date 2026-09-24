@@ -11,7 +11,7 @@ const roles = [
 ];
 
 const roleDestinations = {
-  customer: "/customer/portal",
+  customer: "/customer/dashboard",
   technician: "/technician/dashboard",
   admin: "/admin/dashboard",
 };
