@@ -1,0 +1,9 @@
+ 1- cd to backend
+ 2 - write in terminal
+    npm start
+
+3- confirm with database success msg (provided azure is live)
+
+4 - cd to frontend
+5 - write in terminal   
+    npm run dev
