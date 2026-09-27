@@ -2,7 +2,8 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/shared.css";
 import "../../styles/Home.css"; // Local style import
-
+import { useState } from "react";
+import { useEffect } from "react";
 const trustStats = [
   { value: "500+", label: "Happy Customers" },
   { value: "24", label: "Certified Technicians" },
@@ -23,11 +24,59 @@ const promotions = [
   { code: "DEEPCLEAN15", title: "15% Off Deep Cleaning", desc: "Save on our thorough chemical cleaning package.", validity: "Starts 10 Sep 2026" },
 ];
 
+
+
 const Home = () => {
   const navigate = useNavigate(); // Initialize hook inside component
+  
+   //weijie trying to get user data from his db
+const [users, setuser]=useState([]);
+useEffect(() => {
+    // 1. Fetch from Express Backend (Port 5000), NOT MySQL (Port 3306)
+    fetch('http://localhost:5000/api/data')
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        console.log(response)
+        return response.json();
+
+      })
+      .then((data) => {
+        // 2. Directly log retrieved database records to browser console
+        console.log('Successfully fetched users from DB:', data);
+        setUsers(data);
+      })
+      .catch((error) => {
+        console.error('Error fetching users:', error);
+      });
+  }, []);
+
+//method to get data from local db
+function getL(){
+
+}
+
 
   return (
     <div>
+      <div>
+        {/**I AM WEIJIE. I AM MAKING THIS DIV TO TEST THE CONNECTION TO MY LOCAL SQL SERVER */}
+        <h1>local sql testing zone</h1>
+      <h3>lets try printing to console if can get data from local db can alr</h3>
+      {/**
+       * <ul>
+        {users.map((user) => (
+          <li key={user.user_ID}>
+            {user.user_ID} --- {user.username}
+          </li>
+        ))}
+      </ul>
+       */}
+       
+
+
+      </div>
       <nav className="site-nav">
         <div className="site-nav-brand">
           <span>❄</span>
