@@ -9,6 +9,8 @@ function JobDetailsModal({
   onStartService,
   onCompleteService,
   returnFocusRef,
+  actionPending = false,
+  actionError = null,
 }) {
   const fallbackFocusRef = useRef(null)
 
@@ -43,25 +45,33 @@ function JobDetailsModal({
         .join('')
         .slice(0, 2)
         .toUpperCase()
-    : 'CU'
+    : '—'
+  const normalizedStatus = String(job.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
+  const canStart = ['upcoming', 'assigned', 'pending'].includes(normalizedStatus)
+  const canComplete = normalizedStatus === 'in progress'
+  const handleHide = () => {
+    if (!actionPending) onHide?.()
+  }
 
   return (
     <Modal
       show={show}
-      onHide={onHide}
+      onHide={handleHide}
       centered
       size="lg"
+      backdrop={actionPending ? 'static' : true}
+      keyboard={!actionPending}
       restoreFocus={false}
       onShow={rememberFocusTarget}
       onExited={restoreTriggerFocus}
       contentClassName="job-details-modal-content cf-job-modal"
     >
-      <Modal.Header closeButton className="cf-job-modal-header">
+      <Modal.Header closeButton={!actionPending} className="cf-job-modal-header">
         <div className="cf-job-modal-heading">
           <span className="cf-eyebrow">Assigned job</span>
           <div>
-            <h2>{job.serviceType}</h2>
-            <span className="job-id-chip">{job.id}</span>
+            <h2>{job.serviceType || 'Service unavailable'}</h2>
+            <span className="job-id-chip">{job.id || 'Booking unavailable'}</span>
             <JobStatusBadge status={job.status} />
             {job.priority && job.priority !== 'Normal' && (
               <span className={`cf-priority-badge cf-priority-${job.priority.toLowerCase()}`}>
@@ -77,7 +87,7 @@ function JobDetailsModal({
           <div className="customer-avatar-lg" aria-hidden="true">{initials}</div>
           <div className="cf-modal-customer-copy">
             <span>Customer</span>
-            <h3 id="modal-customer-title">{job.customerName}</h3>
+            <h3 id="modal-customer-title">{job.customerName || 'Customer unavailable'}</h3>
             <div className="cf-modal-contact-row">
               {job.customerPhone && (
                 <a href={`tel:${job.customerPhone}`}>
@@ -110,7 +120,14 @@ function JobDetailsModal({
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
             </span>
-            <div><span>Appointment</span><strong>{job.formattedDate}</strong><small>{job.time} {job.estimatedDuration ? `· Est. ${job.estimatedDuration}` : ''}</small></div>
+            <div>
+              <span>Appointment</span>
+              <strong>{job.formattedDate || '—'}</strong>
+              <small>
+                {job.time || 'Time unavailable'}
+                {job.estimatedDuration ? ` · Est. ${job.estimatedDuration}` : ''}
+              </small>
+            </div>
           </section>
           <section className="cf-modal-detail-card">
             <span className="cf-modal-detail-icon">
@@ -119,7 +136,7 @@ function JobDetailsModal({
                 <circle cx="12" cy="10" r="3" />
               </svg>
             </span>
-            <div><span>Service location</span><strong>{job.address}</strong><small>{job.postalCode ? `Singapore ${job.postalCode}` : 'Singapore'}</small></div>
+            <div><span>Service location</span><strong>{job.address || '—'}</strong><small>{job.postalCode ? `Postal code ${job.postalCode}` : 'Postal code unavailable'}</small></div>
           </section>
           <section className="cf-modal-detail-card">
             <span className="cf-modal-detail-icon">
@@ -128,7 +145,7 @@ function JobDetailsModal({
                 <path d="M7 15h10M8 9h8" />
               </svg>
             </span>
-            <div><span>Equipment</span><strong>{job.unitType || 'Standard Split Units'}</strong><small>{job.serviceCategory || 'Air-conditioning service'}</small></div>
+            <div><span>Equipment</span><strong>{job.unitType || '—'}</strong><small>{job.serviceCategory || 'Equipment details unavailable'}</small></div>
           </section>
           <section className="cf-modal-detail-card">
             <span className="cf-modal-detail-icon">
@@ -137,7 +154,7 @@ function JobDetailsModal({
                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
               </svg>
             </span>
-            <div><span>Service type</span><strong>{job.serviceType}</strong><small>Assigned field visit</small></div>
+            <div><span>Service type</span><strong>{job.serviceType || '—'}</strong><small>Additional service details unavailable</small></div>
           </section>
         </div>
 
@@ -147,22 +164,35 @@ function JobDetailsModal({
             <p>{job.notes}</p>
           </section>
         )}
+        {actionError && (
+          <div className="alert alert-danger mt-3 mb-0" role="alert">
+            {actionError}
+          </div>
+        )}
       </Modal.Body>
 
       <Modal.Footer className="cf-job-modal-footer">
-        <button type="button" className="cf-button cf-button-quiet" onClick={onHide}>Close</button>
-        {job.status === 'Upcoming' && (
-          <button type="button" className="cf-button cf-button-primary" onClick={() => (onStartService ? onStartService(job) : onHide())}>
-            Start Service
+        <button type="button" className="cf-button cf-button-quiet" onClick={handleHide} disabled={actionPending}>Close</button>
+        {canStart && (
+          <button
+            type="button"
+            className="cf-button cf-button-primary"
+            onClick={() => (onStartService ? onStartService(job) : handleHide())}
+            disabled={actionPending}
+            aria-busy={actionPending}
+          >
+            {actionPending ? 'Starting…' : 'Start Service'}
           </button>
         )}
-        {job.status === 'In Progress' && (
+        {canComplete && (
           <button
             type="button"
             className="cf-button cf-button-primary cf-button-progress"
-            onClick={() => (onCompleteService ? onCompleteService(job) : onHide())}
+            onClick={() => (onCompleteService ? onCompleteService(job) : handleHide())}
+            disabled={actionPending}
+            aria-busy={actionPending}
           >
-            Complete Service
+            {actionPending ? 'Completing…' : 'Complete Service'}
           </button>
         )}
       </Modal.Footer>

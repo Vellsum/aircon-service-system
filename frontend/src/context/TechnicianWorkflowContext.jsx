@@ -5,8 +5,10 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
+import { useAuth } from './AuthContext'
 
 const TechnicianWorkflowContext = createContext(null)
 
@@ -16,32 +18,73 @@ const JOB_STATUS = Object.freeze({
   COMPLETED: 'Completed',
 })
 
+const normalizeStatus = (status) =>
+  String(status || '').trim().replace(/\s+/g, ' ').toLowerCase()
+
+const TRANSITION_RULES = Object.freeze({
+  start: {
+    allowedStatuses: new Set(['upcoming', 'assigned', 'pending']),
+    nextStatus: JOB_STATUS.IN_PROGRESS,
+  },
+  complete: {
+    allowedStatuses: new Set(['in progress']),
+    nextStatus: JOB_STATUS.COMPLETED,
+  },
+})
+
+function createTransitionError(message) {
+  const error = new Error(message)
+  error.name = 'TechnicianTransitionError'
+  return error
+}
+
 function TechnicianWorkflowProvider({ children }) {
+  const { user, token } = useAuth()
   const [dbJobs, setDbJobs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [dataAvailable, setDataAvailable] = useState(false)
   const [jobStatusOverrides, setJobStatusOverrides] = useState({})
+  const [pendingTransitionJobIDs, setPendingTransitionJobIDs] = useState([])
+  const pendingTransitionJobIDsRef = useRef(new Set())
+
+  const technicianID = user?.technician_ID ?? null
 
   const fetchJobs = useCallback(async () => {
     setLoading(true)
+    setError(null)
+    setDataAvailable(false)
+
+    if (!technicianID) {
+      setDbJobs([])
+      setJobStatusOverrides({})
+      setError('Technician identity is unavailable.')
+      setLoading(false)
+      return
+    }
+
     try {
-      const token = localStorage.getItem('token') || ''
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
 
-      const storedUser = JSON.parse(localStorage.getItem('user') || '{}')
-      const currentTechId = storedUser.technician_ID || storedUser.id || storedUser.user_ID || 1
-      const res = await fetch(`http://localhost:5000/api/technician/jobs?techId=${currentTechId}`, { headers })
+      const res = await fetch(`http://localhost:5000/api/technician/jobs?techId=${technicianID}`, { headers })
       const data = await res.json()
 
       if (res.ok && data.success && Array.isArray(data.jobs)) {
         setDbJobs(data.jobs)
+        setDataAvailable(true)
+      } else {
+        setDbJobs([])
+        setError('Assigned job data is unavailable.')
       }
     } catch (err) {
       console.error('[Technician Context] Error fetching live jobs:', err)
+      setDbJobs([])
+      setError('Assigned job data is unavailable.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [technicianID, token])
 
   useEffect(() => {
     fetchJobs()
@@ -53,48 +96,92 @@ function TechnicianWorkflowProvider({ children }) {
   )
 
   const transitionJobStatus = useCallback(
-    async (jobID, expectedStatus, nextStatus) => {
-      setJobStatusOverrides((currentOverrides) => {
-        const baselineJob = baselineJobById.get(jobID) || {}
-        const effectiveStatus = currentOverrides[jobID] ?? baselineJob.status ?? expectedStatus
+    async (jobID, transitionName) => {
+      const transition = TRANSITION_RULES[transitionName]
+      const baselineJob = baselineJobById.get(jobID)
 
-        if (effectiveStatus !== expectedStatus && effectiveStatus !== 'Assigned' && effectiveStatus !== 'Pending') {
-          return currentOverrides
-        }
+      if (!dataAvailable || !baselineJob) {
+        throw createTransitionError('This booking is not available for a status update.')
+      }
 
-        return {
-          ...currentOverrides,
-          [jobID]: nextStatus,
-        }
-      })
+      const effectiveStatus = jobStatusOverrides[jobID] ?? baselineJob.status
+      if (!transition || !transition.allowedStatuses.has(normalizeStatus(effectiveStatus))) {
+        throw createTransitionError('This booking cannot be updated from its current status.')
+      }
+
+      if (pendingTransitionJobIDsRef.current.has(jobID)) {
+        throw createTransitionError('A status update for this booking is already in progress.')
+      }
+
+      pendingTransitionJobIDsRef.current.add(jobID)
+      setPendingTransitionJobIDs(Array.from(pendingTransitionJobIDsRef.current))
 
       try {
-        const token = localStorage.getItem('token') || ''
-        await fetch(`http://localhost:5000/api/technician/jobs/${jobID}/status`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
+        const headers = { 'Content-Type': 'application/json' }
+        if (token) headers.Authorization = `Bearer ${token}`
+
+        const response = await fetch(
+          `http://localhost:5000/api/technician/jobs/${jobID}/status`,
+          {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ status: transition.nextStatus }),
           },
-          body: JSON.stringify({ status: nextStatus }),
-        })
+        )
+
+        let result = null
+        try {
+          result = await response.json()
+        } catch (parseError) {
+          console.error(
+            `[Technician Context] Invalid status response for booking #${jobID}:`,
+            parseError,
+          )
+        }
+
+        if (!response.ok || result?.success !== true) {
+          throw new Error(
+            `Status request failed with HTTP ${response.status} and success=${String(result?.success)}`,
+          )
+        }
+
+        setJobStatusOverrides((currentOverrides) => ({
+          ...currentOverrides,
+          [jobID]: transition.nextStatus,
+        }))
+
+        return {
+          success: true,
+          jobID,
+          status: transition.nextStatus,
+        }
       } catch (err) {
-        console.error(`[Technician Context] Failed to persist status update for job #${jobID}:`, err)
+        console.error(
+          `[Technician Context] Failed to persist status update for booking #${jobID}:`,
+          err,
+        )
+        throw createTransitionError('The booking status could not be updated. Please try again.')
+      } finally {
+        pendingTransitionJobIDsRef.current.delete(jobID)
+        setPendingTransitionJobIDs(Array.from(pendingTransitionJobIDsRef.current))
       }
     },
-    [baselineJobById],
+    [baselineJobById, dataAvailable, jobStatusOverrides, token],
   )
 
   const startService = useCallback(
-    (jobID) =>
-      transitionJobStatus(jobID, JOB_STATUS.UPCOMING, JOB_STATUS.IN_PROGRESS),
+    (jobID) => transitionJobStatus(jobID, 'start'),
     [transitionJobStatus],
   )
 
   const completeService = useCallback(
-    (jobID) =>
-      transitionJobStatus(jobID, JOB_STATUS.IN_PROGRESS, JOB_STATUS.COMPLETED),
+    (jobID) => transitionJobStatus(jobID, 'complete'),
     [transitionJobStatus],
+  )
+
+  const isTransitionPending = useCallback(
+    (jobID) => pendingTransitionJobIDs.includes(jobID),
+    [pendingTransitionJobIDs],
   )
 
   const assignedJobs = useMemo(
@@ -138,11 +225,14 @@ function TechnicianWorkflowProvider({ children }) {
       reportableJobs,
       workload,
       loading,
+      error,
+      dataAvailable,
       refreshJobs: fetchJobs,
       startService,
       completeService,
+      isTransitionPending,
     }),
-    [assignedJobs, reportableJobs, workload, loading, fetchJobs, startService, completeService],
+    [assignedJobs, reportableJobs, workload, loading, error, dataAvailable, fetchJobs, startService, completeService, isTransitionPending],
   )
 
   return (

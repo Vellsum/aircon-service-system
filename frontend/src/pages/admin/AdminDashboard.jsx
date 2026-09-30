@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
+import PortalWelcomeBanner from "../../components/common/PortalWelcomeBanner";
 import "../../styles/shared.css";
 
 const statusTone = {
@@ -258,13 +259,11 @@ const AdminDashboard = () => {
       <Sidebar active="Dashboard" />
 
       <main className="dash-main">
-        <div className="dash-banner">
-          <div>
-            <h1>Welcome back, Admin 👋</h1>
-            <p>Here's what's happening with your aircon service system today.</p>
-          </div>
-          <button className="dash-btn dash-btn-outline">Admin Profile</button>
-        </div>
+        <PortalWelcomeBanner
+          title="Welcome back, Admin 👋"
+          subtitle="Here's what's happening with your aircon service system today."
+          rightContent={<button className="dash-btn dash-btn-outline">Admin Profile</button>}
+        />
 
         {/* Dashboard Metrics */}
         <section className="dash-stats">

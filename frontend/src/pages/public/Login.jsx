@@ -82,7 +82,7 @@ const Login = () => {
         <div className="login-header">
           <div className="login-brand">
             <span>❄</span>
-            <span>Aircon Care</span>
+            <span>Cool Fix</span>
           </div>
           <p>Log in to continue</p>
         </div>

@@ -1,8 +1,9 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react'
+import React, { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import JobDetailsModal from '../../components/technician/JobDetailsModal'
+import PortalWelcomeBanner from '../../components/common/PortalWelcomeBanner'
 import "../../styles/technician.css";
 import { useAuth } from '../../context/AuthContext'
 
@@ -14,121 +15,81 @@ const getFormattedLiveDate = () => {
   return new Date().toLocaleDateString('en-GB', options);
 };
 
+const getLocalDateKey = (date = new Date()) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const getJobDateKey = (jobDate) => {
+  if (typeof jobDate !== 'string') return null
+  const match = jobDate.match(/^\d{4}-\d{2}-\d{2}/)
+  return match ? match[0] : null
+}
+
 function TechnicianDashboard() {
   const {user} = useAuth()
   const [selectedJob, setSelectedJob] = useState(null)
   const [showJobDetails, setShowJobDetails] = useState(false)
-  const [technicianJobs, setTechnicianJobs] = useState([])
-  const [techName, setTechName] = useState('Technician')
-  // Sync name from auth context
-  useEffect(() => {
-    if (user?.username) setTechName(user.username)
-  }, [user])
-  const [loading, setLoading] = useState(true)
+  const [actionError, setActionError] = useState(null)
   const jobDetailsTriggerRef = useRef(null)
-  const { startService, completeService } = useTechnicianWorkflow()
-
-  // 1. HTTP GET: Fetch live technician jobs & name on mount
-  const fetchDashboardJobs = useCallback(async () => {
-    setLoading(true)
-    try {
-      const token = localStorage.getItem('token') || ''
-      const headers = { 'Content-Type': 'application/json' }
-      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const currentTechId = storedUser.id || storedUser.user_ID || storedUser.technician_ID || 1;
-      const res = await fetch(`http://localhost:5000/api/technician/jobs?techId=${currentTechId}`, { headers });
-      const data = await res.json()
-
-      if (res.ok && data.success) {
-        if (Array.isArray(data.jobs)) setTechnicianJobs(data.jobs);
-        if (data.technicianName) setTechName(data.technicianName);
-      }
-    } catch (err) {
-      console.error('Error fetching dashboard jobs:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchDashboardJobs()
-  }, [fetchDashboardJobs])
+  const {
+    assignedJobs: technicianJobs,
+    loading,
+    error,
+    dataAvailable,
+    startService,
+    completeService,
+    isTransitionPending,
+  } = useTechnicianWorkflow()
 
   const openJobDetails = (job) => {
     jobDetailsTriggerRef.current = document.activeElement
     setSelectedJob(job)
     setShowJobDetails(true)
+    setActionError(null)
   }
 
   const closeJobDetails = () => {
     setShowJobDetails(false)
+    setActionError(null)
   }
 
-  // 2. HTTP PUT: Start service
   const handleStartService = async (jobToStart) => {
+    setActionError(null)
     try {
-      const targetId = jobToStart.job_ID || jobToStart.id.replace('#BK', '')
-      const token = localStorage.getItem('token') || ''
-
-      await fetch(`http://localhost:5000/api/technician/jobs/${targetId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: 'In Progress' }),
-      })
-
-      if (startService) startService(jobToStart.job_ID)
+      await startService(jobToStart.job_ID)
       closeJobDetails()
-      fetchDashboardJobs()
     } catch (err) {
-      console.error('Error starting service:', err)
+      console.error('[Technician Dashboard] Unable to start service:', err)
+      setActionError(err?.message || 'Service could not be started. Please try again.')
     }
   }
 
-  // 3. HTTP PUT: Complete service
   const handleCompleteService = async (jobToComplete) => {
+    setActionError(null)
     try {
-      const targetId = jobToComplete.job_ID || jobToComplete.id.replace('#BK', '')
-      const token = localStorage.getItem('token') || ''
-
-      await fetch(`http://localhost:5000/api/technician/jobs/${targetId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: 'Completed' }),
-      })
-
-      if (completeService) completeService(jobToComplete.job_ID)
+      await completeService(jobToComplete.job_ID)
       closeJobDetails()
-      fetchDashboardJobs()
     } catch (err) {
-      console.error('Error completing service:', err)
+      console.error('[Technician Dashboard] Unable to complete service:', err)
+      setActionError(err?.message || 'Service could not be completed. Please try again.')
     }
   }
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = getLocalDateKey()
   
-  // Dynamic today filter
-  const todayJobs = technicianJobs.filter(
-  (job) => 
-    job.timeframe === 'today' || 
-    (job.date && job.date.includes(todayStr)) || 
-    job.status === 'In Progress' || 
-    job.status === 'Assigned' || 
-    job.status === 'Pending' ||
-    !job.date
-  );
-  const completedJobsCount = technicianJobs.filter((job) => job.status === 'Completed').length
+  const todayJobs = technicianJobs.filter((job) => getJobDateKey(job.date) === todayStr)
+  const todayJobsValue = dataAvailable ? todayJobs.length : '—'
 
   const summaryItems = [
     {
       label: "Today's Jobs",
-      value: todayJobs.length,
-      context: `${todayJobs.filter((job) => job.status === 'In Progress').length} in progress`,
+      value: todayJobsValue,
+      context: dataAvailable
+        ? `${todayJobs.filter((job) => job.status === 'In Progress').length} in progress`
+        : 'Schedule data unavailable',
       tone: 'mint',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true">
@@ -141,8 +102,8 @@ function TechnicianDashboard() {
     },
     {
       label: 'Historical Completed',
-      value: completedJobsCount,
-      context: 'Recorded in Azure SQL',
+      value: '—',
+      context: 'Job history data unavailable',
       tone: 'green',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true">
@@ -153,8 +114,8 @@ function TechnicianDashboard() {
     },
     {
       label: 'Report-ready Jobs',
-      value: completedJobsCount,
-      context: 'Completed assignments eligible for report',
+      value: '—',
+      context: 'Report lifecycle unavailable',
       tone: 'amber',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true">
@@ -167,8 +128,8 @@ function TechnicianDashboard() {
     },
     {
       label: 'Rating',
-      value: '5.0 ★',
-      context: 'Field technician score',
+      value: '—',
+      context: 'Technician rating unavailable',
       tone: 'violet',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true">
@@ -180,53 +141,83 @@ function TechnicianDashboard() {
 
   return (
     <div className="technician-dashboard-page cf-dashboard-page">
-      <header className="cf-page-header cf-dashboard-header">
-        <div className="cf-page-heading">
-          <span className="cf-eyebrow">Operations overview</span>
-          {/* Dynamic Greeting */}
-          <h1>Good day, {user?.username || 'Technician'}</h1>
-          <p>Here is today&apos;s field schedule and your latest service performance.</p>
-        </div>
-        <div className="cf-dashboard-date-card" aria-label="Today">
-          <span className="cf-dashboard-date-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
+      <PortalWelcomeBanner
+        as="header"
+        className="portal-welcome-technician"
+        eyebrow={(
+          <span className="tech-dash-context">
+            <span className="tech-dash-context-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="7" width="18" height="13" rx="2" />
+                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <path d="M3 12h18" />
+              </svg>
+            </span>
+            Field Operations
           </span>
-          {/* Live System Date */}
-          <span><small>Today</small><strong>{todayStr}</strong></span>
-        </div>
-      </header>
+        )}
+        title={<>Good day, {user?.username || 'Technician'}</>}
+        subtitle={<>Here is today&apos;s field schedule and your latest service performance.</>}
+        rightContent={(
+          <div className="tech-dash-date" aria-label="Current date">
+            <span className="tech-dash-date-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </span>
+            <span className="tech-dash-date-copy">
+              <small>Current date</small>
+              <strong>{getFormattedLiveDate()}</strong>
+            </span>
+          </div>
+        )}
+      />
 
-      <section className="cf-kpi-grid" aria-label="Today's work summary">
-        {summaryItems.map((item) => (
-          <article className="cf-kpi-card" key={item.label}>
-            <span className={`cf-kpi-icon cf-kpi-icon-${item.tone}`}>{item.icon}</span>
-            <div className="cf-kpi-content">
-              <span className="cf-kpi-label">{item.label}</span>
-              <strong className="cf-kpi-value">{item.value}</strong>
-              <span className="cf-kpi-context">{item.context}</span>
-            </div>
-            <span className={`cf-kpi-accent cf-kpi-accent-${item.tone}`} aria-hidden="true" />
-          </article>
-        ))}
+      <section className="tech-dash-overview" aria-labelledby="today-overview-title">
+        <header className="tech-dash-overview-header">
+          <div>
+            <span className="tech-dash-section-kicker">Today overview</span>
+            <h2 id="today-overview-title">Current operational picture</h2>
+          </div>
+          <p>Schedule, completion, reporting and service-quality availability.</p>
+        </header>
+        <div className="tech-dash-metric-grid" aria-label="Today's work summary">
+          {summaryItems.map((item) => (
+            <article className={`tech-dash-metric tech-dash-metric-${item.tone}`} key={item.label}>
+              <div className="tech-dash-metric-heading">
+                <span className={`tech-dash-metric-icon tech-dash-metric-icon-${item.tone}`}>{item.icon}</span>
+                <span className="tech-dash-metric-label">{item.label}</span>
+              </div>
+              <strong className="tech-dash-metric-value">{item.value}</strong>
+              <span className="tech-dash-metric-context">{item.context}</span>
+            </article>
+          ))}
+        </div>
       </section>
 
-      <div className="cf-dashboard-grid">
-        <section className="cf-widget cf-schedule-widget" aria-labelledby="today-schedule-title">
-          <header className="cf-widget-header">
+      <div className="tech-dash-workspace-heading">
+        <div>
+          <span className="tech-dash-section-kicker">Operations workspace</span>
+          <h2>Today&apos;s field activity</h2>
+        </div>
+        <p>Review assigned visits and open the tools needed for service work.</p>
+      </div>
+
+      <div className="tech-dash-workspace">
+        <section className="tech-dash-panel tech-dash-schedule" aria-labelledby="today-schedule-title">
+          <header className="tech-dash-panel-header tech-dash-schedule-header">
             <div>
-              <span className="cf-widget-kicker">Field schedule</span>
-              <div className="cf-widget-title-row">
+              <span className="tech-dash-panel-kicker">Primary workspace</span>
+              <div className="tech-dash-panel-title-row">
                 <h2 id="today-schedule-title">Today&apos;s Schedule</h2>
-                <span className="cf-count-pill">{todayJobs.length} jobs</span>
+                <span className="tech-dash-availability">{dataAvailable ? `${todayJobs.length} jobs` : 'Unavailable'}</span>
               </div>
-              <p>{getFormattedLiveDate()} · Active assigned service visits</p>
+              <p>{getFormattedLiveDate()} · Assigned service visits for this date</p>
             </div>
-            <Link to="/technician/assigned-jobs" className="cf-text-link">
+            <Link to="/technician/assigned-jobs" className="tech-dash-view-link">
               View all jobs
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -235,58 +226,100 @@ function TechnicianDashboard() {
             </Link>
           </header>
 
-          <div className="cf-schedule-list">
+          <div className="tech-dash-schedule-body">
+            {actionError && (
+              <div className="alert alert-danger mx-4 mt-3 mb-0" role="alert">
+                {actionError}
+              </div>
+            )}
             {loading ? (
-              <p style={{ padding: '24px', textAlign: 'center' }}>Loading today's schedule from database...</p>
+              <div className="cf-dashboard-state" role="status">
+                <span className="cf-dashboard-state-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2v4" />
+                    <path d="m16.24 7.76 2.83-2.83" />
+                    <path d="M18 12h4" />
+                    <path d="m16.24 16.24 2.83 2.83" />
+                    <path d="M12 18v4" />
+                    <path d="m4.93 19.07 2.83-2.83" />
+                    <path d="M2 12h4" />
+                    <path d="m4.93 4.93 2.83 2.83" />
+                  </svg>
+                </span>
+                <span className="cf-dashboard-state-label">Schedule sync</span>
+                <h3>Loading today&apos;s schedule</h3>
+                <p>Retrieving assigned service visits from the current workflow.</p>
+              </div>
+            ) : error ? (
+              <div className="cf-dashboard-state cf-dashboard-state-unavailable" role="status">
+                <span className="cf-dashboard-state-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="5" width="18" height="16" rx="2" />
+                    <line x1="8" y1="3" x2="8" y2="7" />
+                    <line x1="16" y1="3" x2="16" y2="7" />
+                    <line x1="3" y1="11" x2="21" y2="11" />
+                    <line x1="9" y1="16" x2="15" y2="16" />
+                  </svg>
+                </span>
+                <span className="cf-dashboard-state-label">Schedule unavailable</span>
+                <h3>Today&apos;s assigned visits cannot be displayed</h3>
+                <p>{error}</p>
+              </div>
             ) : todayJobs.length > 0 ? (
               todayJobs.map((job, index) => {
                 // Formatting time display safely
-                const displayTime = (job.time && !job.time.includes('1970')) ? job.time : '09:00 AM';
+                const displayTime = (job.time && !job.time.includes('1970')) ? job.time : '—';
+                const normalizedStatus = String(job.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
+                const canStart = ['upcoming', 'assigned', 'pending'].includes(normalizedStatus)
+                const canContinue = normalizedStatus === 'in progress'
+                const actionPending = isTransitionPending(job.job_ID)
 
                 return (
                   <article className="cf-schedule-row" key={job.id}>
                     <div className="cf-schedule-time">
                       <span className="cf-schedule-index">{String(index + 1).padStart(2, '0')}</span>
                       <strong>{displayTime}</strong>
-                      <small>{job.estimatedDuration}</small>
+                      <small>{job.estimatedDuration || 'Duration unavailable'}</small>
                     </div>
                     <div className="cf-schedule-details">
                       <div className="cf-schedule-title-row">
                         <div>
-                          <span className="cf-job-code">{job.id}</span>
-                          <h3>{job.serviceType}</h3>
+                          <span className="cf-job-code">{job.id || 'Booking unavailable'}</span>
+                          <h3>{job.serviceType || 'Service unavailable'}</h3>
                         </div>
                         <JobStatusBadge status={job.status} />
                       </div>
-                      <p className="cf-schedule-customer">{job.customerName}</p>
+                      <p className="cf-schedule-customer">{job.customerName || 'Customer unavailable'}</p>
                       <div className="cf-schedule-meta">
                         <span>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                             <circle cx="12" cy="10" r="3" />
                           </svg>
-                          {job.address}{job.postalCode ? ` · S${job.postalCode}` : ''}
+                          {job.address || 'Location unavailable'}{job.postalCode ? ` · Postal code ${job.postalCode}` : ''}
                         </span>
                         <span>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                             <rect x="3" y="5" width="18" height="14" rx="2" />
                             <path d="M7 15h10M8 9h8" />
                           </svg>
-                          {job.unitType}
+                          {job.unitType || 'Equipment unavailable'}
                         </span>
                       </div>
                     </div>
                     <div className="cf-schedule-actions">
-                      {job.status !== 'Completed' && job.status !== 'In Progress' && (
+                      {canStart && (
                         <button
                           type="button"
                           className="cf-button cf-button-primary"
                           onClick={() => handleStartService(job)}
+                          disabled={actionPending}
+                          aria-busy={actionPending}
                         >
-                          Start Service
+                          {actionPending ? 'Starting…' : 'Start Service'}
                         </button>
                       )}
-                      {job.status === 'In Progress' && (
+                      {canContinue && (
                         <button
                           type="button"
                           className="cf-button cf-button-primary cf-button-progress"
@@ -303,41 +336,60 @@ function TechnicianDashboard() {
                 );
               })
             ) : (
-              <p style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                No active jobs scheduled for today.
-              </p>
+              <div className="cf-dashboard-state">
+                <span className="cf-dashboard-state-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="5" width="18" height="16" rx="2" />
+                    <line x1="8" y1="3" x2="8" y2="7" />
+                    <line x1="16" y1="3" x2="16" y2="7" />
+                    <line x1="3" y1="11" x2="21" y2="11" />
+                    <polyline points="9 16 11 18 15 14" />
+                  </svg>
+                </span>
+                <span className="cf-dashboard-state-label">Schedule clear</span>
+                <h3>No active jobs scheduled for today</h3>
+                <p>Assigned service visits for this date will appear here.</p>
+              </div>
             )}
           </div>
         </section>
 
-        <aside className="cf-dashboard-rail">
-          <section className="cf-widget cf-quick-actions-widget" aria-labelledby="quick-actions-title">
-            <header className="cf-widget-header cf-widget-header-compact">
-              <div><span className="cf-widget-kicker">Shortcuts</span><h2 id="quick-actions-title">Quick Actions</h2></div>
+        <aside className="tech-dash-rail">
+          <section className="tech-dash-panel tech-dash-quick-panel" aria-labelledby="quick-actions-title">
+            <header className="tech-dash-panel-header">
+              <div>
+                <span className="tech-dash-panel-kicker">Service tools</span>
+                <h2 id="quick-actions-title">Quick Actions</h2>
+                <p>Open common field-service workflows.</p>
+              </div>
             </header>
-            <div className="cf-action-list">
-              <Link to="/technician/submit-report" className="cf-action-tile cf-action-tile-primary">
-                <span className="cf-action-icon">
+            <div className="tech-dash-actions">
+              <Link to="/technician/submit-report" className="tech-dash-action tech-dash-action-primary">
+                <span className="tech-dash-action-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                     <line x1="8" y1="13" x2="16" y2="13" />
                   </svg>
                 </span>
-                <span><strong>Submit Service Report</strong><small>Document completed work</small></span>
-                <span aria-hidden="true">→</span>
+                <span className="tech-dash-action-copy"><strong>Submit Service Report</strong><small>Document completed work</small></span>
+                <span className="tech-dash-action-arrow" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
+                </span>
               </Link>
-              <Link to="/technician/parts-log" className="cf-action-tile">
-                <span className="cf-action-icon">
+              <Link to="/technician/parts-log" className="tech-dash-action">
+                <span className="tech-dash-action-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                   </svg>
                 </span>
-                <span><strong>Log Parts &amp; Materials</strong><small>Update inventory usage</small></span>
-                <span aria-hidden="true">→</span>
+                <span className="tech-dash-action-copy"><strong>Parts Log</strong><small>View recorded parts usage</small></span>
+                <span className="tech-dash-action-arrow" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
+                </span>
               </Link>
-              <Link to="/technician/follow-up" className="cf-action-tile">
-                <span className="cf-action-icon">
+              <Link to="/technician/follow-up" className="tech-dash-action">
+                <span className="tech-dash-action-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                     <rect x="3" y="5" width="18" height="16" rx="2" />
                     <line x1="8" y1="3" x2="8" y2="7" />
@@ -345,24 +397,45 @@ function TechnicianDashboard() {
                     <line x1="3" y1="11" x2="21" y2="11" />
                   </svg>
                 </span>
-                <span><strong>Book Follow-Up Service</strong><small>Plan another technician visit</small></span>
-                <span aria-hidden="true">→</span>
+                <span className="tech-dash-action-copy"><strong>Follow-Up Bookings</strong><small>View existing follow-up bookings</small></span>
+                <span className="tech-dash-action-arrow" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
+                </span>
               </Link>
             </div>
           </section>
 
-          <section className="cf-widget cf-performance-widget" aria-labelledby="readiness-title">
-            <header className="cf-widget-header cf-widget-header-compact">
-              <div><span className="cf-widget-kicker">Service quality</span><h2 id="readiness-title">Performance &amp; Readiness</h2></div>
+          <section className="tech-dash-panel tech-dash-readiness-panel" aria-labelledby="readiness-title">
+            <header className="tech-dash-panel-header">
+              <div>
+                <span className="tech-dash-panel-kicker">Service quality</span>
+                <h2 id="readiness-title">Performance &amp; Readiness</h2>
+                <p>Operational indicators from recorded service data.</p>
+              </div>
             </header>
-            <div className="cf-performance-hero">
-              <div className="cf-progress-ring"><span>100%</span></div>
-              <div><strong>On-time arrival</strong><span>Syncing field arrival status</span></div>
+            <div className="tech-dash-status-list" role="list">
+              <div className="tech-dash-status-row" role="listitem">
+                <span className="tech-dash-status-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                </span>
+                <span className="tech-dash-status-copy"><strong>On-time arrival</strong><small>Arrival data unavailable</small></span>
+                <span className="tech-dash-status-value" aria-label="Not available">—</span>
+              </div>
+              <div className="tech-dash-status-row" role="listitem">
+                <span className="tech-dash-status-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" /></svg>
+                </span>
+                <span className="tech-dash-status-copy"><strong>Customer satisfaction</strong><small>Rating data unavailable</small></span>
+                <span className="tech-dash-status-value" aria-label="Not available">—</span>
+              </div>
+              <div className="tech-dash-status-row" role="listitem">
+                <span className="tech-dash-status-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                </span>
+                <span className="tech-dash-status-copy"><strong>Historical completed</strong><small>Job history data unavailable</small></span>
+                <span className="tech-dash-status-value" aria-label="Not available">—</span>
+              </div>
             </div>
-            <dl className="cf-performance-list">
-              <div><dt>Customer satisfaction</dt><dd>5.0 ★<small>Live rating score</small></dd></div>
-              <div><dt>Historical completed</dt><dd>{completedJobsCount} Jobs<small>Recorded in Azure SQL</small></dd></div>
-            </dl>
           </section>
         </aside>
       </div>
@@ -374,6 +447,8 @@ function TechnicianDashboard() {
         onStartService={handleStartService}
         onCompleteService={handleCompleteService}
         returnFocusRef={jobDetailsTriggerRef}
+        actionPending={selectedJob ? isTransitionPending(selectedJob.job_ID) : false}
+        actionError={actionError}
       />
     </div>
   )

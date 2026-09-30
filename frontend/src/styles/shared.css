@@ -34,6 +34,8 @@ body {
 
 .dash-main {
   flex: 1;
+  min-width: 0;
+  width: 100%;
   padding: 32px 40px;
   max-width: 1180px;
   margin: 0 auto;
@@ -104,9 +106,15 @@ body {
 
 .dash-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 24px;
+}
+
+@media (min-width: 1025px) {
+  .dash .dash-stats:has(> .dash-stat:nth-child(3):last-child) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .dash-stat {
@@ -148,6 +156,7 @@ body {
 /* Panels */
 
 .dash-panel {
+  min-width: 0;
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -176,7 +185,7 @@ body {
 
 .dash-actions {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -205,6 +214,32 @@ body {
   color: var(--accent);
   font-family: "IBM Plex Mono", monospace;
   font-weight: 600;
+}
+
+.dash .dash-action {
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 54px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.dash .dash-action-plus {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(46, 111, 242, 0.12);
+  border-radius: var(--radius);
+  background: rgba(46, 111, 242, 0.08);
+  font-size: 15px;
+}
+
+.dash .dash-action:hover .dash-action-plus {
+  border-color: rgba(46, 111, 242, 0.22);
+  background: rgba(46, 111, 242, 0.14);
 }
 
 /* Filter bar (list pages) */
@@ -269,6 +304,11 @@ body {
 .dash-table-wrap {
   overflow-x: auto;
   margin-top: 8px;
+}
+
+.dash .dash-table-wrap {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .dash-table {
@@ -380,12 +420,197 @@ body {
   gap: 6px;
 }
 
+/* Admin Bookings: refine the existing management surface without changing its structure. */
+.dash:has(> .dash-sidebar .dash-nav-item.is-active[href="/admin/bookings"]) .dash-main > .dash-panel {
+  border-color: #cfd8e4;
+  box-shadow: 0 5px 18px rgba(11, 21, 38, 0.045);
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active[href="/admin/bookings"]) .dash-panel > .dash-filterbar {
+  margin: -20px -22px 18px;
+  padding: 16px 22px;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: #f8fafc;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active[href="/admin/bookings"]) .dash-search {
+  min-height: 40px;
+  background: var(--bg-surface);
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active[href="/admin/bookings"]) .dash-chip {
+  min-height: 36px;
+  font-weight: 500;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active[href="/admin/bookings"]) .dash-table thead th {
+  padding-top: 10px;
+  padding-bottom: 12px;
+  font-weight: 600;
+  background: #fbfcfe;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active[href="/admin/bookings"]) .dash-table tbody tr:has(td[colspan]) {
+  height: 96px;
+  background: #fbfcfe;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active[href="/admin/bookings"]) .dash-row-btn {
+  min-height: 36px;
+  font-weight: 500;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active[href="/admin/bookings"]) .dash-row-btn:hover {
+  background: #f4f8ff;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active[href="/admin/bookings"]) .dash-pagination {
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid #e8edf3;
+}
+
+@media (max-width: 720px) {
+  .dash:has(> .dash-sidebar .dash-nav-item.is-active[href="/admin/bookings"]) .dash-panel > .dash-filterbar {
+    padding: 14px 22px;
+  }
+}
+
+/* Admin Technicians and Inventory: match the approved Bookings surface treatment. */
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/technicians"], [href="/admin/inventory"])) .dash-stat {
+  border-top-color: #cfd8e4;
+  border-right-color: #cfd8e4;
+  border-bottom-color: #cfd8e4;
+  box-shadow: 0 3px 12px rgba(11, 21, 38, 0.035);
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/technicians"], [href="/admin/inventory"])) .dash-main > .dash-panel {
+  border-color: #cfd8e4;
+  box-shadow: 0 5px 18px rgba(11, 21, 38, 0.045);
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/technicians"], [href="/admin/inventory"])) .dash-panel > .dash-filterbar {
+  margin: -20px -22px 18px;
+  padding: 16px 22px;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: #f8fafc;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/technicians"], [href="/admin/inventory"])) .dash-search {
+  min-height: 40px;
+  background: var(--bg-surface);
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/technicians"], [href="/admin/inventory"])) .dash-chip {
+  min-height: 36px;
+  font-weight: 500;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/technicians"], [href="/admin/inventory"])) .dash-table thead th {
+  padding-top: 10px;
+  padding-bottom: 12px;
+  font-weight: 600;
+  background: #fbfcfe;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/technicians"], [href="/admin/inventory"])) .dash-table tbody tr:has(td[colspan]) {
+  height: 96px;
+  background: #fbfcfe;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/technicians"], [href="/admin/inventory"])) .dash-row-btn {
+  min-height: 36px;
+  font-weight: 500;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/technicians"], [href="/admin/inventory"])) .dash-row-btn:hover {
+  background: #f4f8ff;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/technicians"], [href="/admin/inventory"])) .dash-pagination {
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid #e8edf3;
+}
+
+@media (max-width: 720px) {
+  .dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/technicians"], [href="/admin/inventory"])) .dash-panel > .dash-filterbar {
+    padding: 14px 22px;
+  }
+}
+
+/* Remaining Admin management pages: extend the approved list-page styling. */
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/customers"], [href="/admin/aircon"], [href="/admin/services"], [href="/admin/packages"], [href="/admin/promotions"])) .dash-stat {
+  border-top-color: #cfd8e4;
+  border-right-color: #cfd8e4;
+  border-bottom-color: #cfd8e4;
+  box-shadow: 0 3px 12px rgba(11, 21, 38, 0.035);
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/customers"], [href="/admin/aircon"], [href="/admin/services"], [href="/admin/packages"], [href="/admin/promotions"])) .dash-main > .dash-panel {
+  border-color: #cfd8e4;
+  box-shadow: 0 5px 18px rgba(11, 21, 38, 0.045);
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/customers"], [href="/admin/aircon"], [href="/admin/services"], [href="/admin/packages"], [href="/admin/promotions"])) .dash-panel > .dash-filterbar {
+  margin: -20px -22px 18px;
+  padding: 16px 22px;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: #f8fafc;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/customers"], [href="/admin/aircon"], [href="/admin/services"], [href="/admin/packages"], [href="/admin/promotions"])) .dash-search {
+  min-height: 40px;
+  background: var(--bg-surface);
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/customers"], [href="/admin/aircon"], [href="/admin/services"], [href="/admin/packages"], [href="/admin/promotions"])) .dash-chip {
+  min-height: 36px;
+  font-weight: 500;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/customers"], [href="/admin/aircon"], [href="/admin/services"], [href="/admin/packages"], [href="/admin/promotions"])) .dash-table thead th {
+  padding-top: 10px;
+  padding-bottom: 12px;
+  font-weight: 600;
+  background: #fbfcfe;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/customers"], [href="/admin/aircon"], [href="/admin/services"], [href="/admin/packages"], [href="/admin/promotions"])) .dash-table tbody tr:has(td[colspan]) {
+  height: 96px;
+  background: #fbfcfe;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/customers"], [href="/admin/aircon"], [href="/admin/services"], [href="/admin/packages"], [href="/admin/promotions"])) .dash-row-btn {
+  min-height: 36px;
+  font-weight: 500;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/customers"], [href="/admin/aircon"], [href="/admin/services"], [href="/admin/packages"], [href="/admin/promotions"])) .dash-row-btn:hover {
+  background: #f4f8ff;
+}
+
+.dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/customers"], [href="/admin/aircon"], [href="/admin/services"], [href="/admin/packages"], [href="/admin/promotions"])) .dash-pagination {
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid #e8edf3;
+}
+
+@media (max-width: 720px) {
+  .dash:has(> .dash-sidebar .dash-nav-item.is-active:is([href="/admin/customers"], [href="/admin/aircon"], [href="/admin/services"], [href="/admin/packages"], [href="/admin/promotions"])) .dash-panel > .dash-filterbar {
+    padding: 14px 22px;
+  }
+}
+
 /* Responsive */
 
 @media (max-width: 1024px) {
   .dash-stats,
   .dash-actions {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -400,7 +625,7 @@ body {
 
   .dash-stats,
   .dash-actions {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -645,56 +870,7 @@ body {
   z-index: 200;
 }
 
-/* Dashboard-specific: banner, icons, leaderboard */
-
-.dash-banner {
-  background: linear-gradient(135deg, #0b1526 0%, #16305c 55%, #1478c9 130%);
-  border-radius: var(--radius);
-  padding: 26px 28px;
-  margin-bottom: 24px;
-  color: #eef2f6;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.dash-banner::after {
-  content: "❄";
-  position: absolute;
-  right: -10px;
-  top: -20px;
-  font-size: 140px;
-  opacity: 0.08;
-  color: #ffffff;
-}
-
-.dash-banner h1 {
-  margin: 0 0 6px;
-  font-size: 22px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.dash-banner p {
-  margin: 0;
-  font-size: 13.5px;
-  color: rgba(238, 242, 246, 0.75);
-}
-
-.dash-banner .dash-btn-outline {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.25);
-  color: #fff;
-  position: relative;
-  z-index: 1;
-}
-
-.dash-banner .dash-btn-outline:hover {
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
-}
+/* Dashboard-specific: icons and leaderboard */
 
 .dash-stat-icon {
   width: 32px;
@@ -772,18 +948,13 @@ body {
 
 .dash-two-col {
   display: grid;
-  grid-template-columns: 1.6fr 1fr;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
 
 @media (max-width: 900px) {
   .dash-two-col {
-    grid-template-columns: 1fr;
-  }
-  .dash-banner {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
+    grid-template-columns: minmax(0, 1fr);
   }
 }

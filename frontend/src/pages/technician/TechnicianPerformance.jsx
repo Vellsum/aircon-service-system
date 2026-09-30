@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import JobStatusBadge from '../../components/technician/JobStatusBadge'
+import React, { useState, useEffect } from 'react'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import { useAuth } from '../../context/AuthContext'
 
@@ -44,32 +43,10 @@ function AvailabilityIcon(props) {
   )
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return '-'
-  try {
-    var d = new Date(dateStr + 'T00:00:00')
-    if (isNaN(d.getTime())) return dateStr
-    return d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
-  } catch (e) {
-    return dateStr
-  }
-}
-
-function getMonthLabel(dateStr) {
-  if (!dateStr) return 'Unknown'
-  try {
-    var d = new Date(dateStr + 'T00:00:00')
-    if (isNaN(d.getTime())) return 'Unknown'
-    return d.toLocaleDateString('en-SG', { month: 'long', year: 'numeric' })
-  } catch (e) {
-    return 'Unknown'
-  }
-}
-
 function TechnicianPerformance() {
   var workflow = useTechnicianWorkflow()
-  var { user } = useAuth()
-  var assignedJobs = workflow.assignedJobs || []
+  var { user, token } = useAuth()
+  var technicianID = user?.technician_ID ?? null
   var workload = workflow.workload || { assignedJobs: 0, byStatus: { upcoming: 0, inProgress: 0, completed: 0 } }
   var contextLoading = workflow.loading
 
@@ -77,95 +54,52 @@ function TechnicianPerformance() {
   var [profileLoading, setProfileLoading] = useState(true)
 
   useEffect(function () {
+    if (technicianID === null || technicianID === undefined) {
+      setProfile(null)
+      setProfileLoading(false)
+      return undefined
+    }
+
+    var cancelled = false
+
     async function fetchProfile() {
       setProfileLoading(true)
       try {
-        var token = localStorage.getItem('token') || ''
         var headers = { 'Content-Type': 'application/json' }
         if (token) headers['Authorization'] = 'Bearer ' + token
-        var storedUser = JSON.parse(localStorage.getItem('user') || '{}')
-        var techId = storedUser.technician_ID || storedUser.id || storedUser.user_ID || 1
-        var res = await fetch(API_BASE_URL + '/api/technician/profile?techId=' + techId, { headers: headers, signal: AbortSignal.timeout(5000) })
+        var res = await fetch(API_BASE_URL + '/api/technician/profile?techId=' + technicianID, { headers: headers, signal: AbortSignal.timeout(5000) })
         var data = await res.json()
-        if (res.ok && data.success && data.profile) {
+        if (cancelled) return
+        var returnedTechnicianID = data.profile?.technicianID ?? data.profile?.technician_ID ?? null
+        var profileMatchesIdentity =
+          returnedTechnicianID !== null &&
+          String(returnedTechnicianID) === String(technicianID)
+
+        if (res.ok && data.success && data.profile && profileMatchesIdentity) {
           setProfile(data.profile)
         } else {
           setProfile(null)
         }
       } catch (err) {
-        console.error('[Performance] Profile fetch error:', err)
-        setProfile(null)
+        if (!cancelled) setProfile(null)
       } finally {
-        setProfileLoading(false)
+        if (!cancelled) setProfileLoading(false)
       }
     }
     fetchProfile()
-  }, [])
+    return function () { cancelled = true }
+  }, [technicianID, token])
 
-  // Build display profile: use API data, or fall back to AuthContext user
-  var displayProfile = profile || {
-    technicianName: user?.username || 'Technician',
-    technicianID: user?.technician_ID || user?.id || 'N/A',
-    technicianRating: 5,
+  var displayProfile = {
+    technicianName: profile?.technicianName || user?.username || 'Technician',
+    technicianID: profile?.technicianID ?? technicianID,
+    technicianRating: profile?.technicianRating ?? null,
   }
 
-  var completedWork = useMemo(function () {
-    var completedJobs = assignedJobs.filter(function (j) {
-      return (j.status || '').toLowerCase() === 'completed'
-    })
-
-    var monthMap = new Map()
-    completedJobs.forEach(function (job) {
-      var monthKey = job.date ? job.date.substring(0, 7) : 'unknown'
-      var monthLabel = getMonthLabel(job.date)
-      if (!monthMap.has(monthKey)) {
-        monthMap.set(monthKey, { period: monthKey, label: monthLabel, count: 0 })
-      }
-      monthMap.get(monthKey).count += 1
-    })
-
-    var serviceMap = new Map()
-    completedJobs.forEach(function (job) {
-      var serviceName = job.serviceType || 'Aircon Servicing'
-      if (!serviceMap.has(serviceName)) {
-        serviceMap.set(serviceName, { serviceName: serviceName, count: 0 })
-      }
-      serviceMap.get(serviceName).count += 1
-    })
-
-    var recentJobs = completedJobs
-      .slice()
-      .sort(function (a, b) { return (b.date || '').localeCompare(a.date || '') })
-      .slice(0, 10)
-      .map(function (job) {
-        return {
-          jobID: job.job_ID,
-          displayJobCode: job.id || '#BK' + String(job.job_ID).padStart(3, '0'),
-          serviceName: job.serviceType || 'Aircon Servicing',
-          customerName: job.customerName || 'Guest Customer',
-          formattedDate: job.formattedDate || formatDate(job.date),
-          status: job.status
-        }
-      })
-
-    return {
-      total: completedJobs.length,
-      byMonth: Array.from(monthMap.values()).sort(function (a, b) { return b.period.localeCompare(a.period) }),
-      byService: Array.from(serviceMap.values()).sort(function (a, b) { return b.count - a.count }),
-      recentJobs: recentJobs
-    }
-  }, [assignedJobs])
-
-  var availability = useMemo(function () {
-    var hasRating = displayProfile.technicianRating && displayProfile.technicianRating > 0
-    var hasReports = completedWork.total > 0
-    return {
-      rating: hasRating,
-      onTimeArrival: false,
-      customerSatisfaction: false,
-      reports: hasReports
-    }
-  }, [displayProfile, completedWork.total])
+  var hasTechnicianIdentity = displayProfile.technicianID !== null && displayProfile.technicianID !== undefined
+  var workloadAvailable = hasTechnicianIdentity && workflow.dataAvailable === true
+  var ratingValue = displayProfile.technicianRating
+  var hasRating = ratingValue !== null && ratingValue !== undefined && ratingValue !== '' && Number.isFinite(Number(ratingValue))
 
   var loading = contextLoading || profileLoading
 
@@ -180,33 +114,31 @@ function TechnicianPerformance() {
     )
   }
 
-  var assignedTotal = workload.assignedJobs
-  var serviceTotal = completedWork.byService.reduce(function (total, service) { return total + service.count }, 0)
+  var assignedTotal = workloadAvailable ? workload.assignedJobs : null
+  var workloadUnavailableMessage = hasTechnicianIdentity
+    ? (workflow.error || 'Assigned work is unavailable')
+    : 'Technician identity unavailable'
 
   var availabilityItems = [
     {
       label: 'Rating',
-      value: availability.rating ? String(displayProfile.technicianRating) : 'Rating not available',
-      note: availability.rating ? 'Current technician rating' : 'Awaiting technician rating data',
-      available: availability.rating,
+      value: hasRating ? String(ratingValue) : '—',
+      available: hasRating,
     },
     {
       label: 'On-time arrival',
-      value: 'Awaiting arrival data',
-      note: 'No arrival timestamps are currently available',
-      available: availability.onTimeArrival,
+      value: '—',
+      available: false,
     },
     {
       label: 'Customer satisfaction',
-      value: 'Awaiting rating data',
-      note: 'No per-job customer ratings are currently available',
-      available: availability.customerSatisfaction,
+      value: '—',
+      available: false,
     },
     {
       label: 'Report analytics',
-      value: availability.reports ? completedWork.total + ' reports on record' : 'Awaiting report integration',
-      note: availability.reports ? 'Service report data is available' : 'Service report records are not yet available',
-      available: availability.reports,
+      value: '—',
+      available: false,
     },
   ]
 
@@ -216,7 +148,7 @@ function TechnicianPerformance() {
         <div className="cf-page-heading">
           <span className="cf-eyebrow">Technician Performance</span>
           <h1>Performance</h1>
-          <p>A factual view of currently assigned work and completed service records.</p>
+          <p>A factual view of currently assigned work and available performance records.</p>
         </div>
         <div className="tech-performance-technician">
           <span className="tech-performance-technician-icon" aria-hidden="true">
@@ -226,9 +158,9 @@ function TechnicianPerformance() {
             </svg>
           </span>
           <span>
-            <small>Technician record</small>
+            <small>Technician context</small>
             <strong>{displayProfile.technicianName}</strong>
-            <em>ID {displayProfile.technicianID}</em>
+            <em>{hasTechnicianIdentity ? 'ID ' + displayProfile.technicianID : 'Technician identity unavailable'}</em>
           </span>
         </div>
       </header>
@@ -247,22 +179,33 @@ function TechnicianPerformance() {
         <div className="tech-performance-overview-body">
           <div className="tech-performance-assigned-total">
             <span>Assigned work</span>
-            <strong>{assignedTotal}</strong>
-            <small>{assignedTotal === 1 ? 'job assigned' : 'jobs assigned'}</small>
+            <strong>{workloadAvailable ? assignedTotal : '—'}</strong>
+            <small>{workloadAvailable ? (assignedTotal === 1 ? 'job assigned' : 'jobs assigned') : workloadUnavailableMessage}</small>
           </div>
           <div className="tech-performance-distribution">
-            <div className="tech-performance-status-bars" role="list">
+            <div className={`tech-performance-status-bars${workloadAvailable ? '' : ' is-unavailable'}`} role="list">
               {STATUS_ITEMS.map(function (item) {
-                var count = workload.byStatus[item.key] || 0
+                var count = workloadAvailable ? (workload.byStatus[item.key] || 0) : null
                 return (
                   <div className="tech-performance-status-row" role="listitem" key={item.key}>
                     <div className="tech-performance-status-row-heading">
                       <span><i className={item.className} aria-hidden="true" />{item.label}</span>
-                      <strong>{count}</strong>
+                      <strong>{workloadAvailable ? count : '—'}</strong>
                     </div>
-                    <span className="tech-performance-status-track" role="progressbar" aria-valuenow={count} aria-valuemin="0" aria-valuemax={assignedTotal}>
-                      <span className={item.className} style={{ width: assignedTotal ? (count / assignedTotal * 100) + '%' : '0%' }} />
-                    </span>
+                    {workloadAvailable && (
+                      <span
+                        className="tech-performance-status-track"
+                        role="progressbar"
+                        aria-valuenow={count}
+                        aria-valuemin="0"
+                        aria-valuemax={assignedTotal}
+                      >
+                        <span className={item.className} style={{ width: assignedTotal ? (count / assignedTotal * 100) + '%' : '0%' }} />
+                      </span>
+                    )}
+                    {!workloadAvailable && (
+                      <span className="tech-performance-status-track tech-performance-status-track-unavailable" aria-hidden="true" />
+                    )}
                   </div>
                 )
               })}
@@ -278,57 +221,18 @@ function TechnicianPerformance() {
               <span className="tech-performance-section-icon" aria-hidden="true"><CompletedIcon /></span>
               <div>
                 <span className="cf-widget-kicker">Historical work</span>
-                <h2 id="completed-analysis-title">Completed Work Analysis</h2>
+                <h2 id="completed-analysis-title">Performance History</h2>
               </div>
             </div>
-            <div className="tech-performance-completed-total">
-              <strong>{completedWork.total}</strong>
-              <span>completed jobs</span>
-            </div>
+            <span className="tech-performance-history-status">History unavailable</span>
           </header>
           <div className="tech-performance-completed-body">
-            <section aria-labelledby="completed-by-month-title">
-              <div className="tech-performance-subheading">
-                <h3 id="completed-by-month-title">Completed by month</h3>
-                <span>Recorded periods only</span>
-              </div>
-              <div className="tech-performance-month-list">
-                {completedWork.byMonth.length > 0 ? completedWork.byMonth.map(function (month) {
-                  return (
-                    <div key={month.period}>
-                      <span className="tech-performance-month-mark" aria-hidden="true" />
-                      <span><strong>{month.label}</strong><small>{month.period}</small></span>
-                      <b>{month.count}</b>
-                    </div>
-                  )
-                }) : (
-                  <p style={{ color: '#888' }}>No completed work recorded yet.</p>
-                )}
-              </div>
-            </section>
-            <section aria-labelledby="completed-service-mix-title">
-              <div className="tech-performance-subheading">
-                <h3 id="completed-service-mix-title">Completed service mix</h3>
-                <span>Service type distribution</span>
-              </div>
-              <div className="tech-performance-service-list">
-                {completedWork.byService.length > 0 ? completedWork.byService.map(function (service) {
-                  return (
-                    <div key={service.serviceName}>
-                      <div>
-                        <strong>{service.serviceName}</strong>
-                        <span>{service.count} {service.count === 1 ? 'job' : 'jobs'}</span>
-                      </div>
-                      <span className="tech-performance-service-track" aria-hidden="true">
-                        <span style={{ width: serviceTotal ? (service.count / serviceTotal * 100) + '%' : '0%' }} />
-                      </span>
-                    </div>
-                  )
-                }) : (
-                  <p style={{ color: '#888' }}>No service data available.</p>
-                )}
-              </div>
-            </section>
+            <dl className="tech-performance-history-list">
+              <div><dt>Completed by month</dt><dd>—</dd></div>
+              <div><dt>Completed service mix</dt><dd>—</dd></div>
+              <div><dt>Recent Completed Work</dt><dd>—</dd></div>
+            </dl>
+            <p className="tech-performance-history-note">Durable completed-work history is not available for analysis.</p>
           </div>
         </section>
 
@@ -349,51 +253,16 @@ function TechnicianPerformance() {
                   <div>
                     <small>{item.label}</small>
                     <strong>{item.value}</strong>
-                    <p>{item.note}</p>
                   </div>
                 </div>
               )
             })}
           </div>
+          <p className="tech-performance-availability-note">
+            Rating appears when supplied by the matched technician profile. Arrival, customer feedback, and report analytics are not currently available.
+          </p>
         </aside>
       </div>
-
-      <section className="tech-performance-recent" aria-labelledby="recent-completed-title">
-        <header className="tech-performance-panel-header">
-          <div>
-            <span className="cf-widget-kicker">Latest history</span>
-            <h2 id="recent-completed-title">Recent Completed Work</h2>
-          </div>
-          <span>{completedWork.recentJobs.length} records</span>
-        </header>
-        <div className="tech-performance-recent-list">
-          {completedWork.recentJobs.length > 0 ? completedWork.recentJobs.map(function (job) {
-            return (
-              <article key={job.jobID} className="tech-performance-recent-row">
-                <div className="tech-performance-job-code">
-                  <span>{job.displayJobCode}</span>
-                  <small>Job ID {job.jobID}</small>
-                </div>
-                <div>
-                  <small>Service</small>
-                  <strong>{job.serviceName}</strong>
-                </div>
-                <div>
-                  <small>Customer</small>
-                  <strong>{job.customerName}</strong>
-                </div>
-                <div>
-                  <small>Service date</small>
-                  <strong>{job.formattedDate}</strong>
-                </div>
-                <JobStatusBadge status={job.status} />
-              </article>
-            )
-          }) : (
-            <p style={{ color: '#888', padding: '16px' }}>No completed jobs on record.</p>
-          )}
-        </div>
-      </section>
     </div>
   )
 }

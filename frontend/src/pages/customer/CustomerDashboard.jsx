@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BookingDetailsModal from "../../components/customer/BookingDetailsModal";
 import BookingStatusBadge from "../../components/customer/BookingStatusBadge";
+import PortalWelcomeBanner from "../../components/common/PortalWelcomeBanner";
 import {
   AirconUnitArt,
   EmptyStateArt,
@@ -64,20 +65,26 @@ const CustomerDashboard = () => {
 
   if (loading) {
     return (
-      <section className="cust-panel" style={{ padding: 48, textAlign: "center" }}>
-        <p style={{ color: "var(--text-secondary)" }}>Loading your dashboard…</p>
+      <section className="cust-panel cust-api-state" aria-live="polite">
+        <div className="cust-api-state-content">
+          <span className="cust-api-state-icon" aria-hidden="true"><Icon name="clock" size={22} /></span>
+          <p className="cust-api-state-message">Loading your dashboard…</p>
+        </div>
       </section>
     );
   }
 
   if (error) {
     return (
-      <section className="cust-panel" style={{ padding: 48, textAlign: "center" }}>
-        <h2>Couldn't load your dashboard</h2>
-        <p style={{ color: "var(--text-secondary)", margin: "8px 0 16px" }}>{error}</p>
-        <button className="dash-btn dash-btn-primary" onClick={() => window.location.reload()}>
-          Try again
-        </button>
+      <section className="cust-panel cust-api-state" aria-live="polite">
+        <div className="cust-api-state-content">
+          <span className="cust-api-state-icon" aria-hidden="true"><Icon name="alert" size={22} /></span>
+          <h2>Couldn't load your dashboard</h2>
+          <p className="cust-api-state-message">{error}</p>
+          <button className="dash-btn dash-btn-primary" onClick={() => window.location.reload()}>
+            Try again
+          </button>
+        </div>
       </section>
     );
   }
@@ -85,32 +92,32 @@ const CustomerDashboard = () => {
   return (
     <>
       {/* Welcome banner */}
-      <section className="cust-banner">
-        <SnowfieldBackdrop />
-        <div className="cust-banner-text">
-          <p className="cust-banner-eyebrow">Welcome back</p>
-          <h1>Good to see you, {firstName}.</h1>
-          <p>
-            {nextBooking
-              ? `Your next visit is ${describeCountdown(nextBooking.date).toLowerCase()} — ${
-                  nextBooking.service_name
-                } on ${formatLongDate(nextBooking.date)}.`
-              : "You have no visits booked. Keeping to a servicing schedule keeps your units running efficiently."}
-          </p>
-          <div className="cust-banner-actions">
-            {/* ✅ FIXED path */}
-            <button className="dash-btn dash-btn-primary" onClick={() => navigate("/customer/book-service")}>
-              Book a service
-            </button>
-            <button className="dash-btn cust-btn-ondark" onClick={() => navigate("/customer/bookings")}>
-              View my bookings
-            </button>
+      <PortalWelcomeBanner
+        className="portal-welcome-customer"
+        decoration={<SnowfieldBackdrop />}
+        eyebrow="Welcome back"
+        title={<>Good to see you, {firstName}.</>}
+        subtitle={nextBooking
+          ? `Your next visit is ${describeCountdown(nextBooking.date).toLowerCase()} — ${
+              nextBooking.service_name
+            } on ${formatLongDate(nextBooking.date)}.`
+          : "You have no visits booked. Keeping to a servicing schedule keeps your units running efficiently."}
+        rightContent={(
+          <div className="cust-banner-art d-none d-md-block">
+            <AirconUnitArt width={230} />
           </div>
+        )}
+      >
+        <div className="cust-banner-actions">
+          {/* ✅ FIXED path */}
+          <button className="dash-btn dash-btn-primary" onClick={() => navigate("/customer/book-service")}>
+            Book a service
+          </button>
+          <button className="dash-btn cust-btn-ondark" onClick={() => navigate("/customer/bookings")}>
+            View my bookings
+          </button>
         </div>
-        <div className="cust-banner-art d-none d-md-block">
-          <AirconUnitArt width={230} />
-        </div>
-      </section>
+      </PortalWelcomeBanner>
 
       {/* Service-due nudge */}
       {dueSoon.length > 0 && (

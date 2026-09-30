@@ -10,14 +10,14 @@
 //   5. Redirects to assigned-jobs page after successful submission
 // =============================================================================
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Modal from 'react-bootstrap/Modal'
 
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
+import { useAuth } from '../../context/AuthContext'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import ServiceChecklist from '../../components/technician/ServiceChecklist'
-import PartsMaterialsTable from '../../components/technician/PartsMaterialsTable'
 import FollowUpSection, {
   FOLLOW_UP_REASON_OPTIONS,
 } from '../../components/technician/FollowUpSection'
@@ -25,27 +25,6 @@ import FollowUpSection, {
 // ---- Config ----
 const DRAFT_STORAGE_KEY = 'aircon-care-technician-report-draft'
 const API_BASE_URL = 'http://localhost:5000'
-
-// Inventory items: try selector, fallback to empty array
-let AVAILABLE_INVENTORY_ITEMS = []
-try {
-  const selectors = require('./data/technicianSelectors')
-  AVAILABLE_INVENTORY_ITEMS = (selectors.selectCurrentInventoryItems?.() || [])
-} catch {
-  AVAILABLE_INVENTORY_ITEMS = []
-}
-
-const INVENTORY_ITEM_BY_ID = new Map(
-  AVAILABLE_INVENTORY_ITEMS.map((item) => [item.itemID, item]),
-)
-const INVENTORY_ITEM_ID_BY_NAME = new Map(
-  AVAILABLE_INVENTORY_ITEMS.map((item) => [item.itemName.trim().toLowerCase(), item.itemID]),
-)
-
-const currencyFormatter = new Intl.NumberFormat('en-SG', {
-  style: 'currency',
-  currency: 'SGD',
-})
 
 // ---- Constants for validation ----
 const OVERALL_CONDITIONS = new Set([
@@ -92,12 +71,6 @@ function sanitizeString(value, fallback = '') {
   return typeof value === 'string' ? value : fallback
 }
 
-function sanitizeNumericInput(value) {
-  if (typeof value === 'string') return value
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
-  return ''
-}
-
 function sanitizeChecklist(value) {
   if (!isPlainObject(value)) return {}
   return Object.fromEntries(
@@ -121,40 +94,6 @@ function restoreOptionState(selectionValue, otherValue, legacyTextValue, allowed
     if (!other.trim()) other = legacyText
   }
   return { selections, other }
-}
-
-function sanitizeInventoryItemId(value, legacyItemName) {
-  const normalizedValue =
-    typeof value === 'number' && Number.isInteger(value)
-      ? value
-      : typeof value === 'string' && /^\d+$/.test(value.trim())
-        ? Number(value.trim())
-        : null
-  if (INVENTORY_ITEM_BY_ID.has(normalizedValue)) return normalizedValue
-  const normalizedLegacyName = sanitizeString(legacyItemName).trim().toLowerCase()
-  return INVENTORY_ITEM_ID_BY_NAME.get(normalizedLegacyName) ?? ''
-}
-
-function sanitizeMaterials(value) {
-  if (!Array.isArray(value)) return []
-  const usedIds = new Set()
-  return value.filter(isPlainObject).map((row, index) => {
-    const savedId = sanitizeString(row.id).trim()
-    const baseId = savedId || `draft-material-${index + 1}`
-    let id = baseId
-    let duplicateIndex = 2
-    while (usedIds.has(id)) {
-      id = `${baseId}-${duplicateIndex}`
-      duplicateIndex += 1
-    }
-    usedIds.add(id)
-    return {
-      id,
-      itemID: sanitizeInventoryItemId(row.itemID, row.itemName),
-      quantity: sanitizeNumericInput(row.quantity),
-      unitCost: sanitizeNumericInput(row.unitCost),
-    }
-  })
 }
 
 function getLocalDateTimeValue() {
@@ -186,7 +125,7 @@ function createInitialReport() {
   }
 }
 
-function loadLocalDraft(reportableJobs) {
+function loadLocalDraft() {
   const initialReport = createInitialReport()
   if (typeof window === 'undefined') return initialReport
   try {
@@ -194,8 +133,7 @@ function loadLocalDraft(reportableJobs) {
     if (!savedDraft) return initialReport
     const parsedDraft = JSON.parse(savedDraft)
     if (!isPlainObject(parsedDraft)) return initialReport
-    const savedJobId = sanitizeString(parsedDraft.selectedJobId)
-    const selectedJobId = reportableJobs.some((job) => job.id === savedJobId) ? savedJobId : ''
+    const selectedJobId = sanitizeString(parsedDraft.selectedJobId)
     const savedCondition = sanitizeString(parsedDraft.overallCondition)
     const savedFollowUp = isPlainObject(parsedDraft.followUp) ? parsedDraft.followUp : {}
     const followUpRequired = savedFollowUp.required === 'yes' ? 'yes' : 'no'
@@ -215,7 +153,9 @@ function loadLocalDraft(reportableJobs) {
       overallCondition: OVERALL_CONDITIONS.has(savedCondition) ? savedCondition : '',
       internalNotes: sanitizeString(parsedDraft.internalNotes),
       checklist: sanitizeChecklist(parsedDraft.checklist),
-      materials: sanitizeMaterials(parsedDraft.materials),
+      // There is no Technician-safe inventory catalogue endpoint yet, so
+      // draft material rows cannot be validated and must not be resubmitted.
+      materials: [],
       followUp: {
         required: followUpRequired,
         reasons: restoredFollowUpReasons.selections,
@@ -231,16 +171,6 @@ function loadLocalDraft(reportableJobs) {
   }
 }
 
-function calculateMaterialsTotal(materials) {
-  return materials.reduce((total, row) => {
-    const quantity = Number(row.quantity)
-    const unitCost = Number(row.unitCost)
-    if (!Number.isFinite(quantity) || !Number.isFinite(unitCost)) return total
-    if (quantity <= 0 || unitCost < 0) return total
-    return total + quantity * unitCost
-  }, 0)
-}
-
 // =============================================================================
 // Helper: Build the payload that gets sent to the backend
 // Maps frontend form state → backend API expected format
@@ -248,7 +178,7 @@ function calculateMaterialsTotal(materials) {
 function buildReportPayload(report, selectedJob) {
   return {
     // Job reference
-    job_ID: selectedJob?.job_ID || selectedJob?.id || report.selectedJobId,
+    job_ID: selectedJob.job_ID,
 
     // Findings & observations
     findings: report.findings,
@@ -266,16 +196,10 @@ function buildReportPayload(report, selectedJob) {
       .filter(([, checked]) => checked === true)
       .map(([checkId]) => checkId),
 
-    // Materials/parts used
-    materials: report.materials.map((row) => ({
-      itemID: row.itemID,
-      itemName: INVENTORY_ITEM_BY_ID.get(row.itemID)?.itemName || '',
-      quantity: Number(row.quantity),
-      unitCost: Number(row.unitCost),
-    })),
-
-    // Materials total cost (calculated server-side too, but send for reference)
-    materialsTotal: calculateMaterialsTotal(report.materials),
+    // The current partsUsed contract persists only reportID + itemID. No
+    // Technician-safe inventory catalogue is available, so no item IDs can
+    // be selected or truthfully submitted from this page yet.
+    materials: [],
 
     // Follow-up details
     followUpRequired: report.followUp.required === 'yes',
@@ -359,24 +283,41 @@ function ReportMultiSelectField({
 // =============================================================================
 function TechnicianSubmitReport() {
   const navigate = useNavigate()
-  const { reportableJobs } = useTechnicianWorkflow()
-  const [report, setReport] = useState(() => loadLocalDraft(reportableJobs))
+  const {
+    reportableJobs,
+    loading: jobsLoading,
+    error: jobsError,
+    dataAvailable: jobsDataAvailable,
+    refreshJobs,
+  } = useTechnicianWorkflow()
+  const { user, token } = useAuth()
+  const technicianID = user?.technician_ID ?? null
+  const [report, setReport] = useState(loadLocalDraft)
   const [errors, setErrors] = useState({})
   const [notice, setNotice] = useState(null)
   const [showConfirmation, setShowConfirmation] = useState(false)
 
   // NEW: Track submission state to prevent double-submit
   const [submitting, setSubmitting] = useState(false)
+  const [submittedReportID, setSubmittedReportID] = useState(null)
+
+  const jobsReady = Boolean(technicianID) && jobsDataAvailable && !jobsLoading
+  const hasReportableJobs = jobsReady && reportableJobs.length > 0
 
   const selectedJob = useMemo(
     () => reportableJobs.find((job) => job.id === report.selectedJobId) || null,
     [report.selectedJobId, reportableJobs],
   )
 
-  const materialsTotal = useMemo(
-    () => calculateMaterialsTotal(report.materials),
-    [report.materials],
-  )
+  useEffect(() => {
+    if (!jobsReady || jobsError) return
+    setReport((currentReport) => {
+      if (!currentReport.selectedJobId || reportableJobs.some((job) => job.id === currentReport.selectedJobId)) {
+        return currentReport
+      }
+      return { ...currentReport, selectedJobId: '' }
+    })
+  }, [jobsReady, jobsError, reportableJobs])
 
   // ---- Form updaters (unchanged) ----
   const updateReportField = (field, value) => {
@@ -418,12 +359,6 @@ function TechnicianSubmitReport() {
     setNotice(null)
   }
 
-  const updateMaterials = (materials) => {
-    setReport((currentReport) => ({ ...currentReport, materials }))
-    setErrors((currentErrors) => ({ ...currentErrors, materials: undefined }))
-    setNotice(null)
-  }
-
   const updateFollowUp = (followUp) => {
     setReport((currentReport) => ({ ...currentReport, followUp }))
     setErrors((currentErrors) => ({ ...currentErrors, followUp: undefined }))
@@ -434,8 +369,14 @@ function TechnicianSubmitReport() {
   const validateReport = () => {
     const nextErrors = {}
 
-    if (!report.selectedJobId || !selectedJob) {
-      nextErrors.selectedJobId = 'Select an assigned job before continuing.'
+    if (!technicianID) {
+      nextErrors.selectedJobId = 'Technician identity is unavailable for this session.'
+    } else if (!jobsDataAvailable || jobsError) {
+      nextErrors.selectedJobId = 'Completed-job data is currently unavailable.'
+    } else if (!report.selectedJobId || !selectedJob || selectedJob.status !== 'Completed') {
+      nextErrors.selectedJobId = 'Select a completed assigned job before continuing.'
+    } else if (!Number.isInteger(Number(selectedJob.job_ID))) {
+      nextErrors.selectedJobId = 'The selected job does not have a valid booking reference.'
     }
     if (!Array.isArray(report.findings) || report.findings.length === 0) {
       nextErrors.findings = 'Select at least one finding or observation.'
@@ -445,28 +386,6 @@ function TechnicianSubmitReport() {
     }
     if (!report.overallCondition) {
       nextErrors.overallCondition = 'Select the overall AC condition.'
-    }
-
-    const materialErrors = {}
-    report.materials.forEach((row) => {
-      const rowErrors = {}
-      const quantity = Number(row.quantity)
-      const unitCost = Number(row.unitCost)
-      if (!INVENTORY_ITEM_BY_ID.has(row.itemID)) {
-        rowErrors.itemID = 'Select an inventory item.'
-      }
-      if (row.quantity === '' || !Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
-        rowErrors.quantity = 'Use a whole quantity greater than 0.'
-      }
-      if (row.unitCost === '' || !Number.isFinite(unitCost) || unitCost < 0) {
-        rowErrors.unitCost = 'Enter a cost of 0 or more.'
-      }
-      if (Object.keys(rowErrors).length > 0) {
-        materialErrors[row.id] = rowErrors
-      }
-    })
-    if (Object.keys(materialErrors).length > 0) {
-      nextErrors.materials = materialErrors
     }
 
     if (report.followUp.required === 'yes') {
@@ -504,6 +423,7 @@ function TechnicianSubmitReport() {
   const handleSubmit = (event) => {
     event.preventDefault()
     setNotice(null)
+    if (submittedReportID !== null) return
     if (validateReport()) {
       setShowConfirmation(true)
     }
@@ -516,16 +436,20 @@ function TechnicianSubmitReport() {
   // =====================================================================
   const confirmSubmission = async () => {
     // Prevent double-submit
-    if (submitting) return
+    if (submitting || submittedReportID !== null) return
+
+    if (!validateReport()) {
+      setShowConfirmation(false)
+      return
+    }
+
     setSubmitting(true)
     setShowConfirmation(false)
 
+    let confirmedReportID
     try {
       // Build the payload from form state
       const payload = buildReportPayload(report, selectedJob)
-
-      // Get auth token
-      const token = localStorage.getItem('token') || ''
 
       // POST to backend API
       const response = await fetch(`${API_BASE_URL}/api/technician/reports`, {
@@ -537,41 +461,45 @@ function TechnicianSubmitReport() {
         body: JSON.stringify(payload),
       })
 
-      // Handle non-OK responses
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(
-          errorData.error || `Server returned ${response.status}: ${response.statusText}`
-        )
+      const result = await response.json().catch(() => ({}))
+
+      if (!response.ok || result.success !== true) {
+        throw new Error(result.error || result.message || `Request failed (${response.status})`)
       }
 
-      const result = await response.json()
+      if (result.reportID === null || result.reportID === undefined) {
+        throw new Error('The server did not return a report identifier')
+      }
 
-      // Clear the local draft on successful submission
-      window.localStorage.removeItem(DRAFT_STORAGE_KEY)
-
-      // Show success notice
-      setNotice({
-        type: 'success',
-        message: `Service report submitted successfully. Report ID: ${result.report_ID || 'N/A'}`,
-      })
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-
-      // Redirect to assigned jobs after a short delay so user sees the success message
-      setTimeout(() => {
-        navigate('/technician/assigned-jobs')
-      }, 2000)
-
+      confirmedReportID = result.reportID
     } catch (error) {
       console.error('[TechnicianSubmitReport] Submission error:', error)
       setNotice({
         type: 'error',
-        message: `Submission failed: ${error.message}. Your report draft is preserved — try again.`,
+        message: 'Service report could not be submitted. Please try again. Your form has been preserved.',
       })
       window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
     } finally {
       setSubmitting(false)
     }
+
+    setSubmittedReportID(confirmedReportID)
+    setNotice({
+      type: 'success',
+      message: `Service report submitted successfully. Report ID: ${confirmedReportID}`,
+    })
+    try {
+      window.localStorage.removeItem(DRAFT_STORAGE_KEY)
+    } catch (error) {
+      console.warn('[TechnicianSubmitReport] Could not clear the local draft after submission:', error)
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+
+    // Redirect to assigned jobs after a short delay so user sees the success message
+    setTimeout(() => {
+      navigate('/technician/assigned-jobs')
+    }, 2000)
   }
 
   const handleCancel = () => {
@@ -599,6 +527,17 @@ function TechnicianSubmitReport() {
           <span><b>3</b> Review</span>
         </div>
       </header>
+
+      {(!jobsReady || !selectedJob) && (
+        <div className="report-draft-context" role="status">
+          <strong>Unlinked local draft</strong>
+          <p>
+            You can prepare this form and save it in this browser. Until a completed assignment is
+            selected and the report is submitted, these details are not linked to a verified visit
+            or recorded by the server.
+          </p>
+        </div>
+      )}
 
       {notice && (
         <div
@@ -635,17 +574,48 @@ function TechnicianSubmitReport() {
                     className="report-control"
                     value={report.selectedJobId}
                     onChange={(event) => updateReportField('selectedJobId', event.target.value)}
+                    disabled={!hasReportableJobs}
                     aria-required="true"
                     aria-invalid={Boolean(errors.selectedJobId)}
                     aria-describedby={errors.selectedJobId ? 'assigned-job-error' : undefined}
                   >
-                    <option value="">Choose a completed job</option>
+                    <option value="">
+                      {jobsLoading
+                        ? 'Loading completed jobs…'
+                        : !technicianID
+                          ? 'Technician identity unavailable'
+                          : !jobsDataAvailable || jobsError
+                            ? 'Completed jobs unavailable'
+                            : reportableJobs.length === 0
+                              ? 'No completed jobs available'
+                              : 'Choose a completed job'}
+                    </option>
                     {reportableJobs.map((job) => (
                       <option value={job.id} key={job.id}>
                         {job.id} · {job.customerName} · {job.serviceType} · {job.formattedDate}
                       </option>
                     ))}
                   </select>
+                  {jobsLoading ? (
+                    <div className="report-empty-inline" role="status" aria-live="polite">
+                      Loading completed assignments…
+                    </div>
+                  ) : !technicianID ? (
+                    <div className="report-empty-inline" role="alert">
+                      Technician identity is unavailable. Service report submission cannot continue.
+                    </div>
+                  ) : !jobsDataAvailable || jobsError ? (
+                    <div className="report-empty-inline" role="alert">
+                      <span>Completed-job data is currently unavailable.</span>{' '}
+                      <button type="button" className="cf-button cf-button-secondary" onClick={refreshJobs}>
+                        Retry
+                      </button>
+                    </div>
+                  ) : reportableJobs.length === 0 ? (
+                    <div className="report-empty-inline" role="status">
+                      No completed jobs are currently available for reporting.
+                    </div>
+                  ) : null}
                   {errors.selectedJobId && (
                     <span className="report-field-error" id="assigned-job-error">{errors.selectedJobId}</span>
                   )}
@@ -750,6 +720,9 @@ function TechnicianSubmitReport() {
                     value={report.completionDateTime}
                     onChange={(event) => updateReportField('completionDateTime', event.target.value)}
                   />
+                  <p className="report-field-hint">
+                    Confirm the actual service completion time before submitting; this local value is not server-verified.
+                  </p>
                 </div>
                 <div className="report-field report-field-full">
                   <label className="report-label" htmlFor="internal-notes">
@@ -767,15 +740,6 @@ function TechnicianSubmitReport() {
               </div>
             </section>
 
-            {/* ---- Parts & Materials ---- */}
-            <div className="report-component-slot report-materials-slot cf-report-card cf-materials-card">
-              <PartsMaterialsTable
-                rows={report.materials}
-                inventoryItems={AVAILABLE_INVENTORY_ITEMS}
-                errors={errors.materials}
-                onChange={updateMaterials}
-              />
-            </div>
           </main>
 
           {/* ---- Sidebar: Checklist + Follow-up + Completion ---- */}
@@ -785,6 +749,9 @@ function TechnicianSubmitReport() {
             </div>
             <div className="report-component-slot report-follow-up-slot cf-report-side-card">
               <FollowUpSection value={report.followUp} errors={errors.followUp} onChange={updateFollowUp} />
+              <p className="report-follow-up-note">
+                These are report recommendations; selecting Yes does not schedule another visit.
+              </p>
             </div>
 
             <section className="report-section report-completion-section cf-report-side-card" aria-labelledby="completion-information-title">
@@ -804,30 +771,49 @@ function TechnicianSubmitReport() {
                     />
                     <span>
                       <strong>Customer acknowledgement</strong>
-                      <small>The customer has reviewed the completed work and report summary.</small>
+                      <small>Select only if the customer reviewed the work. This remains a draft assertion until submission.</small>
                     </span>
                   </label>
                 </div>
               </div>
             </section>
-
-            <div className="report-form-actions cf-report-action-dock">
-              <div>
-                <strong>Ready to finish?</strong>
-                <span>Save a local draft or submit the report to the server.</span>
-              </div>
-              <button type="button" className="cf-button cf-button-secondary" onClick={handleSaveDraft}>
-                Save Draft
-              </button>
-              <button type="button" className="cf-button cf-button-quiet" onClick={handleCancel}>
-                Cancel
-              </button>
-              {/* FIX: Disable submit button while submission is in progress */}
-              <button type="submit" className="cf-button cf-button-primary" disabled={submitting}>
-                {submitting ? 'Submitting...' : 'Submit Report'}
-              </button>
-            </div>
           </aside>
+
+          {/* ---- Parts & Materials stay visible, without unsupported inventory choices ---- */}
+          <div className="report-component-slot report-materials-slot cf-report-card cf-materials-card">
+            <section className="report-section" aria-labelledby="parts-materials-title">
+              <div className="report-section-heading">
+                <div>
+                  <h3 id="parts-materials-title">Parts &amp; Materials Used</h3>
+                  <p>Inventory references cannot currently be selected in this form.</p>
+                </div>
+              </div>
+              <div className="report-empty-inline" role="status">
+                Inventory items are currently unavailable for technician selection. Submit only if no parts or materials were used.
+              </div>
+            </section>
+          </div>
+
+          <div className="report-form-actions cf-report-action-dock">
+            <div>
+              <strong>Ready to finish?</strong>
+              <span>Save in this browser, or submit after selecting a completed assignment.</span>
+            </div>
+            <button type="button" className="cf-button cf-button-secondary" onClick={handleSaveDraft}>
+              Save Draft
+            </button>
+            <button type="button" className="cf-button cf-button-quiet" onClick={handleCancel}>
+              Cancel
+            </button>
+            {/* FIX: Disable submit button while submission is in progress */}
+            <button
+              type="submit"
+              className="cf-button cf-button-primary"
+              disabled={submitting || submittedReportID !== null || !hasReportableJobs}
+            >
+              {submitting ? 'Submitting...' : submittedReportID !== null ? 'Submitted' : 'Submit Report'}
+            </button>
+          </div>
         </div>
       </form>
 
@@ -855,8 +841,8 @@ function TechnicianSubmitReport() {
               <dd>{report.overallCondition}</dd>
             </div>
             <div>
-              <dt>Materials total</dt>
-              <dd>{currencyFormatter.format(materialsTotal)}</dd>
+              <dt>Parts &amp; materials</dt>
+              <dd>Not included — inventory unavailable</dd>
             </div>
             <div>
               <dt>Follow-up required</dt>
@@ -882,7 +868,7 @@ function TechnicianSubmitReport() {
             type="button"
             className="btn btn-primary"
             onClick={confirmSubmission}
-            disabled={submitting}
+            disabled={submitting || submittedReportID !== null}
           >
             {submitting ? 'Submitting...' : 'Confirm Submit'}
           </button>

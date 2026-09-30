@@ -12,6 +12,7 @@
 import React, { useMemo, useState } from 'react'
 import Modal from 'react-bootstrap/Modal'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
+import { useAuth } from '../../context/AuthContext'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 
 const FOLLOW_UP_STATUSES = ['Upcoming', 'In Progress', 'Completed']
@@ -80,26 +81,34 @@ function FollowUpSummaryIcon({ type }) {
 // Helper: Format date string for display
 // =============================================================================
 function formatDate(dateStr) {
-  if (!dateStr) return 'TBD'
-  try {
-    const d = new Date(dateStr)
-    return d.toLocaleDateString('en-SG', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    })
-  } catch {
-    return dateStr
-  }
+  if (!dateStr) return 'Date unavailable'
+
+  const date = new Date(dateStr)
+  if (Number.isNaN(date.getTime())) return 'Date unavailable'
+
+  return date.toLocaleDateString('en-SG', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 }
 
 // =============================================================================
 // Main Component
 // =============================================================================
 function TechnicianFollowUp() {
-  // ---- Get live data from context ----
-  const { assignedJobs, loading } = useTechnicianWorkflow()
+  const { user } = useAuth()
+  const {
+    assignedJobs,
+    loading,
+    error,
+    dataAvailable,
+    refreshJobs,
+  } = useTechnicianWorkflow()
+  const technicianID = user?.technician_ID ?? null
+  const hasTechnicianIdentity = technicianID !== null && technicianID !== undefined
+  const requestSucceeded = hasTechnicianIdentity && dataAvailable && !error
 
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
@@ -111,32 +120,35 @@ function TechnicianFollowUp() {
   // Maps API field names to component's expected format
   // ====================================================================
   const followUps = useMemo(() => {
+    if (!requestSucceeded) return []
+
     return assignedJobs
       .filter((job) => job.isFollowup === true)
-      .map((job) => ({
-        // Identity fields
-        bookingID: job.job_ID,
-        jobID: job.job_ID,
-        id: job.id || `#BK${String(job.job_ID).padStart(3, '0')}`,
+      .map((job) => {
+        // The current jobs API exposes Booking.booking_ID as job_ID. It does
+        // not expose a separate job-table identifier.
+        const bookingID = job.bookingID ?? job.booking_ID ?? job.job_ID ?? null
+        const jobID = job.jobID ?? job.job_id ?? null
 
-        // Customer & service info
-        customerName: job.customerName || 'Guest Customer',
-        customerID: job.customer_ID || job.customerId,
-        serviceName: job.serviceType || 'Aircon Servicing',
-        serviceID: job.service_ID,
-        location: job.address || 'Singapore',
-
-        // Scheduling
-        date: job.date,
-        formattedDate: formatDate(job.date),
-        time: job.time || '09:00 AM',
-
-        // Status & flags
-        status: job.status || 'Upcoming',
-        technicianID: job.technician_ID,
-        isFollowupReport: job.isFollowup === true,
-      }))
-  }, [assignedJobs])
+        return {
+          bookingID,
+          jobID,
+          id: job.id || (bookingID !== null
+            ? `#BK${String(bookingID).padStart(3, '0')}`
+            : 'Booking reference unavailable'),
+          customerName: job.customerName || 'Customer unavailable',
+          customerID: job.customer_ID ?? job.customerId ?? null,
+          serviceName: job.serviceType || 'Service unavailable',
+          serviceID: job.service_ID ?? job.serviceID ?? null,
+          location: job.address || 'Location unavailable',
+          date: job.date || null,
+          formattedDate: job.formattedDate || formatDate(job.date),
+          time: job.time || 'Time unavailable',
+          status: job.status || 'Unavailable',
+          isFollowUpBooking: job.isFollowup === true,
+        }
+      })
+  }, [assignedJobs, requestSucceeded])
 
   // ---- Metrics ----
   const metrics = useMemo(
@@ -193,31 +205,31 @@ function TechnicianFollowUp() {
   const summaryItems = [
     {
       label: 'Total Follow-Ups',
-      value: metrics.total,
+      value: requestSucceeded ? metrics.total : '—',
       tone: 'mint',
       icon: 'total',
-      supportingText: 'Assigned return visits',
+      supportingText: requestSucceeded ? 'Assigned return visits' : 'Data unavailable',
     },
     {
       label: 'Upcoming',
-      value: metrics.upcoming,
+      value: requestSucceeded ? metrics.upcoming : '—',
       tone: 'blue',
       icon: 'upcoming',
-      supportingText: 'Waiting for service',
+      supportingText: requestSucceeded ? 'Waiting for service' : 'Data unavailable',
     },
     {
       label: 'In Progress',
-      value: metrics.inProgress,
+      value: requestSucceeded ? metrics.inProgress : '—',
       tone: 'amber',
       icon: 'progress',
-      supportingText: 'Currently being handled',
+      supportingText: requestSucceeded ? 'Currently being handled' : 'Data unavailable',
     },
     {
       label: 'Completed',
-      value: metrics.completed,
+      value: requestSucceeded ? metrics.completed : '—',
       tone: 'green',
       icon: 'completed',
-      supportingText: 'Return visits completed',
+      supportingText: requestSucceeded ? 'Return visits completed' : 'Data unavailable',
     },
   ]
 
@@ -231,7 +243,7 @@ function TechnicianFollowUp() {
   // ====================================================================
   return (
     <div className="technician-follow-up-page">
-      <header className="cf-page-header">
+      <header className="cf-page-header follow-up-page-header">
         <div className="cf-page-heading">
           <span className="cf-eyebrow">TECHNICIAN · FOLLOW-UP</span>
           <h1>Follow-Up</h1>
@@ -248,34 +260,56 @@ function TechnicianFollowUp() {
           </span>
           <span>
             <small>Assigned visits</small>
-            <strong>{metrics.total}</strong>
+            <strong>{requestSucceeded ? metrics.total : '—'}</strong>
           </span>
         </div>
       </header>
 
-      {/* ---- Summary Cards ---- */}
-      <section className="follow-up-summary-grid" aria-label="Follow-up visit summary">
-        {summaryItems.map((item) => (
-          <article className="follow-up-summary-card" key={item.label}>
-            <span className={`follow-up-summary-icon follow-up-summary-icon-${item.tone}`}>
-              <FollowUpSummaryIcon type={item.icon} />
-            </span>
-            <span className="follow-up-summary-copy">
-              <small>{item.label}</small>
-              <strong>{item.value}</strong>
-              <span>{item.supportingText}</span>
-            </span>
-          </article>
-        ))}
+      {/* ---- Follow-Up Overview ---- */}
+      <section className="follow-up-overview" aria-labelledby="follow-up-overview-title">
+        <header className="follow-up-overview-header">
+          <div>
+            <span className="cf-widget-kicker">Follow-up overview</span>
+            <h2 id="follow-up-overview-title">Return visit status</h2>
+          </div>
+          <p>Availability and status across assigned follow-up bookings.</p>
+        </header>
+        <div className="follow-up-summary-grid" aria-label="Follow-up visit summary">
+          {summaryItems.map((item) => (
+            <article className="follow-up-summary-card" key={item.label}>
+              <span className={`follow-up-summary-icon follow-up-summary-icon-${item.tone}`}>
+                <FollowUpSummaryIcon type={item.icon} />
+              </span>
+              <span className="follow-up-summary-copy">
+                <small>{item.label}</small>
+                <strong>{item.value}</strong>
+                <span>{item.supportingText}</span>
+              </span>
+            </article>
+          ))}
+        </div>
       </section>
 
-      {/* ---- Search & Filter Controls ---- */}
-      <section className="follow-up-controls" aria-labelledby="follow-up-controls-title">
-        <div className="follow-up-controls-copy">
-          <span className="cf-widget-kicker">Return-service tracking</span>
-          <h2 id="follow-up-controls-title">Find a follow-up visit</h2>
-        </div>
-        <div className="follow-up-toolbar">
+      <section className="follow-up-workspace" aria-labelledby="follow-up-controls-title">
+        <header className="follow-up-workspace-heading">
+          <div>
+            <span className="cf-widget-kicker">Return-service records</span>
+            <h2 id="follow-up-controls-title">Find and review assigned follow-up visits</h2>
+            <p>Search the technician's available return-service bookings.</p>
+          </div>
+          <span className="follow-up-result-count" aria-live="polite">
+            {requestSucceeded ? (
+              <><strong>{filteredFollowUps.length}</strong> of {followUps.length} visits shown</>
+            ) : (
+              <><strong>—</strong> visits unavailable</>
+            )}
+          </span>
+        </header>
+
+        {/* ---- Search & Filter Controls ---- */}
+        <div className="follow-up-controls">
+          <span className="follow-up-filter-label">Filter records</span>
+          <div className="follow-up-toolbar">
           <div className="follow-up-search-field">
             <label htmlFor="follow-up-search">Search follow-ups</label>
             <div className="follow-up-search-control">
@@ -305,7 +339,7 @@ function TechnicianFollowUp() {
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
             >
-              <option value="ALL">All Statuses</option>
+              <option value="ALL">All statuses</option>
               {FOLLOW_UP_STATUSES.map((status) => (
                 <option value={status} key={status}>{status}</option>
               ))}
@@ -317,16 +351,39 @@ function TechnicianFollowUp() {
               Clear filters
             </button>
           )}
+          </div>
         </div>
-        <span className="follow-up-result-count" aria-live="polite">
-          <strong>{filteredFollowUps.length}</strong> of {followUps.length} visits shown
-        </span>
-      </section>
 
-      {/* ---- Loading State ---- */}
-      {loading ? (
+        <div className="follow-up-workspace-body">
+          {/* ---- Loading State ---- */}
+          {loading ? (
         <section className="follow-up-empty-state follow-up-empty-state-page" role="status">
-          <h3>Loading follow-up visits from database...</h3>
+          <h3>Loading follow-up visits...</h3>
+        </section>
+      ) : !requestSucceeded ? (
+        <section className="follow-up-empty-state follow-up-empty-state-page" role="alert">
+          <span className="follow-up-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v5" />
+              <circle cx="12" cy="17" r="0.8" fill="currentColor" stroke="none" />
+            </svg>
+          </span>
+          <h3>
+            {hasTechnicianIdentity
+              ? 'Follow-up visit data is currently unavailable.'
+              : 'Technician identity is unavailable.'}
+          </h3>
+          <p>
+            {hasTechnicianIdentity
+              ? 'We could not retrieve assigned follow-up visits. Please try again.'
+              : 'Follow-up visits require a technician identity from the signed-in account.'}
+          </p>
+          {hasTechnicianIdentity && (
+            <button type="button" className="cf-button cf-button-secondary" onClick={refreshJobs}>
+              Retry
+            </button>
+          )}
         </section>
       ) : followUps.length === 0 ? (
         /* ---- Empty State ---- */
@@ -341,7 +398,7 @@ function TechnicianFollowUp() {
             </svg>
           </span>
           <h3>No follow-up visits assigned.</h3>
-          <p>Follow-up bookings flagged during service reports will appear here.</p>
+          <p>No follow-up bookings were returned for this technician.</p>
         </section>
       ) : filteredFollowUps.length === 0 ? (
         /* ---- No Filter Results ---- */
@@ -401,7 +458,7 @@ function TechnicianFollowUp() {
                 {groupRecords.length > 0 ? (
                   <div className="follow-up-visit-grid">
                     {groupRecords.map((record) => (
-                      <article className="follow-up-visit-card" key={`${record.bookingID}:${record.jobID}`}>
+                      <article className="follow-up-visit-card" key={record.bookingID ?? record.id}>
                         <header className="follow-up-visit-card-header">
                           <div>
                             <span className="follow-up-card-kicker">Return service visit</span>
@@ -422,7 +479,7 @@ function TechnicianFollowUp() {
                             </span>
                             <div>
                               <span>Scheduled return</span>
-                              <time dateTime={record.date}>
+                              <time dateTime={record.date || undefined}>
                                 <strong>{record.formattedDate}</strong>
                                 <small>{record.time}</small>
                               </time>
@@ -437,13 +494,13 @@ function TechnicianFollowUp() {
 
                         <footer className="follow-up-visit-footer">
                           <div className="follow-up-visit-references">
-                            <span>Booking #{record.bookingID}</span>
+                            <span>{record.bookingID !== null ? `Booking #${record.bookingID}` : 'Booking reference unavailable'}</span>
                             <span>{record.id}</span>
-                            <span>Job #{record.jobID}</span>
-                            {record.isFollowupReport && (
+                            {record.jobID !== null && <span>Job #{record.jobID}</span>}
+                            {record.isFollowUpBooking && (
                               <span className="follow-up-report-context">
                                 <span aria-hidden="true" />
-                                Follow-up flagged
+                                Follow-up booking
                               </span>
                             )}
                           </div>
@@ -472,18 +529,28 @@ function TechnicianFollowUp() {
             )
           })}
         </div>
-      )}
+          )}
+        </div>
 
-      {/* ---- Footer ---- */}
-      <footer className="follow-up-page-footer">
+        {/* ---- Footer ---- */}
+        <footer className="follow-up-page-footer">
         <span>
-          Showing <strong>{filteredFollowUps.length}</strong> of <strong>{followUps.length}</strong> return visits
+          {requestSucceeded ? (
+            <>Showing <strong>{filteredFollowUps.length}</strong> of <strong>{followUps.length}</strong> return visits</>
+          ) : (
+            <>Showing <strong>—</strong> return visits</>
+          )}
         </span>
         <span>
-          <span className="duty-dot-pulse" aria-hidden="true" />
-          Live sync active
+          {requestSucceeded && <span className="duty-dot-pulse" aria-hidden="true" />}
+          {loading
+            ? 'Loading visit data'
+            : requestSucceeded
+              ? 'Assigned booking data available'
+              : 'Visit data unavailable'}
         </span>
-      </footer>
+        </footer>
+      </section>
 
       {/* ---- Detail Modal ---- */}
       <Modal
@@ -511,7 +578,11 @@ function TechnicianFollowUp() {
                 <section>
                   <span>Customer</span>
                   <strong>{selectedFollowUp.customerName}</strong>
-                  <small>Customer #{selectedFollowUp.customerID}</small>
+                  <small>
+                    {selectedFollowUp.customerID !== null
+                      ? `Customer #${selectedFollowUp.customerID}`
+                      : 'Customer reference unavailable'}
+                  </small>
                 </section>
                 <section>
                   <span>Schedule</span>
@@ -527,20 +598,24 @@ function TechnicianFollowUp() {
                   <span>Service</span>
                   <strong>{selectedFollowUp.serviceName}</strong>
                   <small>
-                    {selectedFollowUp.serviceID !== undefined
+                    {selectedFollowUp.serviceID !== null
                       ? `Service #${selectedFollowUp.serviceID}`
-                      : 'Assigned service'}
+                      : 'Service reference unavailable'}
                   </small>
                 </section>
                 <section>
                   <span>Booking</span>
-                  <strong>#{selectedFollowUp.bookingID}</strong>
-                  <small>Assigned to technician #{selectedFollowUp.technicianID}</small>
+                  <strong>{selectedFollowUp.bookingID !== null ? `#${selectedFollowUp.bookingID}` : '—'}</strong>
+                  <small>Technician assignment not provided by API</small>
                 </section>
                 <section>
                   <span>Job</span>
-                  <strong>#{selectedFollowUp.jobID}</strong>
-                  <small>{selectedFollowUp.isFollowupReport ? 'Service report flagged follow-up' : 'Follow-up booking'}</small>
+                  <strong>{selectedFollowUp.jobID !== null ? `#${selectedFollowUp.jobID}` : '—'}</strong>
+                  <small>
+                    {selectedFollowUp.jobID !== null
+                      ? 'Linked job reference'
+                      : 'Separate job reference unavailable'}
+                  </small>
                 </section>
               </div>
             </Modal.Body>

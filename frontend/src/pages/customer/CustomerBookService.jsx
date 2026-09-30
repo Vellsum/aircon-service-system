@@ -159,20 +159,26 @@ const CustomerBookService = () => {
   /* ------------------------------------------------ loading / error states */
   if (loading) {
     return (
-      <section className="cust-panel" style={{ padding: 48, textAlign: "center" }}>
-        <p style={{ color: "var(--text-secondary)" }}>Loading booking options…</p>
+      <section className="cust-panel cust-api-state" aria-live="polite">
+        <div className="cust-api-state-content">
+          <span className="cust-api-state-icon" aria-hidden="true"><Icon name="clock" size={22} /></span>
+          <p className="cust-api-state-message">Loading booking options…</p>
+        </div>
       </section>
     );
   }
 
   if (loadError) {
     return (
-      <section className="cust-panel" style={{ padding: 48, textAlign: "center" }}>
-        <h2>Couldn't load the booking form</h2>
-        <p style={{ color: "var(--text-secondary)", margin: "8px 0 16px" }}>{loadError}</p>
-        <button className="dash-btn dash-btn-primary" onClick={() => window.location.reload()}>
-          Try again
-        </button>
+      <section className="cust-panel cust-api-state" aria-live="polite">
+        <div className="cust-api-state-content">
+          <span className="cust-api-state-icon" aria-hidden="true"><Icon name="alert" size={22} /></span>
+          <h2>Couldn't load the booking form</h2>
+          <p className="cust-api-state-message">{loadError}</p>
+          <button className="dash-btn dash-btn-primary" onClick={() => window.location.reload()}>
+            Try again
+          </button>
+        </div>
       </section>
     );
   }
