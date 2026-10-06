@@ -45,7 +45,7 @@ const navItems = [
     ),
   },
   {
-    label: "Manage Aircon", path: "/admin/aircon",
+   
     section: "Service Setup",
     icon: (
       <>

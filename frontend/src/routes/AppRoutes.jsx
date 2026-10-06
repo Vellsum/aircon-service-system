@@ -12,19 +12,17 @@ import CustomerLayout from "../layouts/CustomerLayout";
 import CustomerDashboard from "../pages/customer/CustomerDashboard";
 import CustomerBookings from "../pages/customer/CustomerBookings";
 import CustomerBookService from "../pages/customer/CustomerBookService";
-import CustomerMyUnits from "../pages/customer/CustomerMyUnits";
 import CustomerProfile from "../pages/customer/CustomerProfile";
 import CustomerServiceCatalog from "../pages/customer/CustomerServiceCatalog";
 
 // 1. Admin Module Pages (src/pages/admin/)
 import AdminDashboard from '../pages/admin/AdminDashboard';
-import ManageBookings from '../pages/admin/ManageBookings';
+import ManageBookings from '../pages/admin/ManageBookings'; // assign technician page
 import ManageInventory from '../pages/admin/ManageInventory';
 import ManageTechnicians from '../pages/admin/Managetechnicians';
-import ManageCustomers from '../pages/admin/Managecustomers';
+import ManageCustomers from '../pages/admin/ManageCustomers'; // match this to your actual filename
 import Manageservices from "../pages/admin/Manageservices";
 import ManagePromotions from "../pages/admin/Managepromotions";
-import ManageAircon from '../pages/admin/ManageAircon';
 import ManagePackages from '../pages/admin/Managepackages';
 import ViewReports from '../pages/admin/Viewreports';
 
@@ -38,6 +36,7 @@ import TechnicianPartsLog from "../pages/technician/TechnicianPartsLog";
 import TechnicianPerformance from "../pages/technician/TechnicianPerformance";
 import TechnicianProfile from "../pages/technician/TechnicianProfile";
 import TechnicianSubmitReport from "../pages/technician/TechnicianSubmitReport";
+
 export default function AppRoutes() {
   return (
     <Routes>
@@ -55,11 +54,10 @@ export default function AppRoutes() {
         <Route path="/admin/technicians" element={<ManageTechnicians />} />
         <Route path="/admin/customers" element={<ManageCustomers />} />
         <Route path="/admin/promotions" element={<ManagePromotions />} />
-        <Route path="/admin/aircon" element={<ManageAircon />} />
         <Route path="/admin/packages" element={<ManagePackages />} />
         <Route path="/admin/reports" element={<ViewReports />} />
       </Route>
-      
+
       {/* Technician Protected Routes */}
       <Route element={<ProtectedRoute allowedRoles={["technician"]} />}>
         <Route path="/technician" element={<TechnicianLayout />}>
@@ -82,13 +80,11 @@ export default function AppRoutes() {
           <Route path="dashboard" element={<CustomerDashboard />} />
           <Route path="bookings" element={<CustomerBookings />} />
           <Route path="book-service" element={<CustomerBookService />} />
-          <Route path="my-units" element={<CustomerMyUnits />} />
           <Route path="profile" element={<CustomerProfile />} />
           <Route path="service-catalog" element={<CustomerServiceCatalog />} />
           {/* Aliases for old links */}
           <Route path="book" element={<Navigate to="/customer/book-service" replace />} />
           <Route path="services" element={<Navigate to="/customer/service-catalog" replace />} />
-          <Route path="units" element={<Navigate to="/customer/my-units" replace />} />
         </Route>
       </Route>
 
