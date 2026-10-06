@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useAuth } from '../../context/AuthContext'
+import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 
 function HistoryUnavailableIcon() {
   return (
@@ -12,8 +12,7 @@ function HistoryUnavailableIcon() {
 }
 
 function TechnicianJobHistory() {
-  const { user } = useAuth()
-  const technicianID = user?.technician_ID ?? null
+  const { technicianID, identitySource } = useTechnicianWorkflow()
   const hasTechnicianIdentity = technicianID !== null && technicianID !== undefined
   const [searchTerm, setSearchTerm] = useState('')
   const [fromDate, setFromDate] = useState('')
@@ -127,12 +126,16 @@ function TechnicianJobHistory() {
               <HistoryUnavailableIcon />
             </span>
             <h3>
-              {hasTechnicianIdentity
+              {identitySource === 'initializing'
+                ? 'Loading technician identity…'
+                : hasTechnicianIdentity
                 ? 'Job history is currently unavailable.'
                 : 'Technician identity is unavailable.'}
             </h3>
             <p>
-              {hasTechnicianIdentity
+              {identitySource === 'initializing'
+                ? 'Checking the current Technician session.'
+                : hasTechnicianIdentity
                 ? 'A durable technician job-history source is not currently provided by the application.'
                 : 'Historical records require a technician identity from the signed-in account.'}
             </p>

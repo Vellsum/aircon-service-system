@@ -11,6 +11,7 @@ import React, {
 import { useAuth } from './AuthContext'
 
 const TechnicianWorkflowContext = createContext(null)
+const DEVELOPMENT_TECHNICIAN_ID = 1
 
 const JOB_STATUS = Object.freeze({
   UPCOMING: 'Upcoming',
@@ -39,27 +40,63 @@ function createTransitionError(message) {
 }
 
 function TechnicianWorkflowProvider({ children }) {
-  const { user, token } = useAuth()
-  const [dbJobs, setDbJobs] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [dataAvailable, setDataAvailable] = useState(false)
-  const [jobStatusOverrides, setJobStatusOverrides] = useState({})
-  const [pendingTransitionJobIDs, setPendingTransitionJobIDs] = useState([])
+  const { user, token, initializing } = useAuth()
+  const { technicianID, identitySource, canMutateTechnicianData } = useMemo(() => {
+    if (initializing) {
+      return { technicianID: null, identitySource: 'initializing', canMutateTechnicianData: false }
+    }
+
+    // An incomplete or non-Technician session must never silently impersonate the dev account.
+    if (user || token) {
+      const role = String(user?.role || user?.accountType || '').toLowerCase()
+      const id = Number(user?.technician_ID)
+      if (token && role === 'technician' && Number.isSafeInteger(id) && id > 0) {
+        return { technicianID: id, identitySource: 'authenticated', canMutateTechnicianData: true }
+      }
+      return { technicianID: null, identitySource: 'unavailable', canMutateTechnicianData: false }
+    }
+
+    if (import.meta.env.DEV) {
+      return { technicianID: DEVELOPMENT_TECHNICIAN_ID, identitySource: 'development', canMutateTechnicianData: false }
+    }
+    return { technicianID: null, identitySource: 'unavailable', canMutateTechnicianData: false }
+  }, [initializing, user, token])
+  const identityKey = `${identitySource}:${technicianID ?? 'none'}`
+  const activeIdentityKeyRef = useRef(identityKey)
+  activeIdentityKeyRef.current = identityKey
+  const activeJobsRequestRef = useRef(null)
+  const [jobsState, setJobsState] = useState({
+    identityKey: null, jobs: [], loading: true, error: null, dataAvailable: false,
+  })
+  const [jobStatusOverrides, setJobStatusOverrides] = useState({ identityKey: null, values: {} })
+  const [pendingTransitionState, setPendingTransitionState] = useState({ identityKey: null, jobIDs: [] })
   const pendingTransitionJobIDsRef = useRef(new Set())
 
-  const technicianID = user?.technician_ID ?? null
+  const activeJobsState = jobsState.identityKey === identityKey
+    ? jobsState
+    : { jobs: [], loading: true, error: null, dataAvailable: false }
+  const { jobs: dbJobs, loading, error, dataAvailable } = activeJobsState
+  const activeOverrides = jobStatusOverrides.identityKey === identityKey
+    ? jobStatusOverrides.values
+    : {}
 
   const fetchJobs = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    setDataAvailable(false)
+    activeJobsRequestRef.current?.abort()
+    const controller = new AbortController()
+    activeJobsRequestRef.current = controller
+    const isCurrent = () => !controller.signal.aborted
+      && activeJobsRequestRef.current === controller
+      && activeIdentityKeyRef.current === identityKey
+
+    setJobsState({ identityKey, jobs: [], loading: true, error: null, dataAvailable: false })
+
+    if (initializing) return
 
     if (!technicianID) {
-      setDbJobs([])
-      setJobStatusOverrides({})
-      setError('Technician identity is unavailable.')
-      setLoading(false)
+      setJobsState({
+        identityKey, jobs: [], loading: false,
+        error: 'Technician identity is unavailable.', dataAvailable: false,
+      })
       return
     }
 
@@ -67,28 +104,34 @@ function TechnicianWorkflowProvider({ children }) {
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
 
-      const res = await fetch(`http://localhost:5000/api/technician/jobs?techId=${technicianID}`, { headers })
+      const res = await fetch(`http://localhost:5000/api/technician/jobs?techId=${technicianID}`, {
+        headers, signal: controller.signal,
+      })
       const data = await res.json()
+      if (!isCurrent()) return
 
       if (res.ok && data.success && Array.isArray(data.jobs)) {
-        setDbJobs(data.jobs)
-        setDataAvailable(true)
+        setJobsState({ identityKey, jobs: data.jobs, loading: false, error: null, dataAvailable: true })
       } else {
-        setDbJobs([])
-        setError('Assigned job data is unavailable.')
+        setJobsState({ identityKey, jobs: [], loading: false, error: 'Assigned job data is unavailable.', dataAvailable: false })
       }
     } catch (err) {
+      if (!isCurrent()) return
       console.error('[Technician Context] Error fetching live jobs:', err)
-      setDbJobs([])
-      setError('Assigned job data is unavailable.')
-    } finally {
-      setLoading(false)
+      setJobsState({ identityKey, jobs: [], loading: false, error: 'Assigned job data is unavailable.', dataAvailable: false })
     }
-  }, [technicianID, token])
+  }, [identityKey, initializing, technicianID, token])
 
   useEffect(() => {
     fetchJobs()
+    return () => activeJobsRequestRef.current?.abort()
   }, [fetchJobs])
+
+  useEffect(() => {
+    setJobStatusOverrides({ identityKey, values: {} })
+    pendingTransitionJobIDsRef.current.clear()
+    setPendingTransitionState({ identityKey, jobIDs: [] })
+  }, [identityKey])
 
   const baselineJobById = useMemo(
     () => new Map(dbJobs.map((job) => [job.job_ID, job])),
@@ -97,6 +140,9 @@ function TechnicianWorkflowProvider({ children }) {
 
   const transitionJobStatus = useCallback(
     async (jobID, transitionName) => {
+      if (!canMutateTechnicianData || activeIdentityKeyRef.current !== identityKey) {
+        throw createTransitionError('Status updates require an authenticated Technician session.')
+      }
       const transition = TRANSITION_RULES[transitionName]
       const baselineJob = baselineJobById.get(jobID)
 
@@ -104,7 +150,7 @@ function TechnicianWorkflowProvider({ children }) {
         throw createTransitionError('This booking is not available for a status update.')
       }
 
-      const effectiveStatus = jobStatusOverrides[jobID] ?? baselineJob.status
+      const effectiveStatus = activeOverrides[jobID] ?? baselineJob.status
       if (!transition || !transition.allowedStatuses.has(normalizeStatus(effectiveStatus))) {
         throw createTransitionError('This booking cannot be updated from its current status.')
       }
@@ -114,7 +160,7 @@ function TechnicianWorkflowProvider({ children }) {
       }
 
       pendingTransitionJobIDsRef.current.add(jobID)
-      setPendingTransitionJobIDs(Array.from(pendingTransitionJobIDsRef.current))
+      setPendingTransitionState({ identityKey, jobIDs: Array.from(pendingTransitionJobIDsRef.current) })
 
       try {
         const headers = { 'Content-Type': 'application/json' }
@@ -145,9 +191,15 @@ function TechnicianWorkflowProvider({ children }) {
           )
         }
 
+        if (activeIdentityKeyRef.current !== identityKey) {
+          throw createTransitionError('The Technician session changed during the status update.')
+        }
         setJobStatusOverrides((currentOverrides) => ({
-          ...currentOverrides,
-          [jobID]: transition.nextStatus,
+          identityKey,
+          values: {
+            ...(currentOverrides.identityKey === identityKey ? currentOverrides.values : {}),
+            [jobID]: transition.nextStatus,
+          },
         }))
 
         return {
@@ -162,11 +214,13 @@ function TechnicianWorkflowProvider({ children }) {
         )
         throw createTransitionError('The booking status could not be updated. Please try again.')
       } finally {
-        pendingTransitionJobIDsRef.current.delete(jobID)
-        setPendingTransitionJobIDs(Array.from(pendingTransitionJobIDsRef.current))
+        if (activeIdentityKeyRef.current === identityKey) {
+          pendingTransitionJobIDsRef.current.delete(jobID)
+          setPendingTransitionState({ identityKey, jobIDs: Array.from(pendingTransitionJobIDsRef.current) })
+        }
       }
     },
-    [baselineJobById, dataAvailable, jobStatusOverrides, token],
+    [activeOverrides, baselineJobById, canMutateTechnicianData, dataAvailable, identityKey, token],
   )
 
   const startService = useCallback(
@@ -180,17 +234,18 @@ function TechnicianWorkflowProvider({ children }) {
   )
 
   const isTransitionPending = useCallback(
-    (jobID) => pendingTransitionJobIDs.includes(jobID),
-    [pendingTransitionJobIDs],
+    (jobID) => pendingTransitionState.identityKey === identityKey
+      && pendingTransitionState.jobIDs.includes(jobID),
+    [identityKey, pendingTransitionState],
   )
 
   const assignedJobs = useMemo(
     () =>
       dbJobs.map((job) => ({
         ...job,
-        status: jobStatusOverrides[job.job_ID] ?? job.status,
+        status: activeOverrides[job.job_ID] ?? job.status,
       })),
-    [dbJobs, jobStatusOverrides],
+    [activeOverrides, dbJobs],
   )
 
   const reportableJobs = useMemo(
@@ -221,6 +276,10 @@ function TechnicianWorkflowProvider({ children }) {
 
   const value = useMemo(
     () => ({
+      technicianID,
+      identitySource,
+      isDevelopmentFallback: identitySource === 'development',
+      canMutateTechnicianData,
       assignedJobs,
       reportableJobs,
       workload,
@@ -232,7 +291,7 @@ function TechnicianWorkflowProvider({ children }) {
       completeService,
       isTransitionPending,
     }),
-    [assignedJobs, reportableJobs, workload, loading, error, dataAvailable, fetchJobs, startService, completeService, isTransitionPending],
+    [technicianID, identitySource, canMutateTechnicianData, assignedJobs, reportableJobs, workload, loading, error, dataAvailable, fetchJobs, startService, completeService, isTransitionPending],
   )
 
   return (

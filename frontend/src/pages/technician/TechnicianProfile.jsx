@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext';
 
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -103,12 +104,15 @@ function getInitials(name) {
 
 function TechnicianProfile() {
   const { user, token, initializing } = useAuth();
-  const technicianID = user?.technician_ID ?? null;
+  const { technicianID } = useTechnicianWorkflow();
   const hasTechnicianIdentity = technicianID !== null
     && technicianID !== undefined
     && technicianID !== '';
   const [profile, setProfile] = useState(null);
   const [profileState, setProfileState] = useState('idle');
+  const currentProfile = profile && String(profile.technicianID) === String(technicianID)
+    ? profile
+    : null;
 
   const loadProfile = useCallback(async (signal) => {
     if (!hasTechnicianIdentity) {
@@ -156,16 +160,16 @@ function TechnicianProfile() {
   }, [initializing, loadProfile]);
 
   const profileValues = useMemo(() => {
-    const technicianName = textOrUnavailable(profile?.technicianName);
+    const technicianName = textOrUnavailable(currentProfile?.technicianName);
     const username = textOrUnavailable(user?.username);
     const accountType = textOrUnavailable(user?.accountType);
-    const specialty = textOrUnavailable(profile?.specialty);
-    const rating = profile?.technicianRating;
+    const specialty = textOrUnavailable(currentProfile?.specialty);
+    const rating = currentProfile?.technicianRating;
     const hasRating = rating !== null
       && rating !== undefined
       && rating !== ''
       && Number.isFinite(Number(rating));
-    const jobsDone = Number(profile?.jobsDone);
+    const jobsDone = Number(currentProfile?.jobsDone);
 
     return {
       technicianName,
@@ -175,13 +179,13 @@ function TechnicianProfile() {
       rating: hasRating ? String(rating) : null,
       jobsDone: Number.isFinite(jobsDone) && jobsDone > 0 ? jobsDone : null,
     };
-  }, [profile, user]);
+  }, [currentProfile, user]);
 
-  if (initializing || (hasTechnicianIdentity && profileState === 'idle') || profileState === 'loading') {
+  if (initializing || (hasTechnicianIdentity && (profileState === 'idle' || (profileState === 'success' && !currentProfile))) || profileState === 'loading') {
     return (
       <ProfileState
         title="Loading profile"
-        message="Retrieving the technician profile linked to your current session."
+        message="Retrieving the selected technician profile."
       />
     );
   }
@@ -195,7 +199,7 @@ function TechnicianProfile() {
     );
   }
 
-  if (profileState === 'error' || !profile) {
+  if (profileState === 'error' || !currentProfile) {
     return (
       <ProfileState
         title="Profile data unavailable"
@@ -228,7 +232,7 @@ function TechnicianProfile() {
             <span className="tech-profile-account-status">Status unavailable</span>
           </div>
           <p className="tech-profile-identity-note">
-            Profile identity is shown only after the returned record matches the authenticated technician ID.
+            Profile identity is shown only after the returned record matches the selected technician ID.
           </p>
         </aside>
 

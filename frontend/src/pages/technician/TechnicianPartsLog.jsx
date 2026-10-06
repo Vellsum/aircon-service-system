@@ -8,10 +8,11 @@
 //   4. Added loading state and error handling
 // =============================================================================
 
-import React, { useMemo, useState, useEffect, useCallback } from 'react'
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import Modal from 'react-bootstrap/Modal'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import { useAuth } from '../../context/AuthContext'
+import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 
 const API_BASE_URL = 'http://localhost:5000'
 
@@ -77,22 +78,38 @@ function formatBookingReference(record) {
 }
 
 function TechnicianPartsLog() {
-  const { user, token } = useAuth()
-  const technicianID = user?.technician_ID ?? null
+  const { token } = useAuth()
+  const { technicianID, identitySource } = useTechnicianWorkflow()
+  const identityKey = `${identitySource}:${technicianID ?? 'none'}`
+  const activeIdentityKeyRef = useRef(identityKey)
+  activeIdentityKeyRef.current = identityKey
+  const activeRequestRef = useRef(null)
 
   // ---- Fetch parts log from API ----
-  const [records, setRecords] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [requestState, setRequestState] = useState({
+    identityKey: null, records: [], loading: true, error: null,
+  })
+  const activeRequestState = requestState.identityKey === identityKey
+    ? requestState
+    : { records: [], loading: true, error: null }
+  const { records, loading, error } = activeRequestState
 
   const fetchPartsLog = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    activeRequestRef.current?.abort()
+    const controller = new AbortController()
+    activeRequestRef.current = controller
+    const isCurrent = () => !controller.signal.aborted
+      && activeRequestRef.current === controller
+      && activeIdentityKeyRef.current === identityKey
+    setRequestState({ identityKey, records: [], loading: true, error: null })
+
+    if (identitySource === 'initializing') return
 
     if (technicianID === null || technicianID === undefined) {
-      setRecords([])
-      setError({ type: 'identity', message: 'Technician identity is unavailable.' })
-      setLoading(false)
+      setRequestState({
+        identityKey, records: [], loading: false,
+        error: { type: 'identity', message: 'Technician identity is unavailable.' },
+      })
       return
     }
 
@@ -102,7 +119,7 @@ function TechnicianPartsLog() {
 
       const res = await fetch(
         `${API_BASE_URL}/api/technician/reports/parts-log?techId=${technicianID}`,
-        { headers }
+        { headers, signal: controller.signal }
       )
 
       if (!res.ok) throw new Error(`API returned ${res.status}`)
@@ -112,24 +129,27 @@ function TechnicianPartsLog() {
       if (!data.success || !Array.isArray(data.records)) {
         throw new Error(data.message || 'Parts usage response was unavailable')
       }
+      if (!isCurrent()) return
 
       // Format dates for display without introducing replacement record values.
       const formatted = data.records.map((r) => ({
         ...r,
         formattedDate: formatBookingDate(r),
       }))
-      setRecords(formatted)
+      setRequestState({ identityKey, records: formatted, loading: false, error: null })
     } catch (err) {
+      if (!isCurrent()) return
       console.error('[PartsLog] Fetch error:', err)
-      setError({ type: 'request', message: err.message })
-      setRecords([])
-    } finally {
-      setLoading(false)
+      setRequestState({
+        identityKey, records: [], loading: false,
+        error: { type: 'request', message: err.message },
+      })
     }
-  }, [technicianID, token])
+  }, [identityKey, identitySource, technicianID, token])
 
   useEffect(() => {
     fetchPartsLog()
+    return () => activeRequestRef.current?.abort()
   }, [fetchPartsLog])
 
   // ---- Filters ----

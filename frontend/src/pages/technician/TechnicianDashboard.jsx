@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
@@ -29,12 +29,14 @@ const getJobDateKey = (jobDate) => {
 }
 
 function TechnicianDashboard() {
-  const {user} = useAuth()
+  const { token } = useAuth()
   const [selectedJob, setSelectedJob] = useState(null)
   const [showJobDetails, setShowJobDetails] = useState(false)
   const [actionError, setActionError] = useState(null)
+  const [profileName, setProfileName] = useState({ technicianID: null, name: null })
   const jobDetailsTriggerRef = useRef(null)
   const {
+    technicianID,
     assignedJobs: technicianJobs,
     loading,
     error,
@@ -42,7 +44,43 @@ function TechnicianDashboard() {
     startService,
     completeService,
     isTransitionPending,
+    canMutateTechnicianData,
   } = useTechnicianWorkflow()
+
+  useEffect(() => {
+    if (technicianID === null || technicianID === undefined) return undefined
+
+    setProfileName({ technicianID, name: null })
+    const controller = new AbortController()
+    const loadProfileName = async () => {
+      try {
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        const response = await fetch(
+          `http://localhost:5000/api/technician/profile?techId=${encodeURIComponent(technicianID)}`,
+          { headers, signal: controller.signal },
+        )
+        if (!response.ok) return
+
+        const payload = await response.json()
+        const profile = payload?.profile
+        const name = typeof profile?.technicianName === 'string'
+          ? profile.technicianName.trim()
+          : ''
+        if (payload?.success === true && String(profile?.technicianID) === String(technicianID) && name) {
+          setProfileName({ technicianID, name })
+        }
+      } catch {
+        // Keep the generic greeting when profile data is unavailable.
+      }
+    }
+
+    loadProfileName()
+    return () => controller.abort()
+  }, [technicianID, token])
+
+  const greetingName = profileName.technicianID === technicianID
+    ? profileName.name || 'Technician'
+    : 'Technician'
 
   const openJobDetails = (job) => {
     jobDetailsTriggerRef.current = document.activeElement
@@ -58,6 +96,10 @@ function TechnicianDashboard() {
 
   const handleStartService = async (jobToStart) => {
     setActionError(null)
+    if (!canMutateTechnicianData) {
+      setActionError('Status updates require an authenticated Technician session.')
+      return
+    }
     try {
       await startService(jobToStart.job_ID)
       closeJobDetails()
@@ -69,6 +111,10 @@ function TechnicianDashboard() {
 
   const handleCompleteService = async (jobToComplete) => {
     setActionError(null)
+    if (!canMutateTechnicianData) {
+      setActionError('Status updates require an authenticated Technician session.')
+      return
+    }
     try {
       await completeService(jobToComplete.job_ID)
       closeJobDetails()
@@ -156,7 +202,7 @@ function TechnicianDashboard() {
             Field Operations
           </span>
         )}
-        title={<>Good day, {user?.username || 'Technician'}</>}
+        title={<>Good day, {greetingName}</>}
         subtitle={<>Here is today&apos;s field schedule and your latest service performance.</>}
         rightContent={(
           <div className="tech-dash-date" aria-label="Current date">
@@ -313,8 +359,9 @@ function TechnicianDashboard() {
                           type="button"
                           className="cf-button cf-button-primary"
                           onClick={() => handleStartService(job)}
-                          disabled={actionPending}
+                          disabled={actionPending || !canMutateTechnicianData}
                           aria-busy={actionPending}
+                          title={!canMutateTechnicianData ? 'Status updates require an authenticated Technician session.' : undefined}
                         >
                           {actionPending ? 'Starting…' : 'Start Service'}
                         </button>
@@ -448,6 +495,7 @@ function TechnicianDashboard() {
         onCompleteService={handleCompleteService}
         returnFocusRef={jobDetailsTriggerRef}
         actionPending={selectedJob ? isTransitionPending(selectedJob.job_ID) : false}
+        actionReadOnly={!canMutateTechnicianData}
         actionError={actionError}
       />
     </div>

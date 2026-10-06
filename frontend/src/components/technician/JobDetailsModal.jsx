@@ -10,6 +10,7 @@ function JobDetailsModal({
   onCompleteService,
   returnFocusRef,
   actionPending = false,
+  actionReadOnly = false,
   actionError = null,
 }) {
   const fallbackFocusRef = useRef(null)
@@ -178,8 +179,9 @@ function JobDetailsModal({
             type="button"
             className="cf-button cf-button-primary"
             onClick={() => (onStartService ? onStartService(job) : handleHide())}
-            disabled={actionPending}
+            disabled={actionPending || actionReadOnly}
             aria-busy={actionPending}
+            title={actionReadOnly ? 'Status updates require an authenticated Technician session.' : undefined}
           >
             {actionPending ? 'Starting…' : 'Start Service'}
           </button>
@@ -189,8 +191,9 @@ function JobDetailsModal({
             type="button"
             className="cf-button cf-button-primary cf-button-progress"
             onClick={() => (onCompleteService ? onCompleteService(job) : handleHide())}
-            disabled={actionPending}
+            disabled={actionPending || actionReadOnly}
             aria-busy={actionPending}
+            title={actionReadOnly ? 'Status updates require an authenticated Technician session.' : undefined}
           >
             {actionPending ? 'Completing…' : 'Complete Service'}
           </button>

@@ -9,7 +9,6 @@
 // =============================================================================
 
 import React, { useMemo, useRef, useState } from 'react'
-import { useAuth } from '../../context/AuthContext'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import FilterTabs from '../../components/technician/FilterTabs'
 import JobRow from '../../components/technician/JobRow'
@@ -109,8 +108,9 @@ class JobListErrorBoundary extends React.Component {
 }
 
 function TechnicianAssignedJobs() {
-  const { user } = useAuth()
   const {
+    technicianID,
+    canMutateTechnicianData,
     assignedJobs,
     startService,
     completeService,
@@ -120,7 +120,6 @@ function TechnicianAssignedJobs() {
     refreshJobs,
     isTransitionPending,
   } = useTechnicianWorkflow()
-  const technicianID = user?.technician_ID ?? null
   const hasTechnicianIdentity = technicianID !== null && technicianID !== undefined
   const requestSucceeded = hasTechnicianIdentity && dataAvailable && !error
 
@@ -177,6 +176,10 @@ function TechnicianAssignedJobs() {
   // ====================================================================
   const handleStartService = async (jobToStart) => {
     setActionError(null)
+    if (!canMutateTechnicianData) {
+      setActionError('Status updates require an authenticated Technician session.')
+      return
+    }
     if (!isUpcomingStatus(jobToStart.status)) {
       setActionError('This booking cannot be started from its current status.')
       return
@@ -196,6 +199,10 @@ function TechnicianAssignedJobs() {
   // ====================================================================
   const handleCompleteService = async (jobToComplete) => {
     setActionError(null)
+    if (!canMutateTechnicianData) {
+      setActionError('Status updates require an authenticated Technician session.')
+      return
+    }
     if (normalizeStatus(jobToComplete.status) !== 'in progress') {
       setActionError('Only an in-progress booking can be completed.')
       return
@@ -213,15 +220,15 @@ function TechnicianAssignedJobs() {
   // ---- Computed values ----
   const tabCounts = useMemo(() => requestSucceeded
     ? {
-        today: jobs.filter(isTodayJob).length,
-        thisWeek: jobs.filter(isThisWeekJob).length,
+        today: jobs.filter((job) => isTodayJob(job)).length,
+        thisWeek: jobs.filter((job) => isThisWeekJob(job)).length,
         all: jobs.length,
       }
     : { today: '—', thisWeek: '—', all: '—' },
   [jobs, requestSucceeded])
 
   const metrics = useMemo(() => ({
-    todayCount: jobs.filter(isTodayJob).length,
+    todayCount: jobs.filter((job) => isTodayJob(job)).length,
     inProgressCount: jobs.filter((job) => normalizeStatus(job.status) === 'in progress').length,
     upcomingCount: jobs.filter((job) => isUpcomingStatus(job.status)).length,
     completedCount: jobs.filter((job) => normalizeStatus(job.status) === 'completed').length,
@@ -435,6 +442,7 @@ function TechnicianAssignedJobs() {
                             onView={openJobDetails}
                             onPrimaryAction={handlePrimaryAction}
                             isActionPending={isTransitionPending(job.job_ID)}
+                            actionReadOnly={!canMutateTechnicianData}
                           />
                         ))}
                       </tbody>
@@ -449,6 +457,7 @@ function TechnicianAssignedJobs() {
                       onView={openJobDetails}
                       onPrimaryAction={handlePrimaryAction}
                       isActionPending={isTransitionPending(job.job_ID)}
+                      actionReadOnly={!canMutateTechnicianData}
                     />
                   ))}
                 </div>
@@ -481,6 +490,7 @@ function TechnicianAssignedJobs() {
             onCompleteService={handleCompleteService}
             returnFocusRef={jobDetailsTriggerRef}
             actionPending={isTransitionPending(selectedJob.job_ID)}
+            actionReadOnly={!canMutateTechnicianData}
             actionError={actionError}
           />
         )}

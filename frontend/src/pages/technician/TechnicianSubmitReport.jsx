@@ -284,14 +284,16 @@ function ReportMultiSelectField({
 function TechnicianSubmitReport() {
   const navigate = useNavigate()
   const {
+    technicianID,
+    isDevelopmentFallback,
+    canMutateTechnicianData,
     reportableJobs,
     loading: jobsLoading,
     error: jobsError,
     dataAvailable: jobsDataAvailable,
     refreshJobs,
   } = useTechnicianWorkflow()
-  const { user, token } = useAuth()
-  const technicianID = user?.technician_ID ?? null
+  const { token } = useAuth()
   const [report, setReport] = useState(loadLocalDraft)
   const [errors, setErrors] = useState({})
   const [notice, setNotice] = useState(null)
@@ -424,6 +426,10 @@ function TechnicianSubmitReport() {
     event.preventDefault()
     setNotice(null)
     if (submittedReportID !== null) return
+    if (!canMutateTechnicianData) {
+      setNotice({ type: 'info', message: 'Report submission requires an authenticated Technician session. Your local draft is still available.' })
+      return
+    }
     if (validateReport()) {
       setShowConfirmation(true)
     }
@@ -437,6 +443,11 @@ function TechnicianSubmitReport() {
   const confirmSubmission = async () => {
     // Prevent double-submit
     if (submitting || submittedReportID !== null) return
+    if (!canMutateTechnicianData) {
+      setShowConfirmation(false)
+      setNotice({ type: 'info', message: 'Report submission requires an authenticated Technician session. Your local draft is still available.' })
+      return
+    }
 
     if (!validateReport()) {
       setShowConfirmation(false)
@@ -528,13 +539,13 @@ function TechnicianSubmitReport() {
         </div>
       </header>
 
-      {(!jobsReady || !selectedJob) && (
+      {(!jobsReady || !selectedJob || isDevelopmentFallback) && (
         <div className="report-draft-context" role="status">
           <strong>Unlinked local draft</strong>
           <p>
-            You can prepare this form and save it in this browser. Until a completed assignment is
-            selected and the report is submitted, these details are not linked to a verified visit
-            or recorded by the server.
+            {isDevelopmentFallback
+              ? 'Development preview is read-only. You can prepare and save this form in this browser, but submitting requires an authenticated Technician session.'
+              : 'You can prepare this form and save it in this browser. Until a completed assignment is selected and the report is submitted, these details are not linked to a verified visit or recorded by the server.'}
           </p>
         </div>
       )}
@@ -809,7 +820,8 @@ function TechnicianSubmitReport() {
             <button
               type="submit"
               className="cf-button cf-button-primary"
-              disabled={submitting || submittedReportID !== null || !hasReportableJobs}
+              disabled={submitting || submittedReportID !== null || !hasReportableJobs || !canMutateTechnicianData}
+              title={!canMutateTechnicianData ? 'Report submission requires an authenticated Technician session.' : undefined}
             >
               {submitting ? 'Submitting...' : submittedReportID !== null ? 'Submitted' : 'Submit Report'}
             </button>
@@ -868,7 +880,7 @@ function TechnicianSubmitReport() {
             type="button"
             className="btn btn-primary"
             onClick={confirmSubmission}
-            disabled={submitting || submittedReportID !== null}
+            disabled={submitting || submittedReportID !== null || !canMutateTechnicianData}
           >
             {submitting ? 'Submitting...' : 'Confirm Submit'}
           </button>

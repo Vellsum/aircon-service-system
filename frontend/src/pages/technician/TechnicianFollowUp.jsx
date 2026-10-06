@@ -12,7 +12,6 @@
 import React, { useMemo, useState } from 'react'
 import Modal from 'react-bootstrap/Modal'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
-import { useAuth } from '../../context/AuthContext'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 
 const FOLLOW_UP_STATUSES = ['Upcoming', 'In Progress', 'Completed']
@@ -98,15 +97,14 @@ function formatDate(dateStr) {
 // Main Component
 // =============================================================================
 function TechnicianFollowUp() {
-  const { user } = useAuth()
   const {
+    technicianID,
     assignedJobs,
     loading,
     error,
     dataAvailable,
     refreshJobs,
   } = useTechnicianWorkflow()
-  const technicianID = user?.technician_ID ?? null
   const hasTechnicianIdentity = technicianID !== null && technicianID !== undefined
   const requestSucceeded = hasTechnicianIdentity && dataAvailable && !error
 

@@ -5,7 +5,7 @@ import JobStatusBadge from './JobStatusBadge'
  * JobRow Component
  * High-polish desktop table row for Assigned Jobs.
  */
-function JobRow({ job, onView, onPrimaryAction, isActionPending = false }) {
+function JobRow({ job, onView, onPrimaryAction, isActionPending = false, actionReadOnly = false }) {
   const normalizedStatus = String(job.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
   const canStart = ['upcoming', 'assigned', 'pending'].includes(normalizedStatus)
   const canContinue = normalizedStatus === 'in progress'
@@ -84,8 +84,9 @@ function JobRow({ job, onView, onPrimaryAction, isActionPending = false }) {
               type="button"
               className="job-primary-action"
               onClick={() => onPrimaryAction(job)}
-              disabled={isActionPending}
+              disabled={isActionPending || actionReadOnly}
               aria-busy={isActionPending}
+              title={actionReadOnly ? 'Status updates require an authenticated Technician session.' : undefined}
             >
               {isActionPending ? 'Updating…' : canContinue ? 'Continue' : 'Start'}
             </button>

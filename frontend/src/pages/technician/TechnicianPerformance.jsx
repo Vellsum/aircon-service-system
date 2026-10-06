@@ -46,7 +46,7 @@ function AvailabilityIcon(props) {
 function TechnicianPerformance() {
   var workflow = useTechnicianWorkflow()
   var { user, token } = useAuth()
-  var technicianID = user?.technician_ID ?? null
+  var technicianID = workflow.technicianID
   var workload = workflow.workload || { assignedJobs: 0, byStatus: { upcoming: 0, inProgress: 0, completed: 0 } }
   var contextLoading = workflow.loading
 
@@ -90,10 +90,11 @@ function TechnicianPerformance() {
     return function () { cancelled = true }
   }, [technicianID, token])
 
+  var currentProfile = profile && String(profile.technicianID) === String(technicianID) ? profile : null
   var displayProfile = {
-    technicianName: profile?.technicianName || user?.username || 'Technician',
-    technicianID: profile?.technicianID ?? technicianID,
-    technicianRating: profile?.technicianRating ?? null,
+    technicianName: currentProfile?.technicianName || user?.username || 'Technician',
+    technicianID: currentProfile?.technicianID ?? technicianID,
+    technicianRating: currentProfile?.technicianRating ?? null,
   }
 
   var hasTechnicianIdentity = displayProfile.technicianID !== null && displayProfile.technicianID !== undefined
