@@ -201,6 +201,31 @@ exports.updateBookingStatus = async (req, res) => {
       validTechId = null;
     }
 
+// 6 Oct 2026 — DOUBLE-BOOKING GUARD
+// A technician cannot hold two bookings at the same date AND time.
+const conflictCheck = await pool.request()
+  .input('techId',    sql.Int,         technicianId)   // the tech being assigned
+  .input('date',      sql.VarChar(10), bookingDate)    // 'YYYY-MM-DD'
+  .input('time',      sql.VarChar(8),  bookingTime)    // 'HH:MM'
+  .input('bookingId', sql.Int,         bookingId)      // booking being assigned
+  .query(`
+    SELECT COUNT(*) AS clashes
+    FROM [new_jobBooking].[Booking]
+    WHERE technician_ID = @techId
+      AND booking_ID <> @bookingId
+      AND CONVERT(VARCHAR(10), [date], 120) = @date
+      AND CONVERT(VARCHAR(5),  [time], 108) = @time
+      AND LOWER([status]) NOT IN ('cancelled')
+  `);
+
+if (conflictCheck.recordset[0].clashes > 0) {
+  return res.status(409).json({
+    success: false,
+    message: 'This technician already has a booking at that exact date and time. Choose a different slot or technician.',
+  });
+}
+
+
     const updateQuery = `
       UPDATE [new_jobBooking].[Booking]
       SET status = ISNULL(@statusVal, status),

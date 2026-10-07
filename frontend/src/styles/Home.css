@@ -9,22 +9,49 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20px;
   padding: 16px 40px;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 5px rgba(11, 21, 38, 0.04);
 }
 
 .site-nav-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 16px;
+  flex: 0 0 auto;
 }
 
-.site-nav-brand span:first-child {
+.site-nav-brand .cool-fix-logo,
+.site-footer-brand .cool-fix-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
   color: var(--accent);
-  font-size: 20px;
+}
+
+.site-nav-brand .cool-fix-logo-mark,
+.site-footer-brand .cool-fix-logo-mark {
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  filter: none;
+}
+
+.site-nav-brand .cool-fix-logo-snow,
+.site-footer-brand .cool-fix-logo-snow {
+  stroke: #c6f3eb;
+}
+
+.site-nav-brand .cool-fix-wordmark,
+.site-footer-brand .cool-fix-wordmark {
+  font-size: 16.8px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.site-nav-brand .cool-fix-wordmark {
+  color: var(--text-primary);
 }
 
 .site-nav-links {
@@ -44,9 +71,32 @@
   color: var(--accent);
 }
 
+.site-nav-links a:focus-visible,
+.site-service-card a:focus-visible,
+.site-footer a:focus-visible,
+.site-hero-actions a:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
 .site-nav-actions {
   display: flex;
   gap: 10px;
+  flex: 0 0 auto;
+}
+
+.site-nav-actions .dash-btn,
+.site-hero-actions .dash-btn,
+.site-cta .dash-btn {
+  min-height: 44px;
+}
+
+#about,
+#services,
+#promotions,
+#contact {
+  scroll-margin-top: 100px;
 }
 
 /* Hero */
@@ -212,6 +262,7 @@
   border-radius: 8px;
   padding: 24px 20px;
   text-align: center;
+  box-shadow: 0 2px 8px rgba(11, 21, 38, 0.04);
 }
 
 .site-service-icon {
@@ -261,6 +312,7 @@
   border-left: 4px solid var(--accent-cyan);
   border-radius: 8px;
   padding: 22px;
+  box-shadow: 0 2px 8px rgba(11, 21, 38, 0.04);
 }
 
 .site-promo-code {
@@ -335,12 +387,11 @@
 }
 
 .site-footer-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #fff;
-  font-weight: 600;
   margin-bottom: 10px;
+}
+
+.site-footer-brand .cool-fix-wordmark {
+  color: #fff;
 }
 
 .site-footer h4 {
@@ -382,12 +433,74 @@
     grid-template-columns: 1fr;
   }
   .site-nav-links {
-    display: none;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 760px) {
+  .site-nav {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  .site-nav-links {
+    order: 3;
+    width: 100%;
+    justify-content: space-between;
+    gap: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .site-nav-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  #about,
+  #services,
+  #promotions,
+  #contact {
+    scroll-margin-top: 130px;
   }
 }
 
 @media (max-width: 560px) {
-  .site-trust,
+  .site-nav {
+    gap: 8px;
+    padding: 12px 16px;
+  }
+  .site-nav-brand .cool-fix-logo-mark {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+  }
+  .site-nav-brand .cool-fix-logo {
+    gap: 7px;
+  }
+  .site-nav-brand .cool-fix-wordmark {
+    font-size: 15px;
+  }
+  .site-nav-actions {
+    gap: 6px;
+  }
+  .site-nav-actions .dash-btn {
+    padding: 8px 10px;
+    font-size: 12.5px;
+  }
+  .site-hero {
+    padding: 64px 20px;
+  }
+  .site-hero-actions {
+    flex-wrap: wrap;
+  }
+  .site-section {
+    padding: 48px 20px;
+  }
+  .site-cta {
+    margin: 0 16px 40px;
+    padding: 40px 20px;
+  }
+  .site-footer {
+    padding: 36px 20px;
+  }
   .site-services,
   .site-promo-grid {
     grid-template-columns: 1fr;

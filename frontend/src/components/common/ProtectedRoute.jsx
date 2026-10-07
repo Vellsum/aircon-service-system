@@ -5,11 +5,25 @@ import { useAuth } from '../../context/AuthContext';
 export default function ProtectedRoute({ allowedRoles = [] }) {
   const { user, initializing } = useAuth();
 
+  // =========================================================
+  // DEVELOPMENT MODE
+  // When running "npm run dev", allow access to all pages
+  // without requiring login, token, backend or Azure SQL.
+  // =========================================================
+  if (import.meta.env.DEV) {
+    return <Outlet />;
+  }
+
+  // =========================================================
+  // NORMAL / PRODUCTION MODE
+  // Keep the real authentication system unchanged.
+  // =========================================================
+
   const token =
     localStorage.getItem('token') ||
     localStorage.getItem('aircon_token');
 
-  // Wait for AuthContext to finish restoring the session
+  // Wait for AuthContext to finish loading
   if (initializing) {
     return null;
   }
@@ -19,14 +33,31 @@ export default function ProtectedRoute({ allowedRoles = [] }) {
     return <Navigate to="/login" replace />;
   }
 
-  const userRole = String(user.role || user.accountType || '').toLowerCase();
-  const normalizedAllowed = allowedRoles.map((r) => String(r).toLowerCase());
+  const userRole = String(
+    user.role || user.accountType || ''
+  ).toLowerCase();
 
-  // Logged in but not authorised → send to their own portal
-  if (normalizedAllowed.length > 0 && !normalizedAllowed.includes(userRole)) {
-    if (userRole === 'admin') return <Navigate to="/admin/dashboard" replace />;
-    if (userRole === 'technician') return <Navigate to="/technician/dashboard" replace />;
-    if (userRole === 'customer') return <Navigate to="/customer/dashboard" replace />;
+  const normalizedAllowed = allowedRoles.map((r) =>
+    String(r).toLowerCase()
+  );
+
+  // Logged in but not authorised
+  if (
+    normalizedAllowed.length > 0 &&
+    !normalizedAllowed.includes(userRole)
+  ) {
+    if (userRole === 'admin') {
+      return <Navigate to="/admin/dashboard" replace />;
+    }
+
+    if (userRole === 'technician') {
+      return <Navigate to="/technician/dashboard" replace />;
+    }
+
+    if (userRole === 'customer') {
+      return <Navigate to="/customer/dashboard" replace />;
+    }
+
     return <Navigate to="/" replace />;
   }
 

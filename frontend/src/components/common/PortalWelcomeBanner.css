@@ -1,0 +1,153 @@
+.portal-welcome-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 26px 28px;
+  margin-bottom: 24px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #0b1526 0%, #16305c 55%, #1478c9 130%);
+  color: #eef2f6;
+}
+
+.portal-welcome-banner::after {
+  content: "❄";
+  position: absolute;
+  right: -10px;
+  top: -20px;
+  font-size: 140px;
+  opacity: 0.08;
+  color: #fff;
+  pointer-events: none;
+}
+
+.portal-welcome-copy,
+.portal-welcome-right {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.portal-welcome-banner h1 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.portal-welcome-banner .portal-welcome-subtitle {
+  margin: 0;
+  font-size: 13.5px;
+  color: rgba(238, 242, 246, 0.75);
+}
+
+.portal-welcome-banner .dash-btn-outline {
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.portal-welcome-banner .dash-btn-outline:hover {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.portal-welcome-eyebrow {
+  margin-bottom: 8px;
+  color: var(--accent-cyan);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.portal-welcome-customer {
+  margin-bottom: 22px;
+}
+
+.portal-welcome-customer::after {
+  content: none;
+}
+
+.portal-welcome-customer h1 {
+  margin-bottom: 8px;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.portal-welcome-customer .portal-welcome-subtitle {
+  max-width: 52ch;
+  color: rgba(238, 242, 246, 0.78);
+}
+
+.technician-dashboard-page .portal-welcome-banner {
+  margin-bottom: 0;
+}
+
+.technician-dashboard-page .portal-welcome-banner h1 {
+  margin: 0.48rem 0 0;
+  font-size: clamp(1.8rem, 2.35vw, 2.3rem);
+  font-weight: 650;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.technician-dashboard-page .portal-welcome-banner .portal-welcome-subtitle {
+  max-width: 640px;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.technician-dashboard-page .portal-welcome-banner .tech-dash-context {
+  color: #a9d9ff;
+}
+
+.technician-dashboard-page .portal-welcome-banner .tech-dash-context-mark,
+.technician-dashboard-page .portal-welcome-banner .tech-dash-date-icon {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
+  color: #eef8ff;
+}
+
+.technician-dashboard-page .portal-welcome-banner .tech-dash-date {
+  border-left-color: rgba(255, 255, 255, 0.22);
+}
+
+.technician-dashboard-page .portal-welcome-banner .tech-dash-date-copy small {
+  color: rgba(238, 242, 246, 0.7);
+}
+
+.technician-dashboard-page .portal-welcome-banner .tech-dash-date-copy strong {
+  color: #fff;
+}
+
+@media (max-width: 900px) {
+  .portal-welcome-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .technician-dashboard-page .portal-welcome-banner .tech-dash-date {
+    min-width: 0;
+    padding: 0.9rem 0 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.22);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .portal-welcome-banner {
+    padding: 22px 20px;
+  }
+
+  .technician-dashboard-page .portal-welcome-banner h1 {
+    font-size: 1.65rem;
+  }
+}
