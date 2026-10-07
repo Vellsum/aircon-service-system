@@ -77,3 +77,5 @@ cd frontend && npm run dev
 git add -Agit commit -m "what you did"
 git push origin your-branch
 Last updated: 6 Oct 2026 — if this file is wrong, fix it and commit.
+
+| Login fails for admin_sarah / tech_* ("Invalid username or password") | DB was built from an older script with placeholder hashes → quick fix: POST to /api/auth/reset-password for each account (see README section 5 for passwords); permanent: pull the latest setup-all-in-one.sql and re-run |
