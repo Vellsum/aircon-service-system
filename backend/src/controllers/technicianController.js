@@ -212,38 +212,42 @@ const updateJobStatus = async (req, res) => {
       }
     }
 
-    /* -------------------------------------------------------------------------
-     * (b) REPORT GATE — cannot complete without a service report on every
-     *     job linked to this booking. Checks both link styles that exist in
-     *     the schema: job.serviceReport FK, and serviceReport.job_id column.
+        /* -------------------------------------------------------------------------
+     * (b) REPORT GATE v2 — 6 Oct 2026.
+     * submitReport saves reports with serviceReport.job_ID = booking_ID,
+     * so the gate checks that link DIRECTLY, plus both legacy styles:
+     * serviceReport.job_id → job → work → booking, and job.serviceReport FK.
+     * Logs pass/reject to the terminal so failures are never invisible.
      * ---------------------------------------------------------------------- */
     if (newStatus.toLowerCase() === 'completed') {
       const check = await pool.request()
         .input('bookingId', sql.Int, Number(bookingId))
         .query(`
-          SELECT
-            j.job_ID,
-            j.serviceReport,
-            (SELECT TOP (1) sr.reportID
-               FROM [new_jobBooking].[serviceReport] sr
-              WHERE sr.job_id = j.job_ID) AS reportByJobColumn
-          FROM [new_jobBooking].[work] w
-          JOIN [new_jobBooking].[job] j ON j.job_ID = w.job_ID
-          WHERE w.booking_ID = @bookingId
+          SELECT TOP 1 reportID
+          FROM [new_jobBooking].[serviceReport]
+          WHERE job_ID = @bookingId
+             OR job_ID IN (
+                  SELECT j.job_ID
+                  FROM [new_jobBooking].[work] w
+                  JOIN [new_jobBooking].[job] j ON j.job_ID = w.job_ID
+                  WHERE w.booking_ID = @bookingId
+                )
+             OR reportID IN (
+                  SELECT j.serviceReport
+                  FROM [new_jobBooking].[work] w
+                  JOIN [new_jobBooking].[job] j ON j.job_ID = w.job_ID
+                  WHERE w.booking_ID = @bookingId AND j.serviceReport IS NOT NULL
+                )
         `);
 
-      const linkedJobs = check.recordset || [];
-      if (linkedJobs.length === 0) {
-        return res.status(400).json({ success: false, message: 'No job is linked to this booking.' });
-      }
-
-      const missingReports = linkedJobs.filter((j) => !j.serviceReport && !j.reportByJobColumn);
-      if (missingReports.length > 0) {
+      if (check.recordset.length === 0) {
+        console.error(`[Cool Fix] REPORT GATE rejected booking #${bookingId}: no report found.`);
         return res.status(400).json({
           success: false,
           message: 'A service report must be submitted BEFORE completing this job. Submit the report first, then mark it completed.',
         });
       }
+      console.log(`[Cool Fix] REPORT GATE passed for booking #${bookingId} (report #${check.recordset[0].reportID}).`);
     }
 
     const updateQuery = `

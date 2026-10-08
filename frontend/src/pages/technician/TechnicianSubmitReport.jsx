@@ -1,19 +1,19 @@
 // =============================================================================
 // TechnicianSubmitReport.jsx
-// Updated: 6 Oct 2026 — slimmed + flow fix
-//   1. [FLOW FIX] Jobs eligible for reporting are now 'In Progress' and
-//      'Completed' (was effectively Completed-only via context's reportableJobs).
-//      This unblocks the required flow: Start → submit report → Complete.
-//   2. [FIX] Inventory items are fetched from /api/admin/inventory. The old
-//      require() of technicianSelectors never worked under Vite (ESM), so the
-//      materials table silently had no items.
-//   3. [TRIM] Draft save/load simplified (~150 lines → ~15). Same storage key;
-//      old drafts are discarded safely if they don't match the new shape.
-//   4. Payload shape UNCHANGED — backend already accepts it.
+// Updated: 6 Oct 2026 (final) — report timing rule: In Progress ONLY
+//   1. [RULE] Reports can only be submitted while the job is In Progress —
+//      never after completion. Enforced here AND in the backend
+//      (technicianReportController rejects non-In-Progress bookings).
+//      Flow: Start → submit report (In Progress) → Complete.
+//   2. [FIX] Inventory items fetched from /api/admin/inventory (the old
+//      require() of technicianSelectors never worked under Vite/ESM).
+//   3. [DEEP LINK] /technician/submit-report?job=<bookingId> pre-selects the
+//      job — used by the dashboard's "Submit report now" banner shortcut.
+//   4. [TRIM] Draft save/load simplified; payload shape UNCHANGED.
 // =============================================================================
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Modal from 'react-bootstrap/Modal'
 
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
@@ -65,7 +65,6 @@ function createInitialReport() {
 function loadLocalDraft() {
   try {
     const saved = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) || 'null')
-    // Shallow-merge a saved draft over defaults; arrays/objects must be the right type
     if (!saved || typeof saved !== 'object') return createInitialReport()
     const base = createInitialReport()
     const merged = { ...base }
@@ -89,7 +88,7 @@ function calculateMaterialsTotal(materials) {
   }, 0)
 }
 
-// Payload — 6 Oct 2026: shape UNCHANGED (backend accepts this)
+// Payload — shape UNCHANGED (backend accepts this)
 function buildReportPayload(report, selectedJob, inventoryById) {
   return {
     job_ID: selectedJob?.job_ID || selectedJob?.id || report.selectedJobId,
@@ -156,9 +155,10 @@ function ReportMultiSelectField({ name, legend, options, values, error, onToggle
 // =============================================================================
 function TechnicianSubmitReport() {
   const navigate = useNavigate()
-  // 6 Oct 2026 [FLOW FIX]: use assignedJobs and filter HERE — In Progress jobs
-  // are the normal moment to write the report (required before Complete).
-  const { assignedJobs } = useTechnicianWorkflow()
+  const { assignedJobs, refreshJobs } = useTechnicianWorkflow()
+  const [searchParams] = useSearchParams()
+  // 6 Oct 2026: deep link from the dashboard banner, e.g. /technician/submit-report?job=1012
+  const presetJobId = Number(searchParams.get('job')) || null
 
   const [report, setReport] = useState(loadLocalDraft)
   const [errors, setErrors] = useState({})
@@ -177,7 +177,6 @@ function TechnicianSubmitReport() {
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         })
         const data = await res.json()
-        // Accept { items: [...] } or a raw array, depending on the endpoint
         const rows = Array.isArray(data) ? data : (data.items || data.inventory || [])
         if (alive && Array.isArray(rows)) {
           setInventoryItems(rows.map((r) => ({
@@ -192,11 +191,19 @@ function TechnicianSubmitReport() {
   }, [])
   const inventoryById = useMemo(() => new Map(inventoryItems.map((i) => [i.itemID, i])), [inventoryItems])
 
-  // 6 Oct 2026: THE eligibility rule — In Progress first, Completed allowed (late reports)
+  // 6 Oct 2026: In Progress ONLY — reports cannot be submitted after completion
+  // (backend rejects it too). The report must exist BEFORE the Complete click.
   const reportableJobs = useMemo(
-    () => assignedJobs.filter((job) => ['In Progress', 'Completed'].includes(job.status)),
+    () => assignedJobs.filter((job) => job.status === 'In Progress'),
     [assignedJobs],
   )
+
+  // Pre-select the job passed in the URL once jobs are loaded
+  useEffect(() => {
+    if (!presetJobId) return
+    const match = reportableJobs.find((j) => j.job_ID === presetJobId)
+    if (match) setReport((r) => ({ ...r, selectedJobId: match.id }))
+  }, [presetJobId, reportableJobs])
 
   const selectedJob = useMemo(
     () => reportableJobs.find((job) => job.id === report.selectedJobId) || null,
@@ -303,7 +310,8 @@ function TechnicianSubmitReport() {
       }
       const result = await response.json()
       localStorage.removeItem(DRAFT_STORAGE_KEY)
-      setNotice({ type: 'success', message: `Service report submitted successfully. Report ID: ${result.report_ID || 'N/A'}` })
+      refreshJobs() // refresh the assigned jobs list after submission
+      setNotice({ type: 'success', message: `Service report submitted successfully. Report ID: ${result.report_ID || 'N/A'} — you can now mark the job as completed.` })
       window.scrollTo({ top: 0, behavior: 'smooth' })
       setTimeout(() => navigate('/technician/assigned-jobs'), 2000)
     } catch (error) {
@@ -328,7 +336,8 @@ function TechnicianSubmitReport() {
           <h1>Submit Service Report</h1>
           <p>
             Record service outcomes, checks performed, materials used, and customer acknowledgement.
-            Reports are submitted while the job is <strong>In Progress</strong> — required before it can be completed.
+            Reports are submitted while the job is <strong>In Progress</strong> — required before it can be completed,
+            and not possible after.
           </p>
         </div>
         <div className="cf-report-progress" aria-label="Service report workflow">
@@ -356,17 +365,17 @@ function TechnicianSubmitReport() {
                 <div>
                   <span className="cf-card-step">01</span>
                   <h3 id="job-selection-title">Job Selection</h3>
-                  <p>Choose the In Progress assignment this report belongs to (Completed jobs also listed for late reports).</p>
+                  {/* 6 Oct 2026: copy matches the In-Progress-only rule */}
+                  <p>Choose the In Progress assignment this report belongs to. Reports cannot be submitted after completion.</p>
                 </div>
-                {/* 6 Oct 2026: badge now reflects the real rule */}
                 <span className="report-eligibility-badge">
-                  <span aria-hidden="true" /> In Progress &amp; Completed jobs
+                  <span aria-hidden="true" /> In Progress jobs only
                 </span>
               </div>
               <div className="report-job-selector-block">
                 <div className="report-field">
                   <label className="report-label" htmlFor="assigned-job">
-                    Select Job <span aria-hidden="true">*</span>
+                    Select In Progress Job <span aria-hidden="true">*</span>
                   </label>
                   <select
                     id="assigned-job"
@@ -379,10 +388,16 @@ function TechnicianSubmitReport() {
                     <option value="">Choose a job</option>
                     {reportableJobs.map((job) => (
                       <option value={job.id} key={job.id}>
-                        {job.id} · {job.status} · {job.customerName} · {job.serviceType} · {job.formattedDate}
+                        {job.id} · {job.customerName} · {job.serviceType} · {job.formattedDate} · {job.time}
                       </option>
                     ))}
                   </select>
+                  {/* 6 Oct 2026: helpful hint when nothing is In Progress */}
+                  {reportableJobs.length === 0 && !errors.selectedJobId && (
+                    <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+                      No In Progress jobs right now — start a job from Assigned Jobs first, then come back to write its report.
+                    </p>
+                  )}
                   {errors.selectedJobId && (
                     <span className="report-field-error" id="assigned-job-error">{errors.selectedJobId}</span>
                   )}

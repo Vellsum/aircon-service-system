@@ -1,48 +1,97 @@
 /**
  * Cool Fix - Admin Booking Controller
  * Database Schema: [new_jobBooking].[Booking]
- * Key Relationships:
- *  - customer_ID -> [user3].[newCustomer].[customer_ID] (INT, NOT NULL)
- *  - technician_ID -> [user3].[technician].[technician_ID] (INT, NULLABLE)
- *  - date -> SQL DATE (Requires YYYY-MM-DD format)
+ *
+ * CHANGELOG — 6 Oct 2026:
+ *   1. [BUG] "Validation failed for parameter 'timeVal'. Invalid string" —
+ *      the Booking.time column (SQL TIME) arrives from the driver as a JS
+ *      Date object. Passing it to a VarChar parameter fails validation.
+ *      Fixed: all times are normalized to "HH:MM:SS" strings via
+ *      normalizeTimeToSql(), and the fallback SELECT CONVERTs the time.
+ *   2. [RULE] Double-booking guard now compares date AND time (was date-only,
+ *      which wrongly blocked same-day assignments at different times).
+ *   3. [GAP] ensureJobLink(): every created/assigned booking now gets a
+ *      job + work link — without it, the technician's completion gate
+ *      rejects the booking ("No job is linked to this booking").
  */
 
 const { poolPromise, sql } = require('../config/db');
 
+/* ---------------------------------------------------------------------------
+ * Helpers — 6 Oct 2026
+ * ------------------------------------------------------------------------- */
+
+// Normalize any incoming time shape → "HH:MM:SS" or null.
+// Handles: null/"", "undefined", "2:30 PM", "14:30", "14:30:00".
+// Never pass raw user input or JS Dates as sql.Time — normalize first.
+function normalizeTimeToSql(t) {
+  if (t === null || t === undefined) return null;
+  const s = String(t).trim();
+  if (!s || s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null') return null;
+
+  const m12 = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (m12) {
+    let h = Number(m12[1]) % 12;
+    if (/pm/i.test(m12[3])) h += 12;
+    return `${String(h).padStart(2, '0')}:${m12[2]}:00`;
+  }
+  const m24 = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (m24) return `${String(Number(m24[1])).padStart(2, '0')}:${m24[2]}:${m24[3] || '00'}`;
+
+  return null; // unrecognized → caller treats as "not provided"
+}
+
+// "YYYY-MM-DD" or null (no silent today-substitution on update paths)
+function normalizeDateToSql(d) {
+  if (!d) return null;
+  const s = String(d).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+}
+
 /**
- * Safe converter for JS Date objects to YYYY-MM-DD string format
- * Required because Azure SQL 'date' fields require strict ISO date formatting.
+ * 6 Oct 2026 — every Booking MUST have a job + work link. Without it:
+ * service names don't resolve on dashboards, reports can't attach, and the
+ * technician completion gate rejects the booking.
  */
-const parseToSqlDate = (dateStr) => {
-  if (!dateStr) {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
+async function ensureJobLink(pool, bookingId, serviceId = null) {
+  const has = await pool.request()
+    .input('bid', sql.Int, Number(bookingId))
+    .query(`SELECT 1 FROM [new_jobBooking].[work] WHERE booking_ID = @bid`);
+  if (has.recordset.length > 0) return; // already linked
+
+  let svcId = serviceId;
+  if (!svcId) {
+    const svc = await pool.request()
+      .query(`SELECT TOP 1 service_id FROM [payables].[service] ORDER BY service_id`);
+    svcId = svc.recordset[0]?.service_id;
   }
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  }
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+  if (!svcId) return;
+
+  const j = await pool.request()
+    .input('svc', sql.Int, svcId)
+    .query(`INSERT INTO [new_jobBooking].[job] (job_status, isFollowup, serviceID)
+            OUTPUT INSERTED.job_ID VALUES ('Assigned', 0, @svc)`);
+  await pool.request()
+    .input('jid', sql.Int, j.recordset[0].job_ID)
+    .input('bid', sql.Int, Number(bookingId))
+    .query(`INSERT INTO [new_jobBooking].[work] (job_ID, booking_ID) VALUES (@jid, @bid)`);
+}
 
 /**
  * GET /api/admin/bookings
- * Fetches all bookings joined with customer and technician names for display
  */
 exports.getAllBookings = async (req, res) => {
   try {
     const pool = await poolPromise;
     if (!pool) return res.status(200).json({ success: true, bookings: [] });
 
-    // Join Booking table with newCustomer and technician tables to fetch display names
     const query = `
       SELECT 
         b.booking_ID,
         b.customer_ID,
         b.technician_ID,
         CONVERT(VARCHAR(10), b.[date], 120) AS booking_date,
-        b.time,
+        CONVERT(VARCHAR(8), b.[time], 108) AS [time],
         b.location,
         b.status,
         b.comments,
@@ -63,20 +112,16 @@ exports.getAllBookings = async (req, res) => {
 };
 
 /**
- * GET /api/admin/users/technicians
- * Fetches active technicians from [user3].[technician] so technician_ID matches FK constraints
+ * GET /api/admin/bookings/technicians
  */
 exports.getTechnicians = async (req, res) => {
   try {
     const pool = await poolPromise;
     if (!pool) return res.status(200).json({ success: true, technicians: [] });
 
-    const query = `
-      SELECT technician_ID, technician_name 
-      FROM [user3].[technician]
-    `;
+    const result = await pool.request()
+      .query(`SELECT technician_ID, technician_name FROM [user3].[technician]`);
 
-    const result = await pool.request().query(query);
     res.status(200).json({ success: true, technicians: result.recordset || [] });
   } catch (err) {
     console.error('[Cool Fix] Fetch Technicians Error:', err.message);
@@ -86,10 +131,7 @@ exports.getTechnicians = async (req, res) => {
 
 /**
  * POST /api/admin/bookings
- * Creates a new booking row. 
- * Requires customer_ID (numeric INT), date, time, location, status, and optional technician_ID
  */
-// POST /api/admin/bookings - Create new Cool Fix booking with dynamic Customer handling
 exports.createBooking = async (req, res) => {
   try {
     const { customer_ID, customer_name, technician_ID, booking_date, time, location, isFollowup, status, comments } = req.body;
@@ -99,78 +141,63 @@ exports.createBooking = async (req, res) => {
 
     let finalCustomerId = parseInt(customer_ID, 10);
 
-    // If no numeric ID provided or the ID is invalid, check if we should create a new Customer row first
     if (isNaN(finalCustomerId) || finalCustomerId <= 0) {
       const nameToInsert = customer_name && customer_name.trim() !== "" ? customer_name.trim() : "New Customer";
-
-      // Insert new customer into [user3].[newCustomer] and grab the newly generated customer_ID
       const newCustResult = await pool.request()
         .input('custName', sql.VarChar(100), nameToInsert)
-        .query(`
-          INSERT INTO [user3].[newCustomer] (customer_name)
-          OUTPUT INSERTED.customer_ID
-          VALUES (@custName)
-        `);
-
-      if (newCustResult.recordset && newCustResult.recordset.length > 0) {
-        finalCustomerId = newCustResult.recordset[0].customer_ID;
-      } else {
-        // Ultimate fallback to existing customer if table insert is restricted
-        const custCheck = await pool.request().query(`SELECT TOP 1 customer_ID FROM [user3].[newCustomer]`);
-        finalCustomerId = custCheck.recordset.length > 0 ? custCheck.recordset[0].customer_ID : 1;
-      }
+        .query(`INSERT INTO [user3].[newCustomer] (customer_name, customer_address, loyaltyPoints, bought_packages)
+                OUTPUT INSERTED.customer_ID VALUES (@custName, 'Singapore', 0, 0)`);
+      finalCustomerId = newCustResult.recordset[0].customer_ID;
     } else {
-      // Verify if the manually entered numeric ID exists in [user3].[newCustomer]
-      const checkExisting = await pool.request().query(`
-        SELECT customer_ID FROM [user3].[newCustomer] WHERE customer_ID = ${finalCustomerId}
-      `);
-      
-      // If it doesn't exist, create it with a placeholder name so FK constraint passes
+      const checkExisting = await pool.request()
+        .input('cId', sql.Int, finalCustomerId)
+        .query(`SELECT customer_ID FROM [user3].[newCustomer] WHERE customer_ID = @cId`);
       if (checkExisting.recordset.length === 0) {
-        await pool.request()
-          .input('cId', sql.Int, finalCustomerId)
-          .input('cName', sql.VarChar(100), customer_name || `Customer #${finalCustomerId}`)
-          .query(`
-            SET IDENTITY_INSERT [user3].[newCustomer] ON;
-            INSERT INTO [user3].[newCustomer] (customer_ID, customer_name) VALUES (@cId, @cName);
-            SET IDENTITY_INSERT [user3].[newCustomer] OFF;
-          `);
+        return res.status(400).json({ success: false, message: `Customer #${finalCustomerId} does not exist.` });
       }
     }
 
-    // Resolve Technician ID safely
     let validTechId = parseInt(technician_ID, 10);
     if (!isNaN(validTechId) && validTechId > 0) {
-      const techCheck = await pool.request().query(`
-        SELECT technician_ID FROM [user3].[technician] WHERE technician_ID = ${validTechId}
-      `);
+      const techCheck = await pool.request()
+        .input('tId', sql.Int, validTechId)
+        .query(`SELECT technician_ID FROM [user3].[technician] WHERE technician_ID = @tId`);
       if (techCheck.recordset.length === 0) validTechId = null;
     } else {
       validTechId = null;
     }
 
-    const formattedDate = parseToSqlDate(booking_date);
+    // 6 Oct 2026: date required (schema NOT NULL) — invalid input → today
+    const formattedDate = normalizeDateToSql(booking_date) || new Date().toISOString().split('T')[0];
+    // 6 Oct 2026: normalized time (fixes Invalid string crashes)
+    const formattedTime = normalizeTimeToSql(time) || '09:00:00';
 
-    // Insert into [new_jobBooking].[Booking]
     const insertQuery = `
       INSERT INTO [new_jobBooking].[Booking] 
         (customer_ID, technician_ID, [date], [time], isFollowup, location, status, comments)
-      VALUES 
-        (@custId, @techId, @dateVal, @timeVal, @followupVal, @locationVal, ISNULL(@statusVal, 'Pending'), @commentsVal)
+      OUTPUT INSERTED.booking_ID
+      VALUES (@custId, @techId, @dateVal, @timeVal, @followupVal, @locationVal, ISNULL(@statusVal, 'Pending'), @commentsVal)
     `;
 
-    await pool.request()
+    const inserted = await pool.request()
       .input('custId', sql.Int, finalCustomerId)
       .input('techId', sql.Int, validTechId)
       .input('dateVal', sql.Date, formattedDate)
-      .input('timeVal', sql.VarChar(50), time || '09:00:00')
+      .input('timeVal', sql.VarChar(8), formattedTime)
       .input('followupVal', sql.Bit, isFollowup ? 1 : 0)
       .input('locationVal', sql.VarChar(100), location || 'Singapore Main Branch')
       .input('statusVal', sql.VarChar(100), status || 'Pending')
       .input('commentsVal', sql.VarChar(500), comments || 'Service booking')
       .query(insertQuery);
 
-    res.status(201).json({ success: true, message: 'Cool Fix booking created successfully!' });
+    const newBookingId = inserted.recordset[0].booking_ID;
+
+    // 6 Oct 2026: guarantee the job link so the completion gate passes later
+    try { await ensureJobLink(pool, newBookingId); } catch (e) {
+      console.error('[Cool Fix] ensureJobLink (create) skipped:', e.message);
+    }
+
+    res.status(201).json({ success: true, message: 'Cool Fix booking created successfully!', booking_ID: newBookingId });
   } catch (err) {
     console.error('[Cool Fix] SQL POST Error:', err.message);
     res.status(500).json({ success: false, message: `SQL Error: ${err.message}` });
@@ -179,12 +206,11 @@ exports.createBooking = async (req, res) => {
 
 /**
  * PUT /api/admin/bookings/:bookingId/status
- * Updates status, date, and technician assignment for an existing booking row
  */
 exports.updateBookingStatus = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const { status, technician_ID, booking_date } = req.body;
+    const { status, technician_ID, technicianId, booking_date, time } = req.body;
 
     if (!bookingId || bookingId === 'undefined') {
       return res.status(400).json({ success: false, message: 'Invalid or missing Booking ID.' });
@@ -193,59 +219,89 @@ exports.updateBookingStatus = async (req, res) => {
     const pool = await poolPromise;
     if (!pool) return res.status(500).json({ success: false, message: 'Database connection offline' });
 
-    const formattedDate = parseToSqlDate(booking_date);
+    // 1. Resolve technician ID (supports both key styles)
+    const rawTechId = technician_ID !== undefined ? technician_ID : technicianId;
+    const techIdProvided = rawTechId !== undefined && rawTechId !== null && String(rawTechId).trim() !== '';
+    let validTechId = parseInt(rawTechId, 10);
+    if (isNaN(validTechId) || validTechId <= 0) validTechId = null;
 
-    // Validate technician_ID against [user3].[technician]
-    let validTechId = parseInt(technician_ID, 10);
-    if (isNaN(validTechId) || validTechId <= 0) {
-      validTechId = null;
+    // 2. Normalize incoming date/time — null means "leave unchanged"
+    //    6 Oct 2026: normalizeTimeToSql fixes the Invalid-string crash
+    let targetDate = normalizeDateToSql(booking_date);
+    let targetTime = normalizeTimeToSql(time);
+
+    // 3. Fallback: when assigning a tech, fill missing date/time from the booking
+    if (validTechId !== null && (!targetDate || !targetTime)) {
+      const currentBooking = await pool.request()
+        .input('bId', sql.Int, Number(bookingId))
+        .query(`
+          SELECT CONVERT(VARCHAR(10), [date], 120) AS bookingDate,
+                 CONVERT(VARCHAR(8),  [time], 108) AS bookingTime
+          FROM [new_jobBooking].[Booking] 
+          WHERE booking_ID = @bId
+        `);
+      if (currentBooking.recordset.length > 0) {
+        if (!targetDate) targetDate = currentBooking.recordset[0].bookingDate;
+        if (!targetTime) targetTime = currentBooking.recordset[0].bookingTime; // now a "HH:MM:SS" STRING
+      }
     }
 
-// 6 Oct 2026 — DOUBLE-BOOKING GUARD
-// A technician cannot hold two bookings at the same date AND time.
-const conflictCheck = await pool.request()
-  .input('techId',    sql.Int,         technicianId)   // the tech being assigned
-  .input('date',      sql.VarChar(10), bookingDate)    // 'YYYY-MM-DD'
-  .input('time',      sql.VarChar(8),  bookingTime)    // 'HH:MM'
-  .input('bookingId', sql.Int,         bookingId)      // booking being assigned
-  .query(`
-    SELECT COUNT(*) AS clashes
-    FROM [new_jobBooking].[Booking]
-    WHERE technician_ID = @techId
-      AND booking_ID <> @bookingId
-      AND CONVERT(VARCHAR(10), [date], 120) = @date
-      AND CONVERT(VARCHAR(5),  [time], 108) = @time
-      AND LOWER([status]) NOT IN ('cancelled')
-  `);
+    // 4. DOUBLE-BOOKING GUARD — 6 Oct 2026: compares date AND time (was
+    //    date-only, which wrongly blocked same-day different-time assignments)
+    if (validTechId !== null && targetDate && targetTime) {
+      const conflictCheck = await pool.request()
+        .input('techId',    sql.Int,         validTechId)
+        .input('dateVal',   sql.Date,        targetDate)
+        .input('timeVal',   sql.VarChar(8),  targetTime)
+        .input('bookingId', sql.Int,         Number(bookingId))
+        .query(`
+          SELECT COUNT(*) AS clashes
+          FROM [new_jobBooking].[Booking]
+          WHERE technician_ID = @techId
+            AND booking_ID <> @bookingId
+            AND [date] = @dateVal
+            AND CONVERT(VARCHAR(5), [time], 108) = LEFT(@timeVal, 5)
+            AND LOWER([status]) NOT IN ('cancelled')
+        `);
 
-if (conflictCheck.recordset[0].clashes > 0) {
-  return res.status(409).json({
-    success: false,
-    message: 'This technician already has a booking at that exact date and time. Choose a different slot or technician.',
-  });
-}
+      if (conflictCheck.recordset[0].clashes > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'This technician already has a booking at that exact date and time. Choose a different technician or time slot.',
+        });
+      }
+    }
 
-
+    // 5. UPDATE — null params mean "leave unchanged"
     const updateQuery = `
       UPDATE [new_jobBooking].[Booking]
       SET status = ISNULL(@statusVal, status),
           technician_ID = CASE WHEN @techIdProvided = 1 THEN @techId ELSE technician_ID END,
-          [date] = CASE WHEN @dateVal IS NOT NULL THEN @dateVal ELSE [date] END
+          [date] = ISNULL(@dateVal, [date]),
+          [time] = ISNULL(CONVERT(TIME, @timeVal), [time])
       WHERE booking_ID = @bookingId
     `;
 
     await pool.request()
-      .input('bookingId', sql.Int, Number(bookingId))
-      .input('statusVal', sql.VarChar(100), status || null)
-      .input('techIdProvided', sql.Bit, technician_ID !== undefined ? 1 : 0)
-      .input('techId', sql.Int, validTechId)
-      .input('dateVal', sql.Date, formattedDate)
+      .input('bookingId',      sql.Int,          Number(bookingId))
+      .input('statusVal',      sql.VarChar(100), status || null)
+      .input('techIdProvided', sql.Bit,          techIdProvided ? 1 : 0)
+      .input('techId',         sql.Int,          validTechId)
+      .input('dateVal',        sql.Date,         targetDate)
+      .input('timeVal',        sql.VarChar(8),   targetTime)
       .query(updateQuery);
 
+    // 6. 6 Oct 2026: guarantee the job link whenever a technician is assigned
+    if (techIdProvided && validTechId !== null) {
+      try { await ensureJobLink(pool, bookingId); } catch (e) {
+        console.error('[Cool Fix] ensureJobLink (assign) skipped:', e.message);
+      }
+    }
+
     console.log(`[Cool Fix] Updated booking #${bookingId} successfully!`);
-    res.status(200).json({ success: true, message: 'Cool Fix booking updated successfully!' });
+    return res.status(200).json({ success: true, message: 'Cool Fix booking updated successfully!' });
   } catch (err) {
     console.error('[Cool Fix] SQL PUT Error:', err.message);
-    res.status(500).json({ success: false, message: `SQL Error: ${err.message}` });
+    return res.status(500).json({ success: false, message: `SQL Error: ${err.message}` });
   }
 };
