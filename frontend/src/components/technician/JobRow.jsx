@@ -1,14 +1,27 @@
+// =============================================================================
+// JobRow.jsx — desktop table row for Assigned Jobs
+// Updated: 6 Oct 2026
+//   • Start button is now date/time-aware via utils/jobSchedule.evaluateJobStart.
+//     Future-dated (or later-today) jobs render a disabled 🔒 button showing
+//     when Start unlocks, instead of a clickable Start that then gets rejected
+//     by the backend. The backend enforces the same rule independently.
+//   • "canStart" now includes 'scheduled' (a real DB status that was missing —
+//     admin-assigned bookings use it, and previously got no action button).
+// =============================================================================
 import React from 'react'
 import JobStatusBadge from './JobStatusBadge'
+import { evaluateJobStart } from '../../utils/jobSchedule' // 6 Oct 2026
 
-/**
- * JobRow Component
- * High-polish desktop table row for Assigned Jobs.
- */
 function JobRow({ job, onView, onPrimaryAction, isActionPending = false, actionReadOnly = false }) {
   const normalizedStatus = String(job.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
-  const canStart = ['upcoming', 'assigned', 'pending'].includes(normalizedStatus)
+  // 6 Oct 2026: added 'scheduled' — bookings assigned by admin use this status
+  const canStart = ['upcoming', 'assigned', 'pending', 'scheduled'].includes(normalizedStatus)
   const canContinue = normalizedStatus === 'in progress'
+
+  // 6 Oct 2026 — date/time gate: decides whether Start is clickable
+  const gate = evaluateJobStart(job)
+  const startLocked = canStart && !gate.allowed
+
   const initials = job.customerName
     ? job.customerName
         .split(' ')
@@ -79,7 +92,7 @@ function JobRow({ job, onView, onPrimaryAction, isActionPending = false, actionR
       {/* ACTIONS */}
       <td className="text-end pe-4">
         <div className="job-row-actions">
-          {(canStart || canContinue) && (
+          {canContinue && (
             <button
               type="button"
               className="job-primary-action"
@@ -88,7 +101,32 @@ function JobRow({ job, onView, onPrimaryAction, isActionPending = false, actionR
               aria-busy={isActionPending}
               title={actionReadOnly ? 'Status updates require an authenticated Technician session.' : undefined}
             >
-              {isActionPending ? 'Updating…' : canContinue ? 'Continue' : 'Start'}
+              {isActionPending ? 'Updating…' : 'Continue'}
+            </button>
+          )}
+          {/* 6 Oct 2026 — locked Start for future/later-today jobs */}
+          {startLocked && (
+            <button
+              type="button"
+              className="job-primary-action"
+              disabled
+              style={{ opacity: 0.55, cursor: 'not-allowed' }}
+              title={`This job is ${gate.reason} — Start unlocks then.`}
+            >
+              🔒 Starts {gate.reason.replace('scheduled for ', '')}
+            </button>
+          )}
+          {/* Active Start — only when the gate allows it */}
+          {canStart && gate.allowed && (
+            <button
+              type="button"
+              className="job-primary-action"
+              onClick={() => onPrimaryAction(job)}
+              disabled={isActionPending || actionReadOnly}
+              aria-busy={isActionPending}
+              title={actionReadOnly ? 'Status updates require an authenticated Technician session.' : undefined}
+            >
+              {isActionPending ? 'Updating…' : 'Start'}
             </button>
           )}
           <button
