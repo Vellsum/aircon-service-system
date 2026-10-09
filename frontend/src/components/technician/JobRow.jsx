@@ -1,11 +1,27 @@
+// =============================================================================
+// JobRow.jsx — desktop table row for Assigned Jobs
+// Updated: 6 Oct 2026
+//   • Start button is now date/time-aware via utils/jobSchedule.evaluateJobStart.
+//     Future-dated (or later-today) jobs render a disabled 🔒 button showing
+//     when Start unlocks, instead of a clickable Start that then gets rejected
+//     by the backend. The backend enforces the same rule independently.
+//   • "canStart" now includes 'scheduled' (a real DB status that was missing —
+//     admin-assigned bookings use it, and previously got no action button).
+// =============================================================================
 import React from 'react'
 import JobStatusBadge from './JobStatusBadge'
+import { evaluateJobStart } from '../../utils/jobSchedule' // 6 Oct 2026
 
-/**
- * JobRow Component
- * High-polish desktop table row for Assigned Jobs.
- */
-function JobRow({ job, onView, onPrimaryAction }) {
+function JobRow({ job, onView, onPrimaryAction, isActionPending = false, actionReadOnly = false }) {
+  const normalizedStatus = String(job.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
+  // 6 Oct 2026: added 'scheduled' — bookings assigned by admin use this status
+  const canStart = ['upcoming', 'assigned', 'pending', 'scheduled'].includes(normalizedStatus)
+  const canContinue = normalizedStatus === 'in progress'
+
+  // 6 Oct 2026 — date/time gate: decides whether Start is clickable
+  const gate = evaluateJobStart(job)
+  const startLocked = canStart && !gate.allowed
+
   const initials = job.customerName
     ? job.customerName
         .split(' ')
@@ -13,13 +29,13 @@ function JobRow({ job, onView, onPrimaryAction }) {
         .join('')
         .slice(0, 2)
         .toUpperCase()
-    : 'CU'
+    : '—'
 
   return (
     <tr className="job-table-row align-middle">
       {/* JOB ID */}
       <td className="ps-4">
-        <span className="job-id-chip">{job.id}</span>
+        <span className="job-id-chip">{job.id || 'Booking unavailable'}</span>
       </td>
 
       {/* CUSTOMER */}
@@ -29,14 +45,14 @@ function JobRow({ job, onView, onPrimaryAction }) {
             {initials}
           </div>
           <div>
-            <div className="fw-bold text-dark">{job.customerName}</div>
+            <div className="fw-bold text-dark">{job.customerName || 'Customer unavailable'}</div>
             <div className="text-muted small d-flex align-items-center gap-1 mt-0.5">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                 <circle cx="12" cy="10" r="3"/>
               </svg>
               <span className="text-truncate" style={{ maxWidth: '190px' }}>
-                {job.address}
+                {job.address || 'Location unavailable'}
               </span>
             </div>
           </div>
@@ -46,27 +62,25 @@ function JobRow({ job, onView, onPrimaryAction }) {
       {/* SERVICE & EQUIPMENT */}
       <td>
         <div className="d-flex align-items-center gap-2 mb-1">
-          <span className="fw-semibold text-dark">{job.serviceType}</span>
+          <span className="fw-semibold text-dark">{job.serviceType || 'Service unavailable'}</span>
           {job.serviceCategory && (
             <span className="service-category-tag">{job.serviceCategory}</span>
           )}
         </div>
-        {job.unitType && (
-          <div className="text-muted small text-truncate" style={{ maxWidth: '240px' }}>
-            {job.unitType}
-          </div>
-        )}
+        <div className="text-muted small text-truncate" style={{ maxWidth: '240px' }}>
+          {job.unitType || 'Equipment unavailable'}
+        </div>
       </td>
 
       {/* DATE & TIME */}
       <td>
-        <div className="text-dark fw-semibold">{job.formattedDate}</div>
+        <div className="text-dark fw-semibold">{job.formattedDate || '—'}</div>
         <div className="text-muted small d-flex align-items-center gap-1 mt-0.5">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 14 14"/>
           </svg>
-          <span>{job.time}</span>
+          <span>{job.time || '—'}</span>
         </div>
       </td>
 
@@ -78,20 +92,48 @@ function JobRow({ job, onView, onPrimaryAction }) {
       {/* ACTIONS */}
       <td className="text-end pe-4">
         <div className="job-row-actions">
-          {job.status !== 'Completed' && (
+          {canContinue && (
             <button
               type="button"
               className="job-primary-action"
               onClick={() => onPrimaryAction(job)}
+              disabled={isActionPending || actionReadOnly}
+              aria-busy={isActionPending}
+              title={actionReadOnly ? 'Status updates require an authenticated Technician session.' : undefined}
             >
-              {job.status === 'In Progress' ? 'Continue' : 'Start'}
+              {isActionPending ? 'Updating…' : 'Continue'}
+            </button>
+          )}
+          {/* 6 Oct 2026 — locked Start for future/later-today jobs */}
+          {startLocked && (
+            <button
+              type="button"
+              className="job-primary-action"
+              disabled
+              style={{ opacity: 0.55, cursor: 'not-allowed' }}
+              title={`This job is ${gate.reason} — Start unlocks then.`}
+            >
+              🔒 Starts {gate.reason.replace('scheduled for ', '')}
+            </button>
+          )}
+          {/* Active Start — only when the gate allows it */}
+          {canStart && gate.allowed && (
+            <button
+              type="button"
+              className="job-primary-action"
+              onClick={() => onPrimaryAction(job)}
+              disabled={isActionPending || actionReadOnly}
+              aria-busy={isActionPending}
+              title={actionReadOnly ? 'Status updates require an authenticated Technician session.' : undefined}
+            >
+              {isActionPending ? 'Updating…' : 'Start'}
             </button>
           )}
           <button
             type="button"
             className="action-view-btn"
             onClick={() => onView(job)}
-            title={`View details for ${job.id}`}
+            title={`View details for ${job.id || 'this booking'}`}
           >
             <span>View</span>
           </button>

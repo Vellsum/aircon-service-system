@@ -1,4 +1,13 @@
-import React from 'react';
+// =============================================================================
+// TechnicianProfile.jsx
+// Updated: 6 Oct 2026
+//   • Rating now comes from /api/technician/profile (was hardcoded "5.0 ★").
+//     0 or unrated displays "Not rated yet" — ratings only exist once a
+//     customer rates a completed booking.
+//   • ⚠️ Hooks moved ABOVE the `if (!user)` early return — placing them after
+//     it violates the Rules of Hooks and crashes React when auth loads.
+// =============================================================================
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext';
 
@@ -48,10 +57,38 @@ function InformationRow({ label, value, unavailable = false }) {
   );
 }
 
+// 6 Oct 2026 — shared display rule: 0 / null / unrated → "Not rated yet"
+const ratingDisplay = (rating) =>
+  rating != null && Number(rating) > 0 ? `${Number(rating).toFixed(1)} ★` : 'Not rated yet';
+
 function TechnicianProfile() {
   const { user } = useAuth();
   const { workload } = useTechnicianWorkflow();
 
+  // ─────────────────────────────────────────────────────────────
+  // 6 Oct 2026 — real rating from the technician record.
+  // ⚠️ Hooks MUST run before any early return (Rules of Hooks).
+  // ─────────────────────────────────────────────────────────────
+  const [profileRating, setProfileRating] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const techId = storedUser.technician_ID || storedUser.id || storedUser.user_ID || 1;
+        const token = localStorage.getItem('token') || '';
+        const res = await fetch(`http://localhost:5000/api/technician/profile?techId=${techId}`,
+          { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        if (alive && res.ok && data.success && data.profile) {
+          setProfileRating(data.profile.technicianRating);
+        }
+      } catch { /* non-critical */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // Early return — only AFTER all hooks have run
   if (!user) {
     return (
       <div className="technician-profile-page">
@@ -135,7 +172,8 @@ function TechnicianProfile() {
               <dl className="tech-profile-information-list">
                 <InformationRow label="Technician Name" value={technicianName} />
                 <InformationRow label="Technician ID" value={technicianID} />
-                <InformationRow label="Rating" value="5.0 ★" />
+                {/* 6 Oct 2026: live rating — 0/unrated shows "Not rated yet" */}
+                <InformationRow label="Rating" value={ratingDisplay(profileRating)} />
                 <InformationRow label="Specialty" value="Aircon Servicing" />
               </dl>
             </section>

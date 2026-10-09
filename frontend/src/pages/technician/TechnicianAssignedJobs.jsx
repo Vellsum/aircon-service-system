@@ -1,39 +1,51 @@
 // =============================================================================
-// TechnicianAssignedJobs.jsx — Fixed Start Button + Date/Time
-//
-// FIXES:
-//   1. Start/Complete now use context directly (single API call)
-//   2. Context hook called properly (no try/catch around hook)
-//   3. Jobs come from context (single source of truth)
-//   4. formattedDate used for display
+// TechnicianAssignedJobs.jsx
+// -----------------------------------------------------------------------------
+// CHANGELOG — 6 Oct 2026:
+//   1. [RULE] Start is gated by utils/jobSchedule.evaluateJobStart — future-
+//      dated (or later-today) jobs show why they're locked instead of starting.
+//      Backend enforces the same rule, so this cannot be bypassed.
+//   2. [FIX] "Upcoming" filter/status now maps to real DB statuses
+//      (Scheduled / Pending / Assigned) — the old filter matched a status that
+//      never exists, so it always showed 0 jobs.
+//   3. [FIX] todayStr uses the LOCAL date (was toISOString/UTC).
+//   4. [FIX] handleCompleteService refreshes jobs after completion so counts
+//      stay in sync with the database.
 // =============================================================================
 
 import React, { useMemo, useRef, useState } from 'react'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
+import { evaluateJobStart } from '../../utils/jobSchedule'   // 6 Oct 2026: shared start gate
 import FilterTabs from '../../components/technician/FilterTabs'
 import JobRow from '../../components/technician/JobRow'
 import JobCard from '../../components/technician/JobCard'
 import JobDetailsModal from '../../components/technician/JobDetailsModal'
 
-const todayStr = new Date().toISOString().split('T')[0]
+// 6 Oct 2026: LOCAL date (toISOString() was UTC — wrong before 8am SGT)
+const getTodayStr = () => new Date().toLocaleDateString('en-CA')
 
-const isTodayJob = (job) =>
-  job.timeframe === 'today' ||
-  (job.date && job.date.includes(todayStr)) ||
-  job.status === 'In Progress'
+// Statuses that mean "not started yet" in our DB. 6 Oct 2026: there is no
+// 'Upcoming' status in the database — the UI label maps to these.
+const OPEN_FUTURE_STATUSES = ['Pending', 'Assigned', 'Scheduled', 'Upcoming']
 
-const isThisWeekJob = (job) =>
-  job.timeframe === 'today' ||
-  job.timeframe === 'this-week' ||
-  isTodayJob(job)
+const isTodayJob = (job) => {
+  if (job.status === 'In Progress') return true
+  if (job.timeframe === 'today') return true
+  return Boolean(job.date) && String(job.date).slice(0, 10) === getTodayStr()
+}
+
+// 6 Oct 2026: future-dated open job (the "Upcoming" concept)
+const isUpcomingJob = (job) => {
+  if (['Completed', 'Cancelled', 'In Progress'].includes(job.status)) return false
+  const today = getTodayStr()
+  const d = job.date ? String(job.date).slice(0, 10) : null
+  return (d && d > today) || OPEN_FUTURE_STATUSES.includes(job.status)
+}
+
+const isThisWeekJob = (job) => isTodayJob(job) || isUpcomingJob(job) || job.timeframe === 'this-week'
 
 function AssignedJobsSummaryIcon({ type }) {
-  const icons = {
-    today: '📅',
-    progress: '⏳',
-    upcoming: '📋',
-    completed: '✅'
-  }
+  const icons = { today: '📅', progress: '⏳', upcoming: '📋', completed: '✅' }
   const icon = icons[type] || '📌'
   return <span className="summary-icon" aria-hidden="true">{icon}</span>
 }
@@ -71,11 +83,6 @@ class JobListErrorBoundary extends React.Component {
 }
 
 function TechnicianAssignedJobs() {
-  // ====================================================================
-  // ✅ FIXED: Use context properly — hook called unconditionally
-  // Context provides: assignedJobs, startService, completeService, loading
-  // This is the SINGLE SOURCE OF TRUTH for job data
-  // ====================================================================
   const {
     assignedJobs: jobs,
     startService,
@@ -103,32 +110,23 @@ function TechnicianAssignedJobs() {
     setShowJobDetails(false)
     setActionError(null)
   }
-    const handlePrimaryAction = (job) => {
-    const status = (job.status || '').toLowerCase()
-    if (status === 'in progress' || status === 'completed') {
-      openJobDetails(job)
-    } else {
-      // Start the service directly
-      if (typeof startService === 'function') {
-        startService(job.job_ID)
-      }
-    }
-  }
 
-  // ====================================================================
-  // ✅ FIXED: Start Service — uses context's startService directly
-  // Context handles: API call + local state update + optimistic UI
-  // No duplicate API calls
-  // ====================================================================
-  const handleStartService = async (jobToStart) => {
+  /* -------------------------------------------------------------------------
+   * 6 Oct 2026 — START GATE (date + time)
+   * evaluateJobStart() returns { allowed, reason, kind }. Blocked starts show
+   * WHY in the banner. The backend enforces the identical rule, so even a
+   * crafted request can't start a future job.
+   * ---------------------------------------------------------------------- */
+  const handleStartService = (jobToStart) => {
+    const gate = evaluateJobStart(jobToStart)
+    if (!gate.allowed) {
+      setActionError(`"${jobToStart.id || `#BK${jobToStart.job_ID}`}" is ${gate.reason} — Start unlocks then.`)
+      closeJobDetails()
+      return
+    }
     setActionError(null)
     try {
-      // Context's startService does:
-      // 1. Optimistic local state update (instant UI)
-      // 2. PUT API call to persist in database
-      if (typeof startService === 'function') {
-        startService(jobToStart.job_ID)
-      }
+      if (typeof startService === 'function') startService(jobToStart.job_ID)
       closeJobDetails()
     } catch (err) {
       console.error('Error starting service:', err)
@@ -136,19 +134,25 @@ function TechnicianAssignedJobs() {
     }
   }
 
-  // ====================================================================
-  // ✅ FIXED: Complete Service — uses context's completeService directly
-  // ====================================================================
+  const handlePrimaryAction = (job) => {
+    const status = (job.status || '').toLowerCase()
+    if (status === 'in progress' || status === 'completed') {
+      openJobDetails(job)
+    } else {
+      handleStartService(job)   // 6 Oct 2026: goes through the gate
+    }
+  }
+
   const handleCompleteService = async (jobToComplete) => {
     setActionError(null)
     try {
-      if (typeof completeService === 'function') {
-        completeService(jobToComplete.job_ID)
-      }
+      if (typeof completeService === 'function') completeService(jobToComplete.job_ID)
       closeJobDetails()
+      // 6 Oct 2026: re-sync with the DB so counts/lists reflect the completion
+      if (typeof refreshJobs === 'function') refreshJobs()
     } catch (err) {
       console.error('Error completing service:', err)
-      setActionError('Failed to complete service. Please try again.')
+      setActionError(err?.message || 'Failed to complete service. Please try again.')
     }
   }
 
@@ -162,9 +166,8 @@ function TechnicianAssignedJobs() {
   const metrics = useMemo(() => ({
     todayCount: jobs.filter(isTodayJob).length,
     inProgressCount: jobs.filter((j) => j.status === 'In Progress').length,
-    upcomingCount: jobs.filter(
-      (j) => j.status === 'Upcoming' || j.status === 'Assigned' || j.status === 'Pending'
-    ).length,
+    // 6 Oct 2026 [FIX]: map "Upcoming" to real DB statuses + future dates
+    upcomingCount: jobs.filter(isUpcomingJob).length,
     completedCount: jobs.filter((j) => j.status === 'Completed').length,
   }), [jobs])
 
@@ -175,8 +178,15 @@ function TechnicianAssignedJobs() {
       if (activeTab === 'today' && !isTodayJob(job)) return false
       if (activeTab === 'this-week' && !isThisWeekJob(job)) return false
 
-      if (statusFilter !== 'ALL' && job.status?.toLowerCase() !== statusFilter.toLowerCase()) {
-        return false
+      // 6 Oct 2026 [FIX]: "Upcoming" matches Scheduled/Pending/Assigned/future
+      if (statusFilter !== 'ALL') {
+        const jobStatus = (job.status || '').toLowerCase()
+        const filterLower = statusFilter.toLowerCase()
+        if (filterLower === 'upcoming') {
+          if (!isUpcomingJob(job)) return false
+        } else if (jobStatus !== filterLower) {
+          return false
+        }
       }
 
       if (normalizedQuery !== '') {
@@ -215,7 +225,7 @@ function TechnicianAssignedJobs() {
           <div className="cf-page-heading">
             <span className="cf-eyebrow">Work management</span>
             <h1>Assigned Jobs</h1>
-            <p>Review your workload, begin scheduled service, and track active jobs.</p>
+            <p>Review your workload, begin scheduled service, and track active jobs. Future-dated jobs unlock on their date.</p>
           </div>
           <div className="cf-page-header-status">
             <span className="duty-dot-pulse" aria-hidden="true" />
@@ -305,9 +315,8 @@ function TechnicianAssignedJobs() {
           </div>
 
           <div className="cf-jobs-results">
-            {/* Action Error */}
             {actionError && (
-              <div style={{ padding: '12px 24px', background: '#fff3f3', border: '1px solid #fcc', borderRadius: '8px', marginBottom: '16px', color: '#c33' }}>
+              <div style={{ padding: '12px 24px', background: '#fff8e1', border: '1px solid #f0d060', borderRadius: '8px', marginBottom: '16px', color: '#8a6d00' }}>
                 <strong>⚠️</strong> {actionError}
               </div>
             )}
@@ -403,7 +412,6 @@ function TechnicianAssignedJobs() {
           </footer>
         </section>
 
-        {/* Job Details Modal */}
         {showJobDetails && selectedJob && (
           <JobDetailsModal
             show={showJobDetails}

@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { CoolAirLogo, Icon } from "./CustomerIcons";
+import CoolFixLogo from "../common/CoolFixLogo";
+import { Icon } from "./CustomerIcons";
 import { CURRENT_CUSTOMER } from "../../data/customer/customerMockData";
 import { getUpcomingBookings } from "../../data/customer/customerSelectors";
 
@@ -10,20 +11,20 @@ import { getUpcomingBookings } from "../../data/customer/customerSelectors";
 const navGroups = [
   {
     label: "Overview",
-    items: [{ label: "Dashboard", path: "/customer/dashboard", icon: "home" }],
+    items: [{ label: "Dashboard", path: "/customer/dashboard", icon: "grid" }],
   },
   {
     label: "Services",
     items: [
-      { label: "Book a Service", path: "/customer/book", icon: "plus" },
-      { label: "Service Catalogue", path: "/customer/services", icon: "grid" },
+      { label: "Book a Service", path: "/customer/book-service", icon: "calendarPlus" },
+      { label: "Service Catalogue", path: "/customer/service-catalog", icon: "wrench" },
     ],
   },
   {
     label: "My Account",
     items: [
       { label: "My Bookings", path: "/customer/bookings", icon: "calendar", badgeKey: "upcoming" },
-      { label: "My Aircon Units", path: "/customer/units", icon: "snowflake" },
+      { label: "My Aircon Units", path: "/customer/my-units", icon: "snowflake" },
       { label: "Profile & Settings", path: "/customer/profile", icon: "user" },
     ],
   },
@@ -40,6 +41,18 @@ const getInitials = (name = "") =>
 const CustomerSidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const sidebarRef = useRef(null);
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      sidebarRef.current?.querySelector(".cust-nav-item")?.focus();
+      wasOpenRef.current = true;
+    } else if (wasOpenRef.current) {
+      wasOpenRef.current = false;
+      document.querySelector(".cust-burger")?.focus();
+    }
+  }, [isOpen]);
 
   const displayName = user?.customer_name || user?.username || CURRENT_CUSTOMER.customer_name;
   const displayEmail = user?.email || CURRENT_CUSTOMER.email;
@@ -56,13 +69,12 @@ const CustomerSidebar = ({ isOpen, onClose }) => {
   };
 
   return (
-    <aside className={`cust-sidebar${isOpen ? " is-open" : ""}`}>
+    <aside ref={sidebarRef} className={`cust-sidebar${isOpen ? " is-open" : ""}`}>
       <div className="cust-brand">
-        <CoolAirLogo />
-        <span className="cust-brand-name">
-          Aircon Care
+        <div className="cust-brand-lockup">
+          <CoolFixLogo />
           <span className="cust-brand-sub">Customer Portal</span>
-        </span>
+        </div>
       </div>
 
       <nav className="cust-nav">
@@ -80,7 +92,9 @@ const CustomerSidebar = ({ isOpen, onClose }) => {
                     `cust-nav-item${isActive ? " is-active" : ""}`
                   }
                 >
-                  <Icon name={item.icon} size={17} />
+                  <span className="cust-nav-icon" aria-hidden="true">
+                    <Icon name={item.icon} size={18} />
+                  </span>
                   <span>{item.label}</span>
                   {badge > 0 && <span className="cust-nav-badge">{badge}</span>}
                 </NavLink>

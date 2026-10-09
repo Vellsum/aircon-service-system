@@ -1,11 +1,24 @@
+// =============================================================================
+// JobCard.jsx — mobile/tablet card for Assigned Jobs
+// Updated: 6 Oct 2026
+//   • Same date/time start-gate as JobRow: locked jobs show 🔒 with the
+//     unlock date/time instead of an active Start button.
+//   • 'scheduled' added to canStart (real DB status that was missing).
+// =============================================================================
 import React from 'react'
 import JobStatusBadge from './JobStatusBadge'
+import { evaluateJobStart } from '../../utils/jobSchedule' // 6 Oct 2026
 
-/**
- * JobCard Component
- * Refined mobile and tablet card view for Assigned Jobs.
- */
-function JobCard({ job, onView, onPrimaryAction }) {
+function JobCard({ job, onView, onPrimaryAction, isActionPending = false, actionReadOnly = false }) {
+  const normalizedStatus = String(job.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
+  // 6 Oct 2026: added 'scheduled'
+  const canStart = ['upcoming', 'assigned', 'pending', 'scheduled'].includes(normalizedStatus)
+  const canContinue = normalizedStatus === 'in progress'
+
+  // 6 Oct 2026 — date/time gate
+  const gate = evaluateJobStart(job)
+  const startLocked = canStart && !gate.allowed
+
   const initials = job.customerName
     ? job.customerName
         .split(' ')
@@ -13,13 +26,13 @@ function JobCard({ job, onView, onPrimaryAction }) {
         .join('')
         .slice(0, 2)
         .toUpperCase()
-    : 'CU'
+    : '—'
 
   return (
     <div className="job-mobile-card mb-3 p-3">
       {/* Header: ID + Status */}
       <div className="d-flex justify-content-between align-items-center mb-2.5">
-        <span className="job-id-chip">{job.id}</span>
+        <span className="job-id-chip">{job.id || 'Booking unavailable'}</span>
         <JobStatusBadge status={job.status} />
       </div>
 
@@ -29,14 +42,14 @@ function JobCard({ job, onView, onPrimaryAction }) {
           {initials}
         </div>
         <div>
-          <div className="fw-bold text-dark">{job.customerName}</div>
+          <div className="fw-bold text-dark">{job.customerName || 'Customer unavailable'}</div>
           <div className="text-muted small d-flex align-items-center gap-1">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
               <circle cx="12" cy="10" r="3"/>
             </svg>
             <span className="text-truncate" style={{ maxWidth: '230px' }}>
-              {job.address}
+              {job.address || 'Location unavailable'}
             </span>
           </div>
         </div>
@@ -46,21 +59,21 @@ function JobCard({ job, onView, onPrimaryAction }) {
       <div className="bg-light p-2.5 rounded-3 mb-2.5 border">
         <div className="d-flex justify-content-between align-items-center mb-1">
           <div className="d-flex align-items-center gap-2">
-            <span className="fw-bold text-dark">{job.serviceType}</span>
+            <span className="fw-bold text-dark">{job.serviceType || 'Service unavailable'}</span>
             {job.serviceCategory && (
               <span className="service-category-tag">{job.serviceCategory}</span>
             )}
           </div>
-          <span className="text-muted small fw-medium">{job.time}</span>
+          <span className="text-muted small fw-medium">{job.time || '—'}</span>
         </div>
         <div className="text-muted small text-truncate">
-          {job.unitType}
+          {job.unitType || 'Equipment unavailable'}
         </div>
       </div>
 
       {/* Date & Action */}
       <div className="job-mobile-card-footer d-flex justify-content-between align-items-center pt-2 border-top">
-        <span className="text-secondary small fw-semibold">{job.formattedDate}</span>
+        <span className="text-secondary small fw-semibold">{job.formattedDate || '—'}</span>
         <div className="job-mobile-actions">
           <button
             type="button"
@@ -69,13 +82,38 @@ function JobCard({ job, onView, onPrimaryAction }) {
           >
             <span>View</span>
           </button>
-          {job.status !== 'Completed' && (
+          {canContinue && (
             <button
               type="button"
               className="job-primary-action"
               onClick={() => onPrimaryAction(job)}
+              disabled={isActionPending || actionReadOnly}
+              aria-busy={isActionPending}
             >
-              {job.status === 'In Progress' ? 'Continue' : 'Start'}
+              {isActionPending ? 'Updating…' : 'Continue'}
+            </button>
+          )}
+          {/* 6 Oct 2026 — locked Start for future/later-today jobs */}
+          {startLocked && (
+            <button
+              type="button"
+              className="job-primary-action"
+              disabled
+              style={{ opacity: 0.55, cursor: 'not-allowed' }}
+              title={`This job is ${gate.reason} — Start unlocks then.`}
+            >
+              🔒 {gate.reason.replace('scheduled for ', '')}
+            </button>
+          )}
+          {canStart && gate.allowed && (
+            <button
+              type="button"
+              className="job-primary-action"
+              onClick={() => onPrimaryAction(job)}
+              disabled={isActionPending || actionReadOnly}
+              aria-busy={isActionPending}
+            >
+              {isActionPending ? 'Updating…' : 'Start'}
             </button>
           )}
         </div>

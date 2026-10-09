@@ -9,7 +9,7 @@
   --technician-control-border: #8291a5;
   --technician-metadata: #64748b;
   --technician-canvas-metadata: #5b6b80;
-  --technician-focus-ring: rgba(37, 99, 235, 0.24);
+  --technician-focus-ring: rgba(46, 111, 242, 0.22);
   --sidebar-bg: #ffffff;
   --sidebar-border: #dfe6ef;
   --sidebar-text: #475569;
@@ -46,10 +46,12 @@
     bottom: 0;
     left: 0;
     transform: translateX(-100%);
+    visibility: hidden;
     box-shadow: 12px 0 32px rgba(15, 23, 42, 0.16);
   }
   .technician-sidebar.show {
     transform: translateX(0);
+    visibility: visible;
   }
   .sidebar-backdrop {
     position: fixed;
@@ -272,8 +274,8 @@
 }
 
 .topbar-alert-btn:focus-visible {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  border-color: var(--accent, #2e6ff2);
+  box-shadow: 0 0 0 3px rgba(46, 111, 242, 0.22);
   outline: none;
 }
 
@@ -1202,19 +1204,19 @@
    ========================================================================== */
 
 .technician-portal-wrapper {
-  --cf-canvas: #f6f8f7;
+  --cf-canvas: #eef2f6;
   --cf-surface: #ffffff;
-  --cf-surface-soft: #f8fbfa;
-  --cf-primary: #2f8f7d;
-  --cf-primary-strong: #277568;
-  --cf-primary-soft: #eaf7f2;
-  --cf-text: #1f2937;
-  --cf-heading: #183f3a;
-  --cf-muted: #6b7280;
-  --cf-border: #e5eae7;
-  --cf-border-strong: #d5dfdb;
-  --cf-shadow: 0 8px 28px rgba(31, 41, 55, 0.055);
-  --cf-shadow-raised: 0 18px 48px rgba(31, 41, 55, 0.13);
+  --cf-surface-soft: #f7f9fc;
+  --cf-primary: #2e6ff2;
+  --cf-primary-strong: #255dcc;
+  --cf-primary-soft: #edf3ff;
+  --cf-text: #101828;
+  --cf-heading: #101828;
+  --cf-muted: #5d6b7e;
+  --cf-border: #d8dee6;
+  --cf-border-strong: #c7d0dd;
+  --cf-shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
+  --cf-shadow-raised: 0 16px 40px rgba(16, 24, 40, 0.16);
   min-height: 100vh;
   background: var(--cf-canvas);
   color: var(--cf-text);
@@ -1651,9 +1653,9 @@
 
 .cf-button-secondary:hover,
 .cf-button-quiet:hover {
-  border-color: #bcd4cd;
-  background: var(--cf-primary-soft);
-  color: var(--cf-primary-strong);
+  border-color: #9eb7ea;
+  background: #edf3ff;
+  color: var(--accent, #2e6ff2);
 }
 
 .cf-button-quiet {
@@ -2199,6 +2201,15 @@
   margin-bottom: 1rem;
 }
 
+.technician-assigned-jobs-page .cf-jobs-stat-grid {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: var(--cf-shadow);
+}
+
 .cf-job-stat-card {
   display: grid;
   min-height: 74px;
@@ -2210,6 +2221,18 @@
   border-radius: 12px;
   background: #ffffff;
   box-shadow: 0 5px 18px rgba(31, 41, 55, 0.04);
+}
+
+.technician-assigned-jobs-page .cf-job-stat-card {
+  min-height: 78px;
+  border: 0;
+  border-right: 1px solid var(--cf-border);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.technician-assigned-jobs-page .cf-job-stat-card:last-child {
+  border-right: 0;
 }
 
 .cf-job-stat-card > span:nth-child(2) {
@@ -2272,13 +2295,30 @@
   border: 0;
   border-bottom: 1px solid var(--cf-border);
   border-radius: 0;
-  background: #fbfcfb;
+  background: #f7f9fc;
   box-shadow: none;
 }
 
 .cf-jobs-tabs {
   display: grid;
   gap: 0.38rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-toolbar-caption {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-reset-button {
+  min-height: 44px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--cf-border-strong);
+  background: #ffffff;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .cf-toolbar-label,
@@ -2304,7 +2344,7 @@
 
 .technician-assigned-jobs-page .filter-tab-btn.active {
   background: #ffffff;
-  color: var(--cf-primary-strong);
+  color: var(--accent, #2e6ff2);
   box-shadow: 0 2px 8px rgba(31, 41, 55, 0.08);
 }
 
@@ -2336,6 +2376,18 @@
 
 .cf-jobs-results {
   min-height: 270px;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-records-canvas {
+  background: #f4f7fa;
+}
+
+.technician-assigned-jobs-page .assigned-jobs-state {
+  min-height: 248px;
+  margin: 0.9rem;
+  border: 1px dashed var(--cf-border-strong);
+  border-radius: 6px;
+  background: #ffffff;
 }
 
 .technician-assigned-jobs-page .assigned-jobs-table-view {
@@ -2644,10 +2696,10 @@
 }
 
 .technician-submit-report-page .report-multi-select .service-checklist-item:has(input:checked) {
-  border-color: #8bcfbd;
-  background: var(--cf-primary-soft);
-  color: var(--cf-heading);
-  box-shadow: inset 0 0 0 1px rgba(47, 143, 125, 0.08);
+  border-color: var(--accent, #2e6ff2);
+  background: #edf3ff;
+  color: var(--accent, #2e6ff2);
+  box-shadow: inset 0 0 0 1px rgba(46, 111, 242, 0.12);
 }
 
 .technician-submit-report-page .cf-report-rail .service-checklist-item {
@@ -2664,7 +2716,7 @@
 }
 
 .technician-submit-report-page .cf-report-rail .service-checklist-item:has(input:checked) {
-  border-bottom-color: #dcebe6;
+  border-bottom-color: #cddbf9;
   background: transparent;
   box-shadow: none;
 }
@@ -2684,8 +2736,8 @@
 }
 
 .technician-submit-report-page .report-control:focus {
-  border-color: var(--cf-primary);
-  box-shadow: 0 0 0 3px rgba(47, 143, 125, 0.18);
+  border-color: var(--accent, #2e6ff2);
+  box-shadow: 0 0 0 3px rgba(46, 111, 242, 0.22);
 }
 
 .technician-submit-report-page .report-label {
@@ -2717,8 +2769,8 @@
 }
 
 .technician-submit-report-page .customer-acknowledgement:has(input:checked) {
-  border-color: #9bd5c5;
-  background: var(--cf-primary-soft);
+  border-color: var(--accent, #2e6ff2);
+  background: #edf3ff;
 }
 
 .technician-submit-report-page .cf-report-action-dock {
@@ -2934,8 +2986,8 @@
 }
 
 .technician-job-history-page .job-history-view-button:hover {
-  border-color: #d6e9e3;
-  background: var(--cf-primary-soft);
+  border-color: #9eb7ea;
+  background: #edf3ff;
 }
 
 .cf-history-report-hero {
@@ -3253,7 +3305,6 @@
   .cf-text-link,
   .cf-action-tile,
   .cf-topbar-alert,
-  .cf-sidebar .nav-link,
   .filter-tab-btn,
   .action-view-btn,
   .job-primary-action,
@@ -3262,6 +3313,11 @@
   .job-history-search-control button
 ):focus-visible,
 .technician-portal-wrapper :is(input, select, textarea):focus-visible {
+  outline: 3px solid rgba(46, 111, 242, 0.22);
+  outline-offset: 0;
+}
+
+.technician-portal-wrapper .cf-sidebar .nav-link:focus-visible {
   outline: 3px solid rgba(47, 143, 125, 0.25);
   outline-offset: 2px;
 }
@@ -3403,6 +3459,18 @@
   .cf-jobs-stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.7rem;
+  }
+
+  .technician-assigned-jobs-page .cf-jobs-stat-grid {
+    gap: 0;
+  }
+
+  .technician-assigned-jobs-page .cf-job-stat-card:nth-child(2) {
+    border-right: 0;
+  }
+
+  .technician-assigned-jobs-page .cf-job-stat-card:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--cf-border);
   }
 
   .cf-kpi-card {
@@ -3786,8 +3854,8 @@
 }
 
 .search-input-wrapper .search-input:focus {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  border-color: var(--accent, #2e6ff2);
+  box-shadow: 0 0 0 3px rgba(46, 111, 242, 0.22);
   outline: none;
 }
 
@@ -3805,7 +3873,7 @@
 
 .search-clear-btn:focus-visible {
   border-radius: 5px;
-  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  box-shadow: 0 0 0 3px rgba(46, 111, 242, 0.22);
   outline: none;
 }
 
@@ -3819,8 +3887,8 @@
 }
 
 .status-select-filter:focus {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  border-color: var(--accent, #2e6ff2);
+  box-shadow: 0 0 0 3px rgba(46, 111, 242, 0.22);
 }
 
 /* ==========================================================================
@@ -4260,8 +4328,8 @@ textarea.report-control {
 }
 
 .report-control:focus {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  border-color: var(--accent, #2e6ff2);
+  box-shadow: 0 0 0 3px rgba(46, 111, 242, 0.22);
   outline: none;
 }
 
@@ -4395,7 +4463,7 @@ textarea.report-control {
   height: 18px;
   margin: 0.06rem 0 0;
   flex-shrink: 0;
-  accent-color: var(--primary-600);
+  accent-color: var(--accent, #2e6ff2);
 }
 
 .technician-submit-report-page .report-multi-select {
@@ -4434,20 +4502,20 @@ textarea.report-control {
 }
 
 .technician-submit-report-page .report-multi-select .service-checklist-item:hover {
-  border-color: var(--primary-200);
+  border-color: #a9c1f5;
   background-color: #f8fbff;
 }
 
 .technician-submit-report-page .report-multi-select .service-checklist-item:has(input:checked) {
-  border-color: var(--primary-200);
-  background-color: var(--primary-50);
-  color: var(--primary-700);
+  border-color: var(--accent, #2e6ff2);
+  background-color: #edf3ff;
+  color: var(--accent, #2e6ff2);
   font-weight: 600;
 }
 
 .technician-submit-report-page .report-multi-select .service-checklist-item:has(input:focus-visible) {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  border-color: var(--accent, #2e6ff2);
+  box-shadow: none;
   outline: none;
 }
 
@@ -5044,13 +5112,13 @@ textarea.report-control {
 }
 
 .technician-assigned-jobs-page .filter-tab-btn:focus-visible {
-  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  box-shadow: none;
   outline: none;
 }
 
 .technician-assigned-jobs-page .filter-tab-btn.active {
   background-color: #ffffff;
-  color: var(--primary-700);
+  color: var(--accent, #2e6ff2);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
@@ -5065,8 +5133,8 @@ textarea.report-control {
 }
 
 .technician-assigned-jobs-page .tab-count-badge.active {
-  background-color: var(--primary-50);
-  color: var(--primary-700);
+  background-color: #edf3ff;
+  color: var(--accent, #2e6ff2);
 }
 
 .technician-assigned-jobs-page .assigned-jobs-filter-controls {
@@ -5249,8 +5317,7 @@ textarea.report-control {
 }
 
 .technician-assigned-jobs-page .action-view-btn:focus-visible {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  box-shadow: none;
   outline: none;
 }
 
@@ -5605,8 +5672,8 @@ textarea.report-control {
 
 .technician-job-history-page .job-history-search-control input:focus,
 .technician-job-history-page .job-history-date-filters input:focus {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  border-color: var(--accent, #2e6ff2);
+  box-shadow: 0 0 0 3px rgba(46, 111, 242, 0.22);
 }
 
 .technician-job-history-page .job-history-search-control button {
@@ -5627,7 +5694,7 @@ textarea.report-control {
 .technician-job-history-page .job-history-search-control button:focus-visible,
 .technician-job-history-page .job-history-reset-button:focus-visible {
   border-radius: 5px;
-  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  box-shadow: none;
   outline: none;
 }
 
@@ -5782,8 +5849,8 @@ textarea.report-control {
 }
 
 .technician-job-history-page .job-history-view-button:focus-visible {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px var(--technician-focus-ring);
+  border-color: var(--accent, #2e6ff2);
+  box-shadow: 0 0 0 3px rgba(46, 111, 242, 0.22);
   outline: none;
 }
 
@@ -6252,7 +6319,7 @@ textarea.report-control {
 .job-details-modal-content a:focus-visible,
 .job-details-modal-content .btn:focus-visible,
 .report-confirmation-modal .btn:focus-visible {
-  outline: 3px solid var(--technician-focus-ring, rgba(37, 99, 235, 0.24));
+  outline: 3px solid rgba(46, 111, 242, 0.22);
   outline-offset: 2px;
   box-shadow: none;
 }
@@ -6394,11 +6461,19 @@ textarea.report-control {
     flex-direction: column;
   }
 
-  .technician-submit-report-page .report-layout-grid,
+  .technician-submit-report-page .report-layout-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .technician-submit-report-page .report-main-column,
-  .technician-submit-report-page .report-support-column,
+  .technician-submit-report-page .report-support-column {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .technician-submit-report-page .report-component-slot {
-    display: contents;
+    display: block;
   }
 }
 
@@ -7597,7 +7672,7 @@ textarea.report-control {
   --technician-control-border: #91a9ad;
   --technician-metadata: #5d767b;
   --technician-canvas-metadata: #5d767b;
-  --technician-focus-ring: rgba(88, 197, 199, 0.3);
+  --technician-focus-ring: rgba(46, 111, 242, 0.22);
   --sidebar-bg: #ffffff;
   --sidebar-border: #dce9e7;
   --sidebar-text: #526b70;
@@ -7673,10 +7748,13 @@ textarea.report-control {
   color: #287c86 !important;
 }
 
-.sidebar-nav-menu .nav-link:focus-visible,
+.sidebar-nav-menu .nav-link:focus-visible {
+  outline-color: #58c5c7;
+}
+
 .topbar-menu-button:focus-visible,
 .topbar-alert-btn:focus-visible {
-  outline-color: #58c5c7;
+  outline-color: var(--accent, #2e6ff2);
 }
 
 .tech-avatar {
@@ -7794,11 +7872,15 @@ textarea.report-control {
 }
 
 .technician-assigned-jobs-page .filter-tab-btn.active {
-  color: #287c86;
+  color: var(--accent, #2e6ff2);
   box-shadow: 0 1px 2px rgba(36, 91, 104, 0.08);
 }
 
-.technician-assigned-jobs-page .tab-count-badge.active,
+.technician-assigned-jobs-page .tab-count-badge.active {
+  background: #edf3ff;
+  color: var(--accent, #2e6ff2);
+}
+
 .technician-assigned-jobs-page .job-id-chip,
 .technician-job-history-page .job-history-id-chip,
 .job-details-modal-content .job-id-chip {
@@ -7833,9 +7915,9 @@ textarea.report-control {
 
 .technician-assigned-jobs-page .action-view-btn:hover,
 .technician-job-history-page .job-history-view-button:hover {
-  border-color: #58c5c7;
-  background: #eaf7f6;
-  color: #245b68;
+  border-color: #9eb7ea;
+  background: #edf3ff;
+  color: var(--accent, #2e6ff2);
 }
 
 .status-badge-upcoming {
@@ -7877,8 +7959,8 @@ textarea.report-control {
 .technician-assigned-jobs-page .status-select-filter:focus,
 .technician-job-history-page .job-history-search-control input:focus,
 .technician-job-history-page .job-history-date-filters input:focus {
-  border-color: #58c5c7;
-  box-shadow: 0 0 0 3px rgba(88, 197, 199, 0.3);
+  border-color: var(--accent, #2e6ff2);
+  box-shadow: none;
 }
 
 .technician-submit-report-page .report-multi-select .service-checklist-item {
@@ -7887,20 +7969,20 @@ textarea.report-control {
 }
 
 .technician-submit-report-page .report-multi-select .service-checklist-item:hover {
-  border-color: #7fd1d1;
-  background: #f2f9f8;
+  border-color: #a9c1f5;
+  background: #f4f7ff;
 }
 
 .technician-submit-report-page .report-multi-select .service-checklist-item:has(input:checked) {
-  border-color: #58c5c7;
-  background: #eaf7f6;
-  color: #245b68;
+  border-color: var(--accent, #2e6ff2);
+  background: #edf3ff;
+  color: var(--accent, #2e6ff2);
 }
 
 .technician-submit-report-page .service-checklist-item input,
 .technician-submit-report-page .report-option-row input,
 .technician-submit-report-page .customer-acknowledgement input {
-  accent-color: #287c86;
+  accent-color: var(--accent, #2e6ff2);
 }
 
 .technician-submit-report-page .report-eligibility-badge {
@@ -7921,7 +8003,7 @@ textarea.report-control {
   --primary-500: #58c5c7;
   --primary-600: #287c86;
   --primary-700: #245b68;
-  --technician-focus-ring: rgba(88, 197, 199, 0.3);
+  --technician-focus-ring: rgba(46, 111, 242, 0.22);
   --border-subtle: #dce9e7;
   --text-primary: #233e46;
   --text-secondary: #526d73;
@@ -7969,7 +8051,7 @@ textarea.report-control {
   [tabindex]
 ):focus-visible,
 .job-details-modal-content :where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline-color: #58c5c7;
+  outline-color: var(--accent, #2e6ff2);
 }
 
 /* ==========================================================================
@@ -7988,7 +8070,7 @@ textarea.report-control {
   --technician-control-border: #94aaa6;
   --technician-metadata: #626f70;
   --technician-canvas-metadata: #5f6d6f;
-  --technician-focus-ring: rgba(57, 183, 165, 0.28);
+  --technician-focus-ring: rgba(46, 111, 242, 0.22);
   --sidebar-border: #e3eae7;
   --sidebar-text: #526466;
   --bg-app: #f7f8f6;
@@ -8232,12 +8314,12 @@ textarea.report-control {
 }
 
 .technician-assigned-jobs-page .filter-tabs-container {
-  background: #eef5f2;
+  background: #f1f5fb;
 }
 
 .technician-assigned-jobs-page .filter-tab-btn.active,
 .technician-assigned-jobs-page .tab-count-badge.active {
-  color: #247c73;
+  color: var(--accent, #2e6ff2);
 }
 
 .technician-assigned-jobs-page .job-table thead th,
@@ -8262,15 +8344,15 @@ textarea.report-control {
 .technician-assigned-jobs-page .action-view-btn,
 .technician-job-history-page .job-history-view-button,
 .technician-job-history-page .job-history-back-button {
-  border-color: #bfd2ce;
-  color: #247c73;
+  border-color: #c9d8f5;
+  color: var(--accent, #2e6ff2);
 }
 
 .technician-assigned-jobs-page .action-view-btn:hover,
 .technician-job-history-page .job-history-view-button:hover {
-  border-color: #39b7a5;
-  background: #e8f7f4;
-  color: #234e52;
+  border-color: #9eb7ea;
+  background: #edf3ff;
+  color: var(--accent, #2e6ff2);
 }
 
 .status-badge-upcoming {
@@ -8296,20 +8378,20 @@ textarea.report-control {
 .technician-assigned-jobs-page .status-select-filter:focus,
 .technician-job-history-page .job-history-search-control input:focus,
 .technician-job-history-page .job-history-date-filters input:focus {
-  border-color: #39b7a5;
-  box-shadow: 0 0 0 3px rgba(57, 183, 165, 0.28);
+  border-color: var(--accent, #2e6ff2);
+  box-shadow: none;
 }
 
 .technician-submit-report-page .report-multi-select .service-checklist-item:has(input:checked) {
-  border-color: #39b7a5;
-  background: #e8f7f4;
-  color: #234e52;
+  border-color: var(--accent, #2e6ff2);
+  background: #edf3ff;
+  color: var(--accent, #2e6ff2);
 }
 
 .technician-submit-report-page .service-checklist-item input,
 .technician-submit-report-page .report-option-row input,
 .technician-submit-report-page .customer-acknowledgement input {
-  accent-color: #247c73;
+  accent-color: var(--accent, #2e6ff2);
 }
 
 .job-details-modal-content {
@@ -8317,7 +8399,7 @@ textarea.report-control {
   --primary-500: #39b7a5;
   --primary-600: #247c73;
   --primary-700: #234e52;
-  --technician-focus-ring: rgba(57, 183, 165, 0.28);
+  --technician-focus-ring: rgba(46, 111, 242, 0.22);
   border-color: #e3eae7;
   box-shadow: 0 18px 42px rgba(35, 78, 82, 0.15);
 }
@@ -8603,7 +8685,7 @@ textarea.report-control {
   background: #fbfcfb;
 }
 
-/* Submit Report: independent dashboard cards in the established 65/35 grid. */
+/* Submit Report: connected form and supporting rail in the established grid. */
 .technician-submit-report-page .service-report-form {
   overflow: visible;
   border: 0;
@@ -8613,67 +8695,44 @@ textarea.report-control {
 
 .technician-submit-report-page .report-main-column,
 .technician-submit-report-page .report-support-column {
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: var(--cf-shadow);
 }
 
 .technician-submit-report-page .report-main-column,
 .technician-submit-report-page .report-support-column {
-  gap: 1rem;
+  gap: 0;
 }
 
-.technician-submit-report-page .report-job-selection-section {
-  order: 1;
-}
-
-.technician-submit-report-page .report-workflow-section {
-  order: 2;
-}
-
-.technician-submit-report-page .report-materials-slot {
-  order: 3;
-}
-
-.technician-submit-report-page .report-checklist-slot {
-  order: 1;
-}
-
-.technician-submit-report-page .report-follow-up-slot {
-  order: 2;
-}
-
-.technician-submit-report-page .report-completion-section {
-  order: 3;
-}
-
-.technician-submit-report-page .report-form-actions {
-  order: 4;
+.technician-submit-report-page .cf-report-main > *,
+.technician-submit-report-page .cf-report-rail > * {
+  order: 0;
 }
 
 .technician-submit-report-page .report-main-column > .report-section,
+.technician-submit-report-page .report-main-column > .report-component-slot,
 .technician-submit-report-page .report-main-column > .report-component-slot > .report-section,
 .technician-submit-report-page .report-support-column > .report-section,
+.technician-submit-report-page .report-support-column > .report-component-slot,
 .technician-submit-report-page .report-support-column > .report-component-slot > .report-section,
 .technician-submit-report-page .report-form-actions {
-  overflow: hidden;
-  border: 1px solid #e5eae7;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 8px 24px rgba(31, 41, 55, 0.045);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .technician-submit-report-page .report-main-column > :not(:last-child),
 .technician-submit-report-page .report-support-column > :not(:last-child) {
-  border-bottom: 0;
+  border-bottom: 1px solid #e8edf3;
 }
 
 .technician-submit-report-page .report-section-heading {
-  margin-bottom: 1.15rem;
-  padding-bottom: 0.9rem;
-  border-bottom: 1px solid #eef2f0;
+  margin-bottom: 1rem;
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .technician-submit-report-page .report-job-selection-section .report-section-heading {
@@ -8685,8 +8744,67 @@ textarea.report-control {
   background: #f5faf8;
 }
 
-.technician-submit-report-page .report-form-actions {
+.technician-submit-report-page .cf-report-layout > .report-materials-slot {
+  grid-column: 1 / -1;
+  order: 0;
+  border-radius: 10px;
+}
+
+.technician-submit-report-page .cf-report-layout > .cf-report-action-dock {
+  position: static;
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 0.65rem;
   padding: 1rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 10px;
+  background: #f7f9fc;
+  box-shadow: var(--cf-shadow);
+  backdrop-filter: none;
+  order: 0;
+}
+
+.technician-submit-report-page .cf-report-layout > .cf-report-action-dock > div {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.technician-submit-report-page .cf-report-layout > .cf-report-action-dock .cf-button {
+  min-width: 124px;
+}
+
+.technician-submit-report-page .cf-report-layout > .cf-report-action-dock .cf-button:last-child {
+  grid-column: auto;
+}
+
+.technician-submit-report-page .report-draft-context {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #dce6f2;
+  border-left: 3px solid var(--cf-primary);
+  border-radius: 6px;
+  background: #f5f8fc;
+}
+
+.technician-submit-report-page .report-draft-context strong {
+  display: block;
+  color: var(--cf-heading);
+  font-size: 0.8125rem;
+}
+
+.technician-submit-report-page .report-draft-context p,
+.technician-submit-report-page .report-field-hint,
+.technician-submit-report-page .report-follow-up-note {
+  margin: 0.3rem 0 0;
+  color: var(--cf-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.technician-submit-report-page .report-follow-up-note {
+  margin: 0;
+  padding: 0 1.2rem 1.2rem;
 }
 
 /* Job History: discrete control and result cards. */
@@ -8735,40 +8853,9 @@ textarea.report-control {
     gap: 1rem;
   }
 
-  .technician-submit-report-page .report-job-selection-section {
-    order: 1;
-  }
-
-  .technician-submit-report-page .report-workflow-section {
-    order: 2;
-  }
-
-  .technician-submit-report-page .report-checklist-slot > .report-section {
-    order: 3;
-  }
-
-  .technician-submit-report-page .report-materials-slot > .report-section {
-    order: 4;
-  }
-
-  .technician-submit-report-page .report-follow-up-slot > .report-section {
-    order: 5;
-  }
-
-  .technician-submit-report-page .report-completion-section {
-    order: 6;
-  }
-
-  .technician-submit-report-page .report-form-actions {
-    order: 7;
-  }
-
-  .technician-submit-report-page .report-section,
-  .technician-submit-report-page .report-form-actions {
-    border: 1px solid #e5eae7;
-    border-radius: 14px;
-    background: #ffffff;
-    box-shadow: 0 7px 20px rgba(31, 41, 55, 0.04);
+  .technician-submit-report-page .report-main-column,
+  .technician-submit-report-page .report-support-column {
+    min-width: 0;
   }
 }
 
@@ -8818,6 +8905,20 @@ textarea.report-control {
     padding-bottom: 0.75rem;
   }
 
+  .technician-submit-report-page .cf-report-layout > .cf-report-action-dock {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-submit-report-page .cf-report-layout > .cf-report-action-dock > div,
+  .technician-submit-report-page .cf-report-layout > .cf-report-action-dock .cf-button:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .technician-submit-report-page .cf-report-layout > .cf-report-action-dock .cf-button {
+    min-width: 0;
+  }
+
   .technician-job-history-page .job-history-controls-card,
   .technician-job-history-page .job-history-results-card,
   .technician-assigned-jobs-page .jobs-main-card {
@@ -8839,19 +8940,14 @@ textarea.report-control {
   .technician-submit-report-page .report-form-actions {
     border-radius: 12px;
   }
-}
 
-/* Full-redesign cascade guard: this block intentionally follows legacy rules. */
-.technician-submit-report-page .cf-report-main > .report-job-selection-section { order: 1; }
-.technician-submit-report-page .cf-report-main > .cf-inspection-card { order: 2; }
-.technician-submit-report-page .cf-report-main > .cf-work-performed-card { order: 3; }
-.technician-submit-report-page .cf-report-main > .cf-materials-card { order: 4; }
-.technician-submit-report-page .cf-report-rail > .report-checklist-slot { order: 1; }
-.technician-submit-report-page .cf-report-rail > .report-follow-up-slot { order: 2; }
-.technician-submit-report-page .cf-report-rail > .report-completion-section { order: 3; }
-.technician-submit-report-page .cf-report-rail > .cf-report-action-dock {
-  position: static;
-  order: 4;
+  .technician-submit-report-page .cf-report-layout > .cf-report-action-dock {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .technician-submit-report-page .cf-report-layout > .cf-report-action-dock .cf-button {
+    width: 100%;
+  }
 }
 
 .technician-job-history-page .job-history-search-control > svg {
@@ -8880,31 +8976,73 @@ textarea.report-control {
    Technician Follow-Up
    ========================================================================== */
 
-.technician-follow-up-page .cf-page-header {
-  align-items: center;
+.technician-follow-up-page {
+  --follow-up-blue: #2e6ff2;
+  --follow-up-blue-strong: #255dcc;
+  --follow-up-cyan: #42b8cf;
+  --follow-up-line: #d7dee8;
+  --follow-up-line-soft: #e8edf3;
+  display: grid;
+  gap: 1rem;
 }
 
-.follow-up-assignment-status {
+.technician-follow-up-page .follow-up-page-header {
+  position: relative;
+  display: grid;
+  min-height: 132px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 0;
+  padding: 1.2rem 1.35rem;
+  border: 1px solid var(--follow-up-line);
+  border-left: 4px solid var(--follow-up-blue);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 2px 7px rgba(16, 24, 40, 0.065);
+}
+
+.technician-follow-up-page .follow-up-page-header .cf-page-heading {
+  min-width: 0;
+}
+
+.technician-follow-up-page .follow-up-page-header .cf-eyebrow {
+  color: #315fae;
+}
+
+.technician-follow-up-page .follow-up-page-header h1 {
+  margin-top: 0.35rem;
+}
+
+.technician-follow-up-page .follow-up-page-header p {
+  max-width: 660px;
+  margin-top: 0.42rem;
+}
+
+.technician-follow-up-page .follow-up-assignment-status {
   display: flex;
-  min-width: 160px;
+  min-width: 205px;
+  align-self: stretch;
   align-items: center;
   gap: 0.72rem;
-  padding: 0.72rem 0.82rem;
-  border: 1px solid var(--cf-border);
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.035);
+  padding: 0.4rem 0 0.4rem 1.35rem;
+  border: 0;
+  border-left: 1px solid var(--follow-up-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .follow-up-assignment-icon {
   display: grid;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
   place-items: center;
-  border-radius: 10px;
-  background: var(--cf-primary-soft);
-  color: var(--cf-primary-strong);
+  border: 1px solid #ccdafa;
+  border-radius: 6px;
+  background: #f0f5ff;
+  color: var(--follow-up-blue-strong);
 }
 
 .follow-up-assignment-icon svg {
@@ -8918,12 +9056,14 @@ textarea.report-control {
 
 .follow-up-assignment-status small {
   color: var(--cf-muted);
-  font-size: 0.64rem;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .follow-up-assignment-status strong {
   color: var(--cf-heading);
-  font-size: 1.08rem;
+  margin-top: 0.1rem;
+  font-size: 1.25rem;
   line-height: 1.1;
 }
 
@@ -8966,31 +9106,80 @@ textarea.report-control {
   line-height: 1.4;
 }
 
+.follow-up-overview {
+  overflow: hidden;
+  border: 1px solid var(--follow-up-line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 2px 7px rgba(16, 24, 40, 0.055);
+}
+
+.follow-up-overview-header {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2rem;
+  padding: 0.85rem 1.15rem;
+  border-bottom: 1px solid var(--follow-up-line);
+  background: #f6f8fb;
+}
+
+.follow-up-overview-header h2 {
+  margin: 0.2rem 0 0;
+  color: var(--cf-heading);
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.follow-up-overview-header p {
+  max-width: 420px;
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+}
+
 .follow-up-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: 0;
+  overflow: hidden;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: #f9fafc;
+  box-shadow: none;
 }
 
 .follow-up-summary-card {
   display: grid;
-  min-height: 78px;
-  grid-template-columns: 9px minmax(0, 1fr);
+  min-height: 108px;
+  grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 0.95rem;
-  border: 1px solid var(--cf-border);
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.04);
+  gap: 0.8rem;
+  padding: 1rem 1.05rem;
+  border: 0;
+  border-right: 1px solid var(--cf-border);
+  border-radius: 0;
+  background: #fcfdff;
+  box-shadow: none;
 }
 
-.follow-up-summary-card > span:last-child {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
+.follow-up-summary-card:nth-child(even) {
+  background: #ffffff;
+}
+
+.follow-up-summary-card:last-child {
+  border-right: 0;
+}
+
+.follow-up-summary-card > span.follow-up-summary-copy:last-child {
+  display: grid;
+  align-items: initial;
+  justify-content: initial;
+  gap: 0.06rem;
 }
 
 .follow-up-summary-card small {
@@ -9018,10 +9207,40 @@ textarea.report-control {
 
 .follow-up-workspace {
   overflow: hidden;
-  border: 1px solid var(--cf-border);
-  border-radius: 14px;
+  border: 1px solid var(--follow-up-line);
+  border-radius: 8px;
   background: #ffffff;
-  box-shadow: var(--cf-shadow);
+  box-shadow: 0 3px 10px rgba(16, 24, 40, 0.065);
+}
+
+.follow-up-workspace-heading {
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--follow-up-line);
+  background: #f6f8fb;
+}
+
+.follow-up-workspace-heading > div {
+  min-width: 0;
+}
+
+.follow-up-workspace-heading h2 {
+  margin: 0.22rem 0 0;
+  color: var(--cf-heading);
+  font-size: 1.05rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.follow-up-workspace-heading p {
+  margin: 0.32rem 0 0;
+  color: var(--cf-muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .follow-up-workspace-header {
@@ -9109,9 +9328,27 @@ textarea.report-control {
 
 .follow-up-search-control input:focus,
 .follow-up-status-field select:focus {
-  border-color: var(--cf-primary);
+  border-color: var(--accent, #2e6ff2);
   outline: 0;
-  box-shadow: 0 0 0 3px rgba(47, 143, 125, 0.18);
+  box-shadow: 0 0 0 3px rgba(46, 111, 242, 0.22);
+}
+
+.technician-follow-up-page .follow-up-search-field .follow-up-search-control input:disabled,
+.technician-follow-up-page .follow-up-status-field select:disabled {
+  border-color: #d8e0ea;
+  background-color: #eef2f6;
+  color: #7c899b;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.technician-follow-up-page .follow-up-search-control input:disabled::placeholder {
+  color: #929dad;
+}
+
+.technician-follow-up-page .follow-up-search-field:has(input:disabled) label,
+.technician-follow-up-page .follow-up-status-field:has(select:disabled) label {
+  color: #7a8798;
 }
 
 .follow-up-search-control button {
@@ -9238,8 +9475,8 @@ textarea.report-control {
 }
 
 .follow-up-view-button:hover {
-  border-color: #bcd4cd;
-  background: var(--cf-primary-soft);
+  border-color: #9eb7ea;
+  background: #edf3ff;
 }
 
 .follow-up-card-list {
@@ -9338,18 +9575,19 @@ textarea.report-control {
   text-align: center;
 }
 
-.follow-up-empty-icon {
+.technician-follow-up-page .follow-up-empty-icon {
   display: grid;
-  width: 54px;
-  height: 54px;
-  margin-bottom: 0.85rem;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 1rem;
   place-items: center;
-  border-radius: 14px;
-  background: var(--cf-primary-soft);
-  color: var(--cf-primary-strong);
+  border: 1px solid #ccdafa;
+  border-radius: 8px;
+  background: #f0f5ff;
+  color: var(--follow-up-blue-strong);
 }
 
-.follow-up-empty-icon svg {
+.technician-follow-up-page .follow-up-empty-icon svg {
   width: 23px;
   height: 23px;
 }
@@ -9357,16 +9595,16 @@ textarea.report-control {
 .follow-up-empty-state h3 {
   margin: 0;
   color: var(--cf-heading);
-  font-size: 0.98rem;
-  font-weight: 700;
+  font-size: 1.05rem;
+  font-weight: 650;
 }
 
 .follow-up-empty-state p {
-  max-width: 430px;
-  margin: 0.38rem 0 1rem;
+  max-width: 470px;
+  margin: 0.48rem 0 1rem;
   color: var(--cf-muted);
-  font-size: 0.75rem;
-  line-height: 1.55;
+  font-size: 0.8rem;
+  line-height: 1.6;
 }
 
 .follow-up-detail-modal {
@@ -9449,7 +9687,7 @@ textarea.report-control {
   .follow-up-search-control button,
   .follow-up-view-button
 ):focus-visible {
-  outline: 3px solid rgba(47, 143, 125, 0.25);
+  outline: 3px solid rgba(46, 111, 242, 0.22);
   outline-offset: 2px;
 }
 
@@ -9460,16 +9698,49 @@ textarea.report-control {
 }
 
 @media (max-width: 767.98px) {
-  .technician-follow-up-page .cf-page-header {
+  .technician-follow-up-page .follow-up-page-header {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
+    gap: 1rem;
+    padding: 1rem;
   }
 
-  .follow-up-assignment-status {
+  .technician-follow-up-page .follow-up-assignment-status {
     width: 100%;
+    min-width: 0;
+    padding: 0.9rem 0 0;
+    border-top: 1px solid var(--follow-up-line);
+    border-left: 0;
+  }
+
+  .follow-up-overview-header,
+  .follow-up-workspace-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .follow-up-overview-header p {
+    max-width: none;
+    text-align: left;
   }
 
   .follow-up-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .follow-up-summary-card {
+    border-right: 1px solid var(--cf-border);
+    border-bottom: 1px solid var(--cf-border);
+  }
+
+  .follow-up-summary-card:nth-child(even) {
+    border-right: 0;
+  }
+
+  .follow-up-summary-card:nth-last-child(-n + 2) {
+    border-bottom: 0;
   }
 
   .follow-up-workspace-header {
@@ -9499,14 +9770,14 @@ textarea.report-control {
 
 @media (max-width: 420px) {
   .follow-up-summary-card {
-    min-height: 72px;
+    min-height: 100px;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 0.58rem;
     padding: 0.72rem;
   }
 
-  .follow-up-summary-card > span:last-child {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.08rem;
+  .follow-up-summary-card > span.follow-up-summary-copy:last-child {
+    gap: 0.06rem;
   }
 
   .follow-up-workspace-header {
@@ -9514,23 +9785,33 @@ textarea.report-control {
   }
 
   .follow-up-empty-state {
-    min-height: 300px;
-    padding: 1.5rem 1rem;
+    min-height: 210px;
+    padding: 1.35rem 1rem;
   }
 }
 
 /* Follow-Up return-visit composition */
 .follow-up-controls {
   display: grid;
-  grid-template-columns: minmax(170px, 0.42fr) minmax(480px, 1.58fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: end;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  padding: 0.95rem 1rem;
-  border: 1px solid var(--cf-border);
-  border-radius: 12px;
+  gap: 1.1rem;
+  margin: 0;
+  padding: 0.9rem 1.1rem 1rem;
+  border: 0;
+  border-bottom: 1px solid var(--cf-border);
+  border-radius: 0;
   background: #ffffff;
-  box-shadow: 0 4px 14px rgba(31, 41, 55, 0.025);
+  box-shadow: none;
+}
+
+.follow-up-filter-label {
+  align-self: start;
+  color: #52637d;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .follow-up-controls-copy h2 {
@@ -9542,17 +9823,25 @@ textarea.report-control {
 
 .follow-up-controls .follow-up-toolbar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 160px auto;
-  gap: 0.65rem;
+  grid-template-columns: minmax(300px, 1fr) 180px auto;
+  align-items: end;
+  gap: 0.75rem;
   padding: 0;
   border: 0;
   background: transparent;
 }
 
 .follow-up-result-count {
-  align-self: center;
-  color: var(--cf-muted);
-  font-size: 0.68rem;
+  display: inline-flex;
+  min-height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 0.38rem 0.7rem;
+  border: 1px solid #d5deea;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #596a82;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -9561,9 +9850,16 @@ textarea.report-control {
   font-weight: 700;
 }
 
+.follow-up-workspace-body {
+  min-width: 0;
+  padding: 1rem;
+  background: #f3f6fa;
+}
+
 .follow-up-groups {
   display: grid;
-  gap: 1rem;
+  gap: 0.9rem;
+  padding: 0;
 }
 
 .follow-up-group {
@@ -9571,9 +9867,9 @@ textarea.report-control {
   --follow-up-tone-soft: var(--cf-primary-soft);
   overflow: hidden;
   border: 1px solid var(--cf-border);
-  border-radius: 13px;
+  border-radius: 6px;
   background: #ffffff;
-  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.035);
+  box-shadow: none;
 }
 
 .follow-up-group-upcoming {
@@ -9651,10 +9947,10 @@ textarea.report-control {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  border: 1px solid #dfe8e4;
-  border-radius: 11px;
+  border: 1px solid var(--cf-border);
+  border-radius: 6px;
   background: #ffffff;
-  box-shadow: 0 3px 11px rgba(31, 41, 55, 0.03);
+  box-shadow: none;
 }
 
 .follow-up-visit-card-header {
@@ -9829,11 +10125,11 @@ textarea.report-control {
 }
 
 .follow-up-empty-state-page {
-  min-height: 280px;
-  border: 1px solid var(--cf-border);
-  border-radius: 13px;
+  min-height: 230px;
+  border: 1px dashed #cbd6e5;
+  border-radius: 6px;
   background: #ffffff;
-  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.03);
+  box-shadow: none;
 }
 
 .follow-up-filter-empty-action {
@@ -9847,7 +10143,10 @@ textarea.report-control {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.9rem 0.15rem 0;
+  min-height: 52px;
+  padding: 0.8rem 1.1rem;
+  border-top: 1px solid var(--cf-border);
+  background: #f6f8fb;
   color: var(--cf-muted);
   font-size: 0.66rem;
 }
@@ -9860,11 +10159,8 @@ textarea.report-control {
 
 @media (max-width: 1199.98px) {
   .follow-up-controls {
-    grid-template-columns: 1fr auto;
-  }
-
-  .follow-up-controls-copy {
-    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
   }
 }
 
@@ -9899,6 +10195,19 @@ textarea.report-control {
 }
 
 @media (max-width: 575.98px) {
+  .technician-follow-up-page {
+    gap: 0.8rem;
+  }
+
+  .follow-up-overview-header,
+  .follow-up-workspace-heading {
+    padding: 0.85rem;
+  }
+
+  .follow-up-controls {
+    padding: 0.8rem 0.85rem 0.9rem;
+  }
+
   .follow-up-demo-notice {
     align-items: flex-start;
   }
@@ -9930,6 +10239,10 @@ textarea.report-control {
     padding: 0.65rem;
   }
 
+  .follow-up-workspace-body {
+    padding: 0.75rem;
+  }
+
   .follow-up-visit-card-header,
   .follow-up-visit-content,
   .follow-up-visit-footer {
@@ -9958,29 +10271,26 @@ textarea.report-control {
   .follow-up-page-footer {
     align-items: flex-start;
     flex-direction: column;
+    gap: 0.28rem;
+    padding: 0.75rem 0.85rem;
   }
 }
 
-/* Follow-Up final visual polish */
-.follow-up-summary-card {
-  min-height: 92px;
-  grid-template-columns: 42px minmax(0, 1fr);
-  gap: 0.8rem;
-  padding: 0.88rem 0.95rem;
-}
+/* Follow-Up record and summary details */
 
 .follow-up-summary-icon {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   place-items: center;
-  border-radius: 11px;
+  border: 1px solid #d7e1f3;
+  border-radius: 6px;
   color: var(--cf-primary-strong);
 }
 
 .follow-up-summary-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .follow-up-summary-icon-mint {
@@ -10002,28 +10312,22 @@ textarea.report-control {
   color: #478e60;
 }
 
-.follow-up-summary-card > span.follow-up-summary-copy:last-child {
-  display: grid;
-  align-items: initial;
-  justify-content: initial;
-  gap: 0.06rem;
-}
-
 .follow-up-summary-copy small {
-  color: #5f6d69;
+  color: #526178;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .follow-up-summary-copy strong {
   color: var(--cf-heading);
-  font-size: 1.45rem;
-  font-weight: 700;
+  margin-top: 0.08rem;
+  font-size: 1.55rem;
+  font-weight: 650;
   line-height: 1.05;
 }
 
 .follow-up-summary-copy > span {
-  color: #6c7975;
+  color: #66758a;
   font-size: 0.75rem;
   line-height: 1.35;
 }
@@ -10182,7 +10486,7 @@ textarea.report-control {
   .follow-up-summary-icon {
     width: 34px;
     height: 34px;
-    border-radius: 9px;
+    border-radius: 6px;
   }
 
   .follow-up-summary-icon svg {
@@ -10204,26 +10508,64 @@ textarea.report-control {
 }
 
 /* Job History final presentation refinement */
-.technician-job-history-page .cf-history-filter-card {
-  grid-template-columns: minmax(0, 1fr);
-  align-items: stretch;
-  gap: 0.85rem;
-  margin-bottom: 0;
+.technician-job-history-page .cf-history-header {
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1.15rem 1.3rem;
   border: 1px solid var(--cf-border);
-  border-bottom: 0;
-  border-radius: 14px 14px 0 0;
+  border-left: 4px solid var(--cf-primary-strong);
+  border-radius: 8px;
   background: #ffffff;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.05);
+}
+
+.technician-job-history-page .cf-history-summary-widget {
+  min-width: 170px;
+  padding: 0.35rem 0 0.35rem 1.15rem;
+  border: 0;
+  border-left: 1px solid var(--cf-border);
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
 }
 
+.technician-job-history-page .cf-history-summary-icon {
+  background: #edf3fe;
+  color: var(--cf-primary-strong);
+}
+
+.technician-job-history-page .cf-history-filter-card {
+  grid-template-columns: minmax(155px, 0.28fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 0.8rem 1.15rem;
+  border: 0;
+  border-bottom: 1px solid var(--cf-border);
+  border-radius: 0;
+  background: #f7f9fc;
+  box-shadow: none;
+}
+
+.technician-job-history-page .cf-history-filter-heading h3 {
+  margin: 0;
+  color: var(--cf-heading);
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
 .technician-job-history-page .cf-history-filter-heading p {
-  max-width: 30rem;
+  max-width: 13rem;
+  margin: 0.2rem 0 0;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .technician-job-history-page .cf-history-filter-grid {
-  grid-template-columns: minmax(260px, 1fr) repeat(2, minmax(150px, 170px)) auto;
+  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(140px, 170px));
   align-items: end;
-  gap: 0.75rem;
+  gap: 0.65rem;
 }
 
 .technician-job-history-page .job-history-search-field,
@@ -10254,23 +10596,99 @@ textarea.report-control {
   min-height: 44px;
 }
 
+.technician-job-history-page .cf-history-filter-grid input[aria-invalid="true"] {
+  border-color: #c96968;
+}
+
+.technician-job-history-page .job-history-search-control > svg {
+  color: #8190a5;
+}
+
 .technician-job-history-page .cf-history-reset {
   min-height: 44px;
-  align-self: end;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--cf-border-strong);
+  border-radius: 4px;
+  background: #ffffff;
+  color: var(--cf-primary-strong);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.technician-job-history-page .cf-history-reset:hover,
+.technician-job-history-page .cf-history-reset:focus-visible {
+  border-color: #9eb7ea;
+  background: var(--cf-primary-soft);
+}
+
+.technician-job-history-page .job-history-filter-feedback {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.technician-job-history-page .job-history-date-error {
+  flex: 1 1 15rem;
+  margin: 0;
+  color: #a33e3d;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .technician-job-history-page .cf-history-results-card {
   overflow: hidden;
   border: 1px solid var(--cf-border);
-  border-radius: 0 0 14px 14px;
+  border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 8px 24px rgba(31, 41, 55, 0.045);
+  box-shadow: 0 3px 12px rgba(16, 24, 40, 0.06);
 }
 
 .technician-job-history-page .cf-results-header {
   min-height: 68px;
   padding: 0.9rem 1.15rem;
-  background: #fbfcfb;
+  background: #ffffff;
+}
+
+.technician-job-history-page .job-history-availability {
+  padding: 0.38rem 0.65rem;
+  border: 1px solid #d8e4f3;
+  border-radius: 4px;
+  background: #f2f6fd;
+  color: #4b6281;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.technician-job-history-page .job-history-records-canvas {
+  padding: 0.85rem;
+  background: #f3f6fa;
+}
+
+.technician-job-history-page .cf-empty-state {
+  min-height: 205px;
+  padding: 1.2rem;
+}
+
+.technician-job-history-page .cf-empty-state > span:first-child {
+  width: 48px;
+  height: 48px;
+  border: 1px solid #d8e4f3;
+  background: #eaf1fc;
+}
+
+.technician-job-history-page .cf-empty-state p {
+  max-width: 36rem;
+  margin-bottom: 0;
+}
+
+.technician-job-history-page .cf-workspace-footer {
+  background: #f9fbfd;
+  color: var(--cf-muted);
 }
 
 .technician-job-history-page .job-history-table {
@@ -10349,14 +10767,14 @@ textarea.report-control {
 }
 
 .technician-job-history-page .job-history-view-button:hover {
-  border-color: #76bfad;
-  background: #eaf7f2;
-  color: #234e52;
+  border-color: #9eb7ea;
+  background: #edf3ff;
+  color: var(--accent, #2e6ff2);
 }
 
 .technician-job-history-page .job-history-view-button:focus-visible {
-  border-color: #46b99a;
-  outline: 3px solid rgba(70, 185, 154, 0.25);
+  border-color: #bfd2ce;
+  outline: 3px solid rgba(46, 111, 242, 0.22);
   outline-offset: 2px;
   box-shadow: none;
 }
@@ -10371,47 +10789,79 @@ textarea.report-control {
 }
 
 @media (max-width: 991.98px) {
-  .technician-job-history-page .cf-history-filter-card {
-    border-bottom: 1px solid var(--cf-border);
-    border-radius: 14px;
-  }
-
   .technician-job-history-page .cf-history-filter-grid {
-    grid-template-columns: minmax(260px, 1fr) repeat(2, 160px);
-  }
-
-  .technician-job-history-page .cf-history-reset {
-    grid-column: 1 / -1;
-    justify-self: start;
-  }
-
-  .technician-job-history-page .cf-history-results-card {
-    margin-top: 0.85rem;
-    border-radius: 14px;
+    grid-template-columns: minmax(0, 1fr) repeat(2, minmax(130px, 160px));
   }
 }
 
 @media (max-width: 767.98px) {
-  .technician-job-history-page .cf-history-filter-grid {
+  .technician-job-history-page .cf-history-filter-card {
     grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 0.65rem;
   }
 
-  .technician-job-history-page .cf-history-reset {
-    grid-column: 1;
+  .technician-job-history-page .cf-history-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .technician-job-history-page .job-history-search-field {
+    grid-column: 1 / -1;
+  }
+
 }
 
 @media (max-width: 575.98px) {
-  .technician-job-history-page .cf-history-filter-card,
-  .technician-job-history-page .cf-history-results-card {
-    border-radius: 12px;
+  .technician-job-history-page .cf-history-header {
+    gap: 0.65rem;
+    padding: 0.85rem 0.95rem;
+  }
+
+  .technician-job-history-page .cf-history-summary-widget {
+    width: 100%;
+    padding: 0.55rem 0 0;
+    border: 0;
+    border-top: 1px solid var(--cf-border);
+  }
+
+  .technician-job-history-page .cf-history-filter-card {
+    gap: 0.55rem;
+    padding: 0.7rem 0.9rem;
+  }
+
+  .technician-job-history-page .cf-history-filter-heading p {
+    max-width: none;
+    margin-top: 0.12rem;
+  }
+
+  .technician-job-history-page .cf-history-filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+
+  .technician-job-history-page .job-history-search-field {
+    grid-column: 1;
+  }
+
+  .technician-job-history-page .job-history-search-field,
+  .technician-job-history-page .cf-date-filter-field {
+    gap: 0.2rem;
+  }
+
+  .technician-job-history-page .job-history-records-canvas {
+    padding: 0.5rem;
+  }
+
+  .technician-job-history-page .cf-empty-state {
+    min-height: 180px;
+    padding: 1rem;
   }
 
   .technician-job-history-page .cf-results-header {
     min-height: 0;
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.35rem;
+    align-items: center;
+    flex-direction: row;
+    gap: 0.65rem;
   }
 }
 
@@ -10680,25 +11130,26 @@ textarea.report-control {
 .parts-log-workspace {
   overflow: hidden;
   border: 1px solid var(--cf-border);
-  border-radius: 14px;
+  border-radius: 8px;
   background: #ffffff;
-  box-shadow: var(--cf-shadow);
+  box-shadow: 0 8px 24px rgba(34, 78, 82, 0.045);
 }
 
 .parts-log-workspace-header {
   display: flex;
-  min-height: 82px;
+  min-height: 86px;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.1rem 1.25rem;
+  padding: 1rem 1.2rem;
   border-bottom: 1px solid var(--cf-border);
+  background: #ffffff;
 }
 
 .parts-log-workspace-header h2 {
   margin: 0;
   color: var(--cf-heading);
-  font-size: 1rem;
+  font-size: 1.08rem;
   font-weight: 700;
   letter-spacing: -0.018em;
 }
@@ -10706,7 +11157,7 @@ textarea.report-control {
 .parts-log-workspace-header p {
   margin: 0.25rem 0 0;
   color: var(--cf-muted);
-  font-size: 12px;
+  font-size: 0.8125rem;
 }
 
 .parts-log-result-count {
@@ -10783,6 +11234,30 @@ textarea.report-control {
   background: transparent;
   color: var(--cf-text);
   font-size: 0.78rem;
+}
+
+/* The search wrapper owns the sole visible boundary and focus ring. */
+.technician-content-area .technician-parts-log-page .parts-log-search-control input[type="search"] {
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.technician-content-area .technician-parts-log-page .parts-log-search-control input[type="search"]:focus {
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+}
+
+.technician-parts-log-page .parts-log-search-control input[type="search"]:focus-visible {
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.technician-parts-log-page .parts-log-search-control input[type="search"]::-webkit-search-cancel-button {
+  display: none;
 }
 
 .parts-log-search-control input::placeholder {
@@ -10925,9 +11400,9 @@ textarea.report-control {
 }
 
 .parts-log-view-button:hover {
-  border-color: #75bca9;
-  background: var(--cf-primary-soft);
-  color: var(--cf-heading);
+  border-color: #9eb7ea;
+  background: #edf3ff;
+  color: var(--accent, #2e6ff2);
 }
 
 .parts-log-card-list {
@@ -11191,21 +11666,22 @@ textarea.report-control {
   min-width: 96px;
 }
 
-.technician-parts-log-page :is(
-  input,
-  select,
-  button
-):focus-visible,
+.technician-parts-log-page :is(input, select):focus-visible {
+  border-color: var(--accent, #2e6ff2) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.technician-parts-log-page button:focus-visible,
 .parts-log-details-modal button:focus-visible {
-  border-color: var(--cf-primary) !important;
-  outline: 3px solid rgba(47, 143, 125, 0.24) !important;
-  outline-offset: 2px;
+  outline: 3px solid rgba(46, 111, 242, 0.22) !important;
+  outline-offset: 0 !important;
   box-shadow: none !important;
 }
 
 .parts-log-search-control:focus-within {
-  border-color: var(--cf-primary);
-  box-shadow: 0 0 0 3px rgba(47, 143, 125, 0.16);
+  border-color: var(--accent, #2e6ff2);
+  box-shadow: none;
 }
 
 @media (max-width: 1199.98px) {
@@ -11368,20 +11844,25 @@ textarea.report-control {
 }
 
 .parts-log-utility-bar {
-  margin-bottom: 1rem;
-  padding: 0.68rem 0 0.82rem;
+  margin-bottom: 0;
+  padding: 0.78rem 1.2rem;
   border-bottom: 1px solid #e9eeec;
+  background: #f8fafc;
 }
 
 .parts-log-utility-bar .parts-log-toolbar {
   display: grid;
   width: 100%;
-  grid-template-columns: minmax(280px, 1fr) 160px minmax(300px, 0.82fr) auto;
+  grid-template-columns: minmax(280px, 1fr) 160px minmax(300px, 0.82fr);
   align-items: end;
   gap: 0.75rem;
   padding: 0;
   border: 0;
   background: transparent;
+}
+
+.parts-log-utility-bar .parts-log-toolbar.has-reset {
+  grid-template-columns: minmax(280px, 1fr) 160px minmax(300px, 0.82fr) auto;
 }
 
 .parts-log-date-range {
@@ -11457,10 +11938,10 @@ textarea.report-control {
   min-height: 470px;
   grid-template-columns: minmax(290px, 36%) minmax(0, 64%);
   overflow: hidden;
-  border: 1px solid var(--cf-border);
-  border-radius: 14px;
+  border: 0;
+  border-radius: 0;
   background: #ffffff;
-  box-shadow: 0 8px 24px rgba(34, 78, 82, 0.045);
+  box-shadow: none;
 }
 
 .parts-log-report-panel,
@@ -11532,17 +12013,17 @@ textarea.report-control {
 }
 
 .parts-log-report-row:hover {
-  background: #f1f8f5;
+  background: #f4f7ff;
 }
 
 .parts-log-report-row.is-active {
-  background: var(--cf-primary-soft);
-  box-shadow: inset 3px 0 0 var(--cf-primary);
+  background: #edf3ff;
+  box-shadow: inset 3px 0 0 var(--accent, #2e6ff2);
 }
 
 .parts-log-report-row:focus-visible {
   z-index: 1;
-  outline: 3px solid rgba(70, 185, 154, 0.28);
+  outline: 3px solid rgba(46, 111, 242, 0.22);
   outline-offset: -3px;
 }
 
@@ -11803,8 +12284,8 @@ textarea.report-control {
 }
 
 .parts-log-record-details:hover {
-  border-color: #c7ded8;
-  background: var(--cf-primary-soft);
+  border-color: #9eb7ea;
+  background: #edf3ff;
 }
 
 .parts-log-detail-footer {
@@ -11824,15 +12305,32 @@ textarea.report-control {
 }
 
 .parts-log-empty-state {
-  min-height: 190px;
-  border: 1px solid var(--cf-border);
-  border-radius: 12px;
-  background: #ffffff;
+  min-height: 240px;
+  border: 0;
+  border-radius: 0;
+  background: #fbfcfe;
+}
+
+.parts-log-workspace-body {
+  min-width: 0;
 }
 
 @media (max-width: 1199.98px) {
-  .parts-log-utility-bar .parts-log-toolbar {
-    grid-template-columns: minmax(240px, 1fr) 160px minmax(290px, 0.85fr) auto;
+  .parts-log-utility-bar .parts-log-toolbar,
+  .parts-log-utility-bar .parts-log-toolbar.has-reset {
+    grid-template-columns: minmax(160px, 0.35fr) minmax(0, 1fr) auto;
+  }
+
+  .parts-log-utility-bar .parts-log-search-field {
+    grid-column: 1 / -1;
+  }
+
+  .parts-log-utility-bar .parts-log-date-range {
+    grid-column: 2;
+  }
+
+  .parts-log-utility-bar .parts-log-toolbar:not(.has-reset) .parts-log-date-range {
+    grid-column: 2 / -1;
   }
 
   .parts-log-item-row {
@@ -11848,23 +12346,6 @@ textarea.report-control {
 
   .parts-log-inline-metrics {
     width: 100%;
-  }
-
-  .parts-log-utility-bar .parts-log-toolbar {
-    grid-template-columns: minmax(170px, 0.35fr) minmax(0, 1fr) auto;
-  }
-
-  .parts-log-search-field {
-    grid-column: 1 / -1;
-  }
-
-  .parts-log-date-range {
-    grid-column: 2;
-  }
-
-  .parts-log-toolbar-actions {
-    grid-column: 3;
-    justify-content: flex-end;
   }
 
   .parts-log-ledger {
@@ -11907,12 +12388,14 @@ textarea.report-control {
     padding: 0.68rem 0.65rem;
   }
 
-  .parts-log-utility-bar .parts-log-toolbar {
+  .parts-log-utility-bar .parts-log-toolbar,
+  .parts-log-utility-bar .parts-log-toolbar.has-reset {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .parts-log-search-field,
-  .parts-log-date-range,
+  .parts-log-utility-bar .parts-log-search-field,
+  .parts-log-utility-bar .parts-log-date-range,
+  .parts-log-utility-bar .parts-log-toolbar:not(.has-reset) .parts-log-date-range,
   .parts-log-toolbar-actions {
     grid-column: 1;
   }
@@ -11996,7 +12479,11 @@ textarea.report-control {
   }
 
   .parts-log-ledger {
-    border-radius: 12px;
+    border-radius: 0;
+  }
+
+  .parts-log-utility-bar {
+    padding-inline: 0.9rem;
   }
 
   .parts-log-panel-header,
@@ -12234,6 +12721,19 @@ textarea.report-control {
   gap: 0.9rem;
 }
 
+.tech-performance-status-bars.is-unavailable {
+  gap: 0;
+}
+
+.tech-performance-status-bars.is-unavailable .tech-performance-status-row {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.tech-performance-status-bars.is-unavailable .tech-performance-status-row:last-child {
+  border-bottom: 0;
+}
+
 .tech-performance-status-row {
   display: grid;
   width: 100%;
@@ -12285,6 +12785,11 @@ textarea.report-control {
   background: #e5ece9;
 }
 
+.technician-performance-page .tech-performance-status-track-unavailable {
+  border: 1px dashed #b7c4ce;
+  background: #f4f7f9;
+}
+
 .tech-performance-status-track > span {
   display: block;
   height: 100%;
@@ -12308,14 +12813,19 @@ textarea.report-control {
 .tech-performance-analysis-grid {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.72fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+  align-items: start;
   gap: 1rem;
-  margin-bottom: 1rem;
 }
 
 .tech-performance-completed,
 .tech-performance-availability {
   min-width: 0;
+}
+
+.technician-performance-page .tech-performance-completed,
+.technician-performance-page .tech-performance-availability {
+  box-shadow: none;
 }
 
 .tech-performance-panel-header {
@@ -12341,10 +12851,55 @@ textarea.report-control {
   line-height: 1;
 }
 
+.tech-performance-history-status {
+  color: var(--cf-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .tech-performance-completed-body {
-  display: grid;
-  min-height: 270px;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  min-height: 0;
+}
+
+.tech-performance-history-list {
+  margin: 0;
+  padding: 0.35rem 1.15rem;
+}
+
+.tech-performance-history-list > div {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.tech-performance-history-list > div:last-child {
+  border-bottom: 0;
+}
+
+.tech-performance-history-list dt {
+  color: var(--cf-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.tech-performance-history-list dd {
+  margin: 0;
+  color: var(--cf-muted);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.tech-performance-history-note,
+.tech-performance-availability-note {
+  margin: 0;
+  padding: 0.72rem 1.15rem;
+  border-top: 1px solid var(--cf-border);
+  color: var(--cf-muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .tech-performance-completed-body > section {
@@ -12484,16 +13039,16 @@ textarea.report-control {
 
 .tech-performance-availability-list {
   display: grid;
-  padding: 0.3rem 1.05rem 0.65rem;
+  padding: 0.25rem 1.05rem;
 }
 
 .tech-performance-availability-list > div {
   display: grid;
-  min-height: 81px;
+  min-height: 57px;
   grid-template-columns: 34px minmax(0, 1fr);
-  align-items: start;
+  align-items: center;
   gap: 0.7rem;
-  padding: 0.78rem 0;
+  padding: 0.5rem 0;
   border-bottom: 1px solid var(--cf-border);
 }
 
@@ -13338,11 +13893,15 @@ textarea.report-control {
   color: #46625d;
 }
 
-.technician-dashboard-page .cf-schedule-actions .cf-button-quiet:hover,
+.technician-dashboard-page .cf-schedule-actions .cf-button-quiet:hover {
+  border-color: #9eb7ea;
+  background: #edf3ff;
+  color: var(--accent, #2e6ff2);
+}
+
 .technician-dashboard-page .cf-schedule-actions .cf-button-quiet:focus-visible {
-  border-color: #8fc9bd;
-  background: var(--cf-primary-soft);
-  color: var(--cf-primary-strong);
+  background: #edf3ff;
+  color: var(--accent, #2e6ff2);
 }
 
 .technician-assigned-jobs-page .cf-job-stat-icon {
@@ -13371,6 +13930,16 @@ textarea.report-control {
   min-width: 0;
 }
 
+.technician-assigned-jobs-page .search-input-wrapper .search-input {
+  padding-right: 3.6rem;
+}
+
+.technician-assigned-jobs-page .search-clear-btn {
+  right: 4px;
+  width: 44px;
+  height: 44px;
+}
+
 .technician-assigned-jobs-page .status-select-filter {
   appearance: none;
   padding-right: 2.25rem;
@@ -13394,7 +13963,7 @@ textarea.report-control {
   }
 }
 
-@media (max-width: 991.98px) {
+@media (max-width: 767.98px) {
   .technician-assigned-jobs-page .assigned-jobs-filter-controls {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -13414,5 +13983,1283 @@ textarea.report-control {
   .technician-assigned-jobs-page .cf-job-stat-icon svg {
     width: 14px;
     height: 14px;
+  }
+}
+
+/* ==========================================================================
+   AirCon Care visual alignment
+   Keeps the Technician information architecture intact while sharing the
+   current application shell, surface, control, and typography language.
+   ========================================================================== */
+
+.technician-portal-wrapper {
+  font-family: "IBM Plex Sans", sans-serif;
+}
+
+.technician-content-area {
+  padding: 1.75rem 2rem 3rem !important;
+}
+
+/* Portal navigation */
+.technician-sidebar.cf-sidebar {
+  width: 248px;
+  padding: 20px 14px;
+  border-right-color: #1c2940;
+  background: #0b1526;
+  color: rgba(238, 242, 246, 0.72);
+}
+
+.cf-sidebar .cf-sidebar-brand {
+  min-height: 0;
+  padding: 0 8px 18px;
+  border-bottom: 1px solid rgba(238, 242, 246, 0.1);
+}
+
+.cf-sidebar .cool-fix-logo-mark {
+  width: 32px;
+  height: 32px;
+  color: var(--cf-primary);
+}
+
+.technician-topbar .cool-fix-logo-mark {
+  color: var(--cf-primary);
+}
+
+.cf-sidebar .cool-fix-wordmark,
+.cf-sidebar .tech-name {
+  color: #eef2f6;
+}
+
+.cf-sidebar .brand-subtitle,
+.cf-sidebar .tech-role {
+  color: rgba(238, 242, 246, 0.58);
+  font-size: 12px;
+}
+
+.cf-sidebar .cf-sidebar-nav {
+  margin-top: 14px;
+  padding: 0;
+}
+
+.cf-sidebar .sidebar-nav-section {
+  margin: 0;
+  padding: 14px 12px 6px;
+  color: rgba(238, 242, 246, 0.5);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-sidebar .nav-link {
+  min-height: 44px;
+  gap: 10px !important;
+  padding: 10px 12px;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0 4px 4px 0;
+  color: rgba(238, 242, 246, 0.65);
+  font-size: 13.5px;
+  font-weight: 400;
+}
+
+.cf-sidebar .nav-link:hover {
+  border-color: transparent;
+  background: #121f36;
+  color: #ffffff;
+}
+
+.cf-sidebar .nav-link.active {
+  border-left-color: #00b8d9;
+  background: #16213a;
+  box-shadow: none;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.cf-sidebar .cf-nav-icon,
+.cf-sidebar .nav-link.active .cf-nav-icon {
+  width: 20px;
+  height: 20px;
+  flex-basis: 20px;
+  border-radius: 4px;
+  background: transparent;
+  color: currentColor;
+}
+
+.cf-sidebar .cf-nav-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cf-sidebar-footer {
+  border-top-color: rgba(238, 242, 246, 0.1);
+  margin: 10px 0 0;
+  padding: 14px 0 0;
+}
+
+.cf-sidebar .cf-profile-card {
+  padding: 0 4px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.cf-sidebar .tech-avatar {
+  border-radius: 4px;
+  background: var(--cf-primary);
+  font-size: 12px;
+}
+
+.cf-sidebar .cf-profile-identity {
+  flex: 1;
+}
+
+.cf-sidebar .cf-profile-link {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.2rem;
+  padding: 0 0.2rem;
+  color: rgba(238, 242, 246, 0.68);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cf-sidebar .cf-profile-link:hover,
+.cf-sidebar .cf-profile-link.is-active {
+  color: #ffffff;
+}
+
+.cf-sidebar .cf-profile-link:focus-visible,
+.cf-sidebar .cf-sidebar-logout:focus-visible {
+  outline: 2px solid #00b8d9;
+  outline-offset: 2px;
+}
+
+.cf-sidebar .cf-sidebar-logout {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(238, 242, 246, 0.85);
+  font-family: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.cf-sidebar .cf-sidebar-logout:hover {
+  border-color: #d64545;
+  color: #ff8a8a;
+}
+
+.cf-sidebar .btn-close {
+  filter: invert(1);
+  opacity: 0.8;
+}
+
+.cf-sidebar .btn-close:focus-visible {
+  outline: 2px solid #00b8d9;
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
+@media (min-width: 992px) {
+  .technician-sidebar.cf-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+}
+
+/* Top bar and page rhythm */
+.cf-admin-topbar.technician-topbar {
+  min-height: 64px;
+  padding: 0 2rem;
+  border-bottom-color: var(--cf-border);
+  background: #ffffff;
+  backdrop-filter: none;
+}
+
+.cf-topbar-context-label,
+.cf-topbar-context-date,
+.cf-shift-copy small,
+.cf-shift-copy strong {
+  font-size: 12px;
+}
+
+.cf-shift-status,
+.cf-topbar-alert.topbar-alert-btn,
+.cf-dashboard-date-card,
+.cf-page-header-status,
+.tech-performance-technician,
+.tech-profile-read-only {
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.cf-topbar-alert.topbar-alert-btn:hover,
+.cf-topbar-alert.topbar-alert-btn:focus-visible {
+  border-color: #9eb7ea;
+  background: var(--cf-primary-soft);
+  color: var(--cf-primary-strong);
+}
+
+.cf-page-header {
+  margin-bottom: 1.4rem;
+}
+
+.cf-eyebrow,
+.cf-widget-kicker,
+.technician-content-area small,
+.technician-content-area label,
+.technician-content-area dt,
+.technician-content-area th,
+.cf-page-header-status small,
+.cf-count-pill,
+.cf-kpi-context,
+.cf-performance-list dd,
+.cf-report-progress span,
+.cf-workspace-footer,
+.follow-up-page-footer {
+  font-size: 12px;
+}
+
+.cf-page-heading h1,
+.cf-report-header h1 {
+  font-size: clamp(1.75rem, 2.2vw, 2.1rem);
+  letter-spacing: -0.03em;
+}
+
+.cf-page-heading p,
+.cf-report-header > div > p {
+  font-size: 0.875rem;
+}
+
+/* Shared surfaces */
+.cf-widget,
+.cf-workspace-card,
+.cf-history-filter-card,
+.cf-history-results-card,
+.cf-report-card,
+.cf-report-side-card,
+.cf-kpi-card,
+.cf-job-stat-card,
+.follow-up-assignment-status,
+.parts-log-ledger,
+.tech-performance-overview,
+.tech-performance-completed,
+.tech-performance-availability,
+.tech-performance-recent,
+.tech-performance-empty,
+.tech-profile-identity,
+.tech-profile-record-card,
+.tech-profile-work-snapshot,
+.tech-profile-availability,
+.tech-profile-empty {
+  border-color: var(--cf-border);
+  border-radius: 6px;
+  box-shadow: var(--cf-shadow);
+}
+
+.cf-widget-header,
+.cf-history-results-header,
+.tech-performance-overview-header,
+.tech-performance-panel-header,
+.tech-profile-record-card > header,
+.tech-profile-work-snapshot > header,
+.tech-profile-availability > header {
+  background: var(--cf-surface-soft);
+}
+
+.cf-widget-header h2,
+.cf-workspace-heading h2,
+.cf-results-header h2,
+.cf-history-filter-heading h2,
+.tech-performance-overview h2,
+.tech-performance-panel-header h2,
+.tech-profile-record-card header h2,
+.tech-profile-work-snapshot header h2,
+.tech-profile-availability header h2 {
+  color: var(--cf-heading);
+}
+
+/* Controls and actions */
+.technician-content-area input:not([type="checkbox"]):not([type="radio"]),
+.technician-content-area select,
+.technician-content-area textarea {
+  border-color: var(--cf-border-strong);
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: var(--cf-text);
+  font-size: 0.8125rem;
+}
+
+.technician-content-area input:not([type="checkbox"]):not([type="radio"]),
+.technician-content-area select {
+  min-height: 44px;
+}
+
+.technician-content-area input:not([type="checkbox"]):not([type="radio"]):focus,
+.technician-content-area select:focus,
+.technician-content-area textarea:focus {
+  border-color: var(--accent, #2e6ff2);
+  outline: none;
+  box-shadow: none;
+}
+
+.technician-content-area button:focus-visible,
+.technician-content-area a:focus-visible {
+  outline: 2px solid rgba(46, 111, 242, 0.3);
+  outline-offset: 0;
+  box-shadow: none;
+}
+
+.cf-button,
+.parts-log-view-button,
+.parts-log-record-details,
+.filter-tab-btn,
+.technician-content-area .btn {
+  border-radius: 4px;
+  font-size: 0.8125rem;
+}
+
+.cf-button-primary {
+  border-color: var(--cf-primary);
+  background: var(--cf-primary);
+}
+
+.cf-button-primary:is(:hover, :focus, :active) {
+  border-color: var(--accent, #2e6ff2);
+  background: var(--accent, #2e6ff2);
+}
+
+.cf-button-secondary,
+.parts-log-view-button,
+.parts-log-record-details {
+  border-color: var(--cf-border-strong);
+  color: var(--cf-primary-strong);
+}
+
+.cf-button-secondary:hover,
+.cf-button-quiet:hover,
+.parts-log-view-button:hover,
+.parts-log-record-details:hover {
+  border-color: #9eb7ea;
+  background: #edf3ff;
+  color: var(--accent, #2e6ff2);
+}
+
+.cf-text-link,
+.cf-job-code {
+  color: var(--cf-primary-strong);
+}
+
+.cf-count-pill,
+.cf-kpi-icon,
+.cf-dashboard-date-icon,
+.cf-empty-state > span:first-child,
+.follow-up-empty-icon,
+.parts-log-empty-state > span:first-child,
+.tech-performance-section-icon,
+.tech-profile-section-icon {
+  border-radius: 4px;
+}
+
+/* Tables, filters, and application states */
+.technician-content-area table thead th,
+.cf-table-header,
+.parts-log-table th {
+  background: #f7f9fc;
+  color: #46546a;
+}
+
+.technician-content-area table tbody tr:hover,
+.parts-log-table tbody tr:hover td {
+  background: #f5f8ff;
+}
+
+.cf-empty-state,
+.follow-up-empty-state,
+.job-history-empty-state,
+.parts-log-empty-state,
+.cf-error-state {
+  color: var(--cf-muted);
+}
+
+.technician-portal-wrapper .alert {
+  border-radius: 4px;
+  box-shadow: none;
+  font-size: 0.8125rem;
+}
+
+.report-eligibility-badge,
+.job-status-badge,
+.parts-log-type-chip,
+.tech-profile-account-status {
+  font-size: 12px;
+}
+
+/* Preserve semantic status colors while moving neutral accents to AirCon blue. */
+.cf-kpi-accent-mint,
+.cf-job-stat-dot-mint {
+  background: #00b8d9;
+}
+
+.technician-assigned-jobs-page .cf-job-stat-icon-mint,
+.technician-assigned-jobs-page .cf-job-stat-icon-blue {
+  color: var(--cf-primary-strong);
+}
+
+.technician-assigned-jobs-page .status-select-filter {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='m3 4.5 3 3 3-3' stroke='%23255DCC' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.tech-performance-overview::before,
+.tech-profile-identity-accent {
+  background: var(--cf-primary);
+}
+
+.tech-profile-avatar {
+  background: linear-gradient(145deg, var(--cf-primary), var(--cf-primary-strong));
+  box-shadow: 0 0 0 1px var(--cf-border), 0 10px 24px rgba(46, 111, 242, 0.2);
+}
+
+@media (max-width: 991.98px) {
+  .technician-content-area {
+    padding: 1.5rem 1.25rem 2.5rem !important;
+  }
+
+  .cf-admin-topbar.technician-topbar {
+    padding: 0 1.25rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .technician-content-area {
+    padding: 1rem 0.9rem 2rem !important;
+  }
+
+  .cf-admin-topbar.technician-topbar {
+    padding: 0 0.9rem;
+  }
+
+  .cf-page-header {
+    margin-bottom: 1.1rem;
+  }
+
+  .cf-page-heading h1,
+  .cf-report-header h1 {
+    font-size: 1.55rem;
+  }
+
+  .cf-widget,
+  .cf-workspace-card,
+  .cf-history-filter-card,
+  .cf-history-results-card,
+  .cf-report-card,
+  .cf-report-side-card,
+  .cf-kpi-card,
+  .cf-job-stat-card,
+  .parts-log-ledger,
+  .tech-performance-overview,
+  .tech-performance-completed,
+  .tech-performance-availability,
+  .tech-performance-recent,
+  .tech-profile-identity,
+  .tech-profile-record-card,
+  .tech-profile-work-snapshot,
+  .tech-profile-availability,
+  .tech-profile-empty {
+    border-radius: 6px;
+  }
+}
+
+/* ==========================================================================
+   Technician Dashboard — field operations workspace
+   A self-contained Dashboard composition; no shared shell styles are changed.
+   ========================================================================== */
+
+.technician-portal-wrapper:has(.technician-dashboard-page) .cf-topbar-context-date {
+  display: none;
+}
+
+.technician-dashboard-page {
+  --tech-dash-ink: #101828;
+  --tech-dash-copy: #344054;
+  --tech-dash-muted: #667085;
+  --tech-dash-line: #d7dee8;
+  --tech-dash-line-soft: #e9edf3;
+  --tech-dash-blue: #2e6ff2;
+  --tech-dash-blue-dark: #255dcc;
+  --tech-dash-blue-soft: #f0f5ff;
+  display: grid;
+  gap: 1rem;
+}
+
+.technician-dashboard-page .tech-dash-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2rem;
+  overflow: hidden;
+  padding: 1.25rem 1.35rem;
+  border: 1px solid var(--tech-dash-line);
+  border-left: 4px solid var(--tech-dash-blue);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 2px 7px rgba(16, 24, 40, 0.065);
+}
+
+.technician-dashboard-page .tech-dash-hero-copy {
+  min-width: 0;
+}
+
+.technician-dashboard-page .tech-dash-context {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.48rem;
+  color: #315fae;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.technician-dashboard-page .tech-dash-context-mark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #cddbf6;
+  border-radius: 5px;
+  background: var(--tech-dash-blue-soft);
+}
+
+.technician-dashboard-page .tech-dash-context-mark svg {
+  width: 15px;
+  height: 15px;
+}
+
+.technician-dashboard-page .tech-dash-hero h1 {
+  margin: 0.48rem 0 0;
+  color: var(--tech-dash-ink);
+  font-size: clamp(1.8rem, 2.35vw, 2.3rem);
+  font-weight: 650;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.technician-dashboard-page .tech-dash-hero p {
+  max-width: 640px;
+  margin: 0.5rem 0 0;
+  color: var(--tech-dash-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.technician-dashboard-page .tech-dash-date {
+  display: flex;
+  min-width: 255px;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.2rem 0 0.2rem 1.35rem;
+  border-left: 1px solid var(--tech-dash-line);
+}
+
+.technician-dashboard-page .tech-dash-date-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border: 1px solid #cddbf6;
+  border-radius: 6px;
+  background: var(--tech-dash-blue-soft);
+  color: var(--tech-dash-blue-dark);
+}
+
+.technician-dashboard-page .tech-dash-date-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.technician-dashboard-page .tech-dash-date-copy {
+  display: grid;
+}
+
+.technician-dashboard-page .tech-dash-date-copy small {
+  color: var(--tech-dash-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.technician-dashboard-page .tech-dash-date-copy strong {
+  margin-top: 0.12rem;
+  color: var(--tech-dash-ink);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.technician-dashboard-page .tech-dash-overview,
+.technician-dashboard-page .tech-dash-panel {
+  border: 1px solid var(--tech-dash-line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 3px 10px rgba(16, 24, 40, 0.065);
+}
+
+.technician-dashboard-page .tech-dash-overview {
+  overflow: hidden;
+}
+
+.technician-dashboard-page .tech-dash-overview-header {
+  display: flex;
+  min-height: 74px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.9rem 1.2rem;
+  border-bottom: 1px solid var(--tech-dash-line);
+  background: #f6f8fb;
+}
+
+.technician-dashboard-page .tech-dash-section-kicker,
+.technician-dashboard-page .tech-dash-panel-kicker {
+  display: block;
+  color: #315fae;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.technician-dashboard-page .tech-dash-overview-header h2,
+.technician-dashboard-page .tech-dash-workspace-heading h2,
+.technician-dashboard-page .tech-dash-panel-header h2 {
+  margin: 0.22rem 0 0;
+  color: var(--tech-dash-ink);
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.technician-dashboard-page .tech-dash-overview-header p,
+.technician-dashboard-page .tech-dash-workspace-heading p,
+.technician-dashboard-page .tech-dash-panel-header p {
+  margin: 0;
+  color: var(--tech-dash-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.technician-dashboard-page .tech-dash-overview-header > p {
+  max-width: 390px;
+  text-align: right;
+}
+
+.technician-dashboard-page .tech-dash-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: #f5f7fa;
+}
+
+.technician-dashboard-page .tech-dash-metric {
+  position: relative;
+  display: grid;
+  min-height: 145px;
+  align-content: start;
+  padding: 1rem 1.15rem;
+  border-right: 1px solid var(--tech-dash-line-soft);
+  background: #fcfdff;
+}
+
+.technician-dashboard-page .tech-dash-metric:nth-child(even) {
+  background: #ffffff;
+}
+
+.technician-dashboard-page .tech-dash-metric:last-child {
+  border-right: 0;
+}
+
+.technician-dashboard-page .tech-dash-metric::before {
+  position: absolute;
+  top: 0;
+  right: 1.15rem;
+  left: 1.15rem;
+  height: 2px;
+  background: #59bfd2;
+  content: "";
+}
+
+.technician-dashboard-page .tech-dash-metric-green::before { background: #68b884; }
+.technician-dashboard-page .tech-dash-metric-amber::before { background: #d5a34f; }
+.technician-dashboard-page .tech-dash-metric-violet::before { background: #9a84c4; }
+
+.technician-dashboard-page .tech-dash-metric-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.62rem;
+}
+
+.technician-dashboard-page .tech-dash-metric-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border: 1px solid #bee5ec;
+  border-radius: 6px;
+  background: #f0fafb;
+  color: #197d91;
+}
+
+.technician-dashboard-page .tech-dash-metric-icon-green {
+  border-color: #cae7d3;
+  background: #f2faf4;
+  color: #2e7d4f;
+}
+
+.technician-dashboard-page .tech-dash-metric-icon-amber {
+  border-color: #eddcab;
+  background: #fff9e9;
+  color: #946019;
+}
+
+.technician-dashboard-page .tech-dash-metric-icon-violet {
+  border-color: #ded5ef;
+  background: #f7f4fc;
+  color: #7154a2;
+}
+
+.technician-dashboard-page .tech-dash-metric-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.technician-dashboard-page .tech-dash-metric-label {
+  color: var(--tech-dash-copy);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.technician-dashboard-page .tech-dash-metric-value {
+  margin-top: 0.7rem;
+  color: var(--tech-dash-ink);
+  font-size: 1.9rem;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.technician-dashboard-page .tech-dash-metric-context {
+  margin-top: 0.42rem;
+  color: var(--tech-dash-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.technician-dashboard-page .tech-dash-workspace-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.2rem 0.1rem 0;
+}
+
+.technician-dashboard-page .tech-dash-workspace-heading > p {
+  max-width: 440px;
+  text-align: right;
+}
+
+.technician-dashboard-page .tech-dash-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.72fr);
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.technician-dashboard-page .tech-dash-panel {
+  overflow: hidden;
+}
+
+.technician-dashboard-page .tech-dash-panel-header {
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--tech-dash-line);
+  background: #f6f8fb;
+}
+
+.technician-dashboard-page .tech-dash-panel-header > div {
+  min-width: 0;
+}
+
+.technician-dashboard-page .tech-dash-panel-header p {
+  margin-top: 0.32rem;
+}
+
+.technician-dashboard-page .tech-dash-panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.technician-dashboard-page .tech-dash-availability {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  padding: 0.18rem 0.5rem;
+  border: 1px solid #d8e1ee;
+  border-radius: 4px;
+  background: #f2f5f9;
+  color: #50627d;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.technician-dashboard-page .tech-dash-view-link {
+  display: inline-flex;
+  min-height: 44px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0 0.2rem;
+  color: var(--tech-dash-blue-dark);
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.technician-dashboard-page .tech-dash-view-link svg {
+  width: 15px;
+  height: 15px;
+  transition: transform 160ms ease;
+}
+
+.technician-dashboard-page .tech-dash-view-link:hover svg,
+.technician-dashboard-page .tech-dash-view-link:focus-visible svg {
+  transform: translateX(3px);
+}
+
+.technician-dashboard-page .tech-dash-schedule {
+  display: flex;
+  min-height: 510px;
+  flex-direction: column;
+}
+
+.technician-dashboard-page .tech-dash-schedule-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: 0 1.2rem 0.35rem;
+  background: #f8fafc;
+}
+
+.technician-dashboard-page .cf-dashboard-state {
+  display: grid;
+  min-height: 310px;
+  flex: 1;
+  place-items: center;
+  align-content: center;
+  margin: 1rem 0 0.65rem;
+  padding: 2rem 1.5rem;
+  border: 1px dashed #ced8e6;
+  border-radius: 6px;
+  background: #ffffff;
+  text-align: center;
+}
+
+.technician-dashboard-page .cf-dashboard-state-icon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 0.85rem;
+  place-items: center;
+  border: 1px solid #e2d6ad;
+  border-radius: 8px;
+  background: #fffaeb;
+  color: #91641f;
+}
+
+.technician-dashboard-page .cf-dashboard-state-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.technician-dashboard-page .cf-dashboard-state-label {
+  color: #5c6f8d;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.technician-dashboard-page .cf-dashboard-state h3 {
+  margin: 0.45rem 0 0;
+  color: var(--tech-dash-ink);
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.technician-dashboard-page .cf-dashboard-state p {
+  max-width: 450px;
+  margin: 0.42rem 0 0;
+  color: var(--tech-dash-muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.technician-dashboard-page .cf-schedule-row {
+  padding-right: 0.2rem;
+  padding-left: 0.2rem;
+}
+
+.technician-dashboard-page .tech-dash-rail {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 1rem;
+}
+
+.technician-dashboard-page .tech-dash-quick-panel,
+.technician-dashboard-page .tech-dash-readiness-panel {
+  background: #f8fafc;
+}
+
+.technician-dashboard-page .tech-dash-rail .tech-dash-panel-header {
+  min-height: 88px;
+}
+
+.technician-dashboard-page .tech-dash-actions {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+}
+
+.technician-dashboard-page .tech-dash-action {
+  display: grid;
+  min-height: 72px;
+  grid-template-columns: 40px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 0.72rem;
+  padding: 0.68rem;
+  border: 1px solid var(--tech-dash-line-soft);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--tech-dash-ink);
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.035);
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.technician-dashboard-page .tech-dash-action-primary {
+  border-color: #cad9f6;
+  background: #f3f7ff;
+}
+
+.technician-dashboard-page .tech-dash-action:hover,
+.technician-dashboard-page .tech-dash-action:focus-visible {
+  border-color: #9fb9e9;
+  background: #f6f9ff;
+  box-shadow: 0 4px 11px rgba(46, 111, 242, 0.1);
+  color: var(--tech-dash-ink);
+  transform: translateY(-1px);
+}
+
+.technician-dashboard-page .tech-dash-action:active {
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+  transform: translateY(0);
+}
+
+.technician-dashboard-page .tech-dash-action-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid #d6e0ef;
+  border-radius: 6px;
+  background: #f7f9fc;
+  color: #315fae;
+}
+
+.technician-dashboard-page .tech-dash-action-primary .tech-dash-action-icon {
+  border-color: #c6d7f8;
+  background: #ffffff;
+  color: var(--tech-dash-blue-dark);
+}
+
+.technician-dashboard-page .tech-dash-action-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.technician-dashboard-page .tech-dash-action-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.technician-dashboard-page .tech-dash-action-copy strong {
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.technician-dashboard-page .tech-dash-action-copy small {
+  margin-top: 0.12rem;
+  color: var(--tech-dash-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.technician-dashboard-page .tech-dash-action-arrow {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #dce3ec;
+  border-radius: 50%;
+  color: #667085;
+  transition: border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.technician-dashboard-page .tech-dash-action-arrow svg {
+  width: 14px;
+  height: 14px;
+}
+
+.technician-dashboard-page .tech-dash-action:hover .tech-dash-action-arrow,
+.technician-dashboard-page .tech-dash-action:focus-visible .tech-dash-action-arrow {
+  border-color: #9fb9e9;
+  color: var(--tech-dash-blue-dark);
+  transform: translateX(2px);
+}
+
+.technician-dashboard-page .tech-dash-status-list {
+  display: grid;
+  padding: 0.55rem 0.95rem 0.7rem;
+  background: #f8fafc;
+}
+
+.technician-dashboard-page .tech-dash-status-row {
+  display: grid;
+  min-height: 72px;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--tech-dash-line-soft);
+}
+
+.technician-dashboard-page .tech-dash-status-row:last-child {
+  border-bottom: 0;
+}
+
+.technician-dashboard-page .tech-dash-status-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid #d9e1eb;
+  border-radius: 6px;
+  background: #f5f7fa;
+  color: #65758b;
+}
+
+.technician-dashboard-page .tech-dash-status-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.technician-dashboard-page .tech-dash-status-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.technician-dashboard-page .tech-dash-status-copy strong {
+  color: var(--tech-dash-copy);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.technician-dashboard-page .tech-dash-status-copy small {
+  margin-top: 0.12rem;
+  color: var(--tech-dash-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.technician-dashboard-page .tech-dash-status-value {
+  display: grid;
+  min-width: 34px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #d8e0e9;
+  border-radius: 4px;
+  background: #f3f5f8;
+  color: #59687c;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+@media (max-width: 1199.98px) {
+  .technician-dashboard-page .tech-dash-workspace {
+    grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.72fr);
+  }
+}
+
+@media (max-width: 991.98px) {
+  .technician-dashboard-page .tech-dash-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-dashboard-page .tech-dash-metric:nth-child(2) {
+    border-right: 0;
+  }
+
+  .technician-dashboard-page .tech-dash-metric:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--tech-dash-line-soft);
+  }
+
+  .technician-dashboard-page .tech-dash-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .technician-dashboard-page .tech-dash-schedule {
+    min-height: 410px;
+  }
+
+  .technician-dashboard-page .tech-dash-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .technician-dashboard-page .tech-dash-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .technician-dashboard-page .tech-dash-date {
+    min-width: 0;
+    padding: 0.9rem 0 0;
+    border-top: 1px solid var(--tech-dash-line-soft);
+    border-left: 0;
+  }
+
+  .technician-dashboard-page .tech-dash-overview-header,
+  .technician-dashboard-page .tech-dash-workspace-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .technician-dashboard-page .tech-dash-overview-header > p,
+  .technician-dashboard-page .tech-dash-workspace-heading > p {
+    max-width: none;
+    text-align: left;
+  }
+
+  .technician-dashboard-page .tech-dash-schedule-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .technician-dashboard-page .tech-dash-rail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 575.98px) {
+  .technician-dashboard-page {
+    gap: 0.8rem;
+  }
+
+  .technician-dashboard-page .tech-dash-hero {
+    padding: 1rem;
+  }
+
+  .technician-dashboard-page .tech-dash-hero h1 {
+    font-size: 1.65rem;
+  }
+
+  .technician-dashboard-page .tech-dash-overview-header,
+  .technician-dashboard-page .tech-dash-panel-header {
+    padding: 0.9rem;
+  }
+
+  .technician-dashboard-page .tech-dash-metric {
+    min-height: 142px;
+    padding: 0.85rem;
+  }
+
+  .technician-dashboard-page .tech-dash-metric::before {
+    right: 0.85rem;
+    left: 0.85rem;
+  }
+
+  .technician-dashboard-page .tech-dash-metric-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.48rem;
+  }
+
+  .technician-dashboard-page .tech-dash-metric-value {
+    margin-top: 0.55rem;
+    font-size: 1.55rem;
+  }
+
+  .technician-dashboard-page .tech-dash-panel-title-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .technician-dashboard-page .tech-dash-schedule {
+    min-height: 390px;
+  }
+
+  .technician-dashboard-page .tech-dash-schedule-body {
+    padding: 0 0.85rem 0.3rem;
+  }
+
+  .technician-dashboard-page .cf-dashboard-state {
+    min-height: 260px;
+    margin-top: 0.85rem;
+    padding: 1.5rem 0.8rem;
+  }
+
+  .technician-dashboard-page .tech-dash-actions,
+  .technician-dashboard-page .tech-dash-status-list {
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .technician-dashboard-page :is(.tech-dash-view-link svg, .tech-dash-action, .tech-dash-action-arrow) {
+    transition: none;
+  }
+
+  .technician-dashboard-page :is(.tech-dash-view-link, .tech-dash-action):hover,
+  .technician-dashboard-page :is(.tech-dash-view-link, .tech-dash-action):focus-visible,
+  .technician-dashboard-page .tech-dash-action:hover .tech-dash-action-arrow,
+  .technician-dashboard-page .tech-dash-action:focus-visible .tech-dash-action-arrow {
+    transform: none;
   }
 }

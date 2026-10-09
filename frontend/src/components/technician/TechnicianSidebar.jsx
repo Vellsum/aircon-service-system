@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import CoolFixLogo from './CoolFixLogo'
 import { useAuth } from '../../context/AuthContext'
 
@@ -8,9 +8,17 @@ import { useAuth } from '../../context/AuthContext'
  * Navigation sidebar for the Cool Fix Technician Portal.
  */
 function TechnicianSidebar({ isOpen, onClose }) {
-  const {user} = useAuth()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const closeButtonRef = useRef(null)
-  
+
+  const handleLogout = () => {
+    logout?.()
+    localStorage.removeItem('aircon_role')
+    localStorage.removeItem('aircon_email')
+    onClose()
+    navigate('/login')
+  }
 
   useEffect(() => {
     if (!isOpen) return undefined
@@ -108,16 +116,6 @@ function TechnicianSidebar({ isOpen, onClose }) {
         </svg>
       ),
     },
-    {
-      to: '/technician/profile',
-      label: 'Profile',
-      icon: (
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-          <circle cx="12" cy="7" r="4"/>
-        </svg>
-      ),
-    },
   ]
 
   return (
@@ -180,20 +178,37 @@ function TechnicianSidebar({ isOpen, onClose }) {
         <div className="sidebar-footer cf-sidebar-footer">
           <div className="sidebar-profile-card cf-profile-card">
             <div className="cf-profile-identity">
-            <div className="tech-avatar">
-              {(user?.username || user?.role || 'T').charAt(0).toUpperCase()}
-            </div>
-            <div className="cf-profile-copy">
-              <div className="tech-name text-truncate">
-                {user?.username || 'Technician'}
+              <div className="tech-avatar">
+                {(user?.username || user?.role || 'T').charAt(0).toUpperCase()}
               </div>
-              <div className="tech-role text-truncate">Field Technician</div>
+              <div className="cf-profile-copy">
+                <div className="tech-name text-truncate">
+                  {user?.username || 'Technician'}
+                </div>
+                <div className="tech-role text-truncate">Field Technician</div>
+              </div>
             </div>
-            </div>
-            <div className="cf-profile-status" aria-label="On duty">
-              <span className="duty-dot-pulse" />
-            </div>
+            <NavLink
+              to="/technician/profile"
+              onClick={onClose}
+              className={({ isActive }) =>
+                `cf-profile-link${isActive ? ' is-active' : ''}`
+              }
+            >
+              Profile
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </NavLink>
           </div>
+          <button type="button" className="cf-sidebar-logout" onClick={handleLogout}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            Logout
+          </button>
         </div>
       </aside>
     </>
