@@ -2,16 +2,17 @@
  * Cool Fix - Technician Controller
  * Maps Azure SQL database tables [new_jobBooking].[Booking] & [user3].[newCustomer]
  *
- * CHANGELOG — 6 Oct 2026:
- *   1. rawTime now CONVERTed to VARCHAR in SQL ("HH:MM:SS"). Previously the
- *      mssql driver returned the TIME column as a JS Date, and string-parsing
- *      it produced garbage → the "undefined AM" display bug. Fixed at source.
- *   2. Added time24 ("HH:MM") to each job — used by the frontend start-gate.
- *   3. updateJobStatus enforces TWO rules:
- *        a) START GATE — cannot start before the booking date (and time, if
- *           ENFORCE_START_TIME is true).
- *        b) REPORT GATE — cannot complete until every linked job has a
- *           service report. Flow: Start → Submit Report → Complete.
+ * CHANGELOG — 6 Oct 2026 (v3):
+ *   1. rawTime CONVERTed to VARCHAR in SQL (TIME columns arrive as JS Dates —
+ *      root cause of the "undefined AM" display bug).
+ *   2. time24 ("HH:MM") added to each job — used by the frontend start-gate.
+ *   3. updateJobStatus enforces THREE rules, ALL logged to the terminal:
+ *        a) START GATE    — cannot start before the booking date/time
+ *        b) SEQUENCE GATE — cannot complete a job that is not In Progress
+ *                           (fixes the misleading "submit report first" message
+ *                           when the job was never started)
+ *        c) REPORT GATE v2 — cannot complete without a service report
+ *                           (checks all three link styles)
  *   4. todayStr uses LOCAL date (was toISOString/UTC — wrong before 8am SGT).
  */
 
@@ -112,6 +113,7 @@ const getAssignedJobs = async (req, res) => {
       return {
         job_ID: row.booking_ID,
         id: `#BK${String(row.booking_ID).padStart(3, '0')}`,
+        customer_ID: row.customer_ID,
         customerName: row.customer_name || 'Guest Customer',
         serviceType: 'Aircon Servicing',
         unitType: 'Wall-Mounted Split System',
@@ -170,10 +172,11 @@ const getTechnicianStats = async (req, res) => {
 
 // =============================================================================
 // PUT /api/technician/jobs/:bookingId/status
-// 6 Oct 2026 — enforces TWO business rules:
-//   (a) START GATE   — 'In Progress' only allowed on/after the booking slot
-//   (b) REPORT GATE  — 'Completed' only allowed once every linked job has a
-//                      service report (Start → Submit Report → Complete)
+// 6 Oct 2026 — enforces THREE business rules, all logged to the terminal:
+//   (a) START GATE    — 'In Progress' only allowed on/after the booking slot
+//   (b) SEQUENCE GATE — 'Completed' only allowed from 'In Progress'
+//   (c) REPORT GATE v2 — 'Completed' only allowed once a service report exists
+//   Flow: 🔒 (until date) → Start → Submit Report → Complete
 // =============================================================================
 const updateJobStatus = async (req, res) => {
   try {
@@ -202,22 +205,43 @@ const updateJobStatus = async (req, res) => {
       const today = localDateStr();
       const nowTime = localTimeStr();
 
+      // 6 Oct 2026 (v3): start-gate rejections are now LOGGED (were silent before)
       if (row.d > today) {
+        console.error(`[Cool Fix] START GATE rejected booking #${bookingId}: scheduled for ${row.d}.`);
         return res.status(400).json({ success: false,
           message: `This job is scheduled for ${row.d} — it cannot be started before its booking date.` });
       }
       if (ENFORCE_START_TIME && row.d === today && row.t > nowTime) {
+        console.error(`[Cool Fix] START GATE rejected booking #${bookingId}: scheduled for today at ${row.t}.`);
         return res.status(400).json({ success: false,
           message: `This job is scheduled for today at ${row.t} — starting unlocks at that time.` });
       }
     }
 
-        /* -------------------------------------------------------------------------
-     * (b) REPORT GATE v2 — 6 Oct 2026.
+    /* -------------------------------------------------------------------------
+     * (b) SEQUENCE GATE — 6 Oct 2026 (v3): 'Completed' only allowed from
+     *     'In Progress'. Without this, completing a never-started job produced
+     *     the misleading "submit report first" message.
+     * ---------------------------------------------------------------------- */
+    if (newStatus.toLowerCase() === 'completed') {
+      const cur = await pool.request()
+        .input('bookingId', sql.Int, Number(bookingId))
+        .query(`SELECT LOWER([status]) AS s FROM [new_jobBooking].[Booking] WHERE booking_ID = @bookingId`);
+      const s = cur.recordset[0]?.s;
+      if (s !== 'in progress') {
+        console.error(`[Cool Fix] SEQUENCE GATE rejected booking #${bookingId}: status '${s || 'unknown'}', not In Progress.`);
+        return res.status(400).json({
+          success: false,
+          message: `This job hasn't been started yet (status: ${s || 'unknown'}). Start it on its booking date, submit the report, then complete.`,
+        });
+      }
+    }
+
+    /* -------------------------------------------------------------------------
+     * (c) REPORT GATE v2 — 6 Oct 2026.
      * submitReport saves reports with serviceReport.job_ID = booking_ID,
      * so the gate checks that link DIRECTLY, plus both legacy styles:
      * serviceReport.job_id → job → work → booking, and job.serviceReport FK.
-     * Logs pass/reject to the terminal so failures are never invisible.
      * ---------------------------------------------------------------------- */
     if (newStatus.toLowerCase() === 'completed') {
       const check = await pool.request()
@@ -263,6 +287,7 @@ const updateJobStatus = async (req, res) => {
       .input('commentsVal', sql.VarChar(500), comments || null)
       .query(updateQuery);
 
+    console.log(`[Cool Fix] Booking #${bookingId} status set to '${newStatus}'.`);
     res.status(200).json({ success: true, message: 'Status updated successfully!' });
   } catch (err) {
     console.error('[Cool Fix] PUT Technician Status Error:', err.message);
