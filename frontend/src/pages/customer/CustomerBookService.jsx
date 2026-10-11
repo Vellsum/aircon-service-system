@@ -46,6 +46,7 @@ function slotStartTime(label) {
 
 const CustomerBookService = () => {
   const navigate = useNavigate();
+  const [numberOfUnits, setNumOfUnits]=useState(); //change unit selection to just how many
   const [searchParams] = useSearchParams();
 
   // Deep links from the catalogue and unit cards preselect the draft,
@@ -105,11 +106,16 @@ const CustomerBookService = () => {
   // Each step gates the "Continue" button until it has what it needs.
   const stepComplete = {
     1: Boolean(service),
-    2: unitIds.length > 0,
+    2: numberOfUnits > 0,
     3: Boolean(date) && Boolean(slot),
     4: Boolean(address),
     5: true,
   };
+
+  //method to link set amount to database or something, replaces below method
+const setNumberUnits= (amount)=>{
+
+};
 
   const toggleUnit = (installedId) => {
     setUnitIds((current) =>
@@ -251,6 +257,10 @@ const CustomerBookService = () => {
     );
   }
 
+  //this method is to show number of aircons, uses usestate var from above
+const handleChange = (e) => {
+    setNumOfUnits(e.target.value);
+  };
   /* ---------------------------------------------------------- the wizard */
   return (
     <>
@@ -330,16 +340,24 @@ const CustomerBookService = () => {
             </section>
           )}
 
-          {/* Step 2 — units */}
+          {/* Step 2 —  number units */}
           {step === 2 && (
             <section className="cust-panel">
               <div className="cust-panel-head">
                 <div>
-                  <h2>Which units need attention?</h2>
-                  <p>Select one or more. Pricing updates as you choose.</p>
+                  <h2>How many units need attention?</h2>
+                  <input
+                    id="amount"
+                    type="number"
+                    value={numberOfUnits}
+                    onChange={handleChange}
+                    min="0"
+                    max="120"
+                    step="1"
+      /><p>You entered: {numberOfUnits}</p>
                 </div>
               </div>
-              {units.length === 0 ? (
+              {/**{units.length === 0 ? (
                 <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
                   You have no registered units yet. Add one from My Aircon Units first.
                 </p>
@@ -375,8 +393,8 @@ const CustomerBookService = () => {
                     </button>
                   ))}
                 </div>
-              )}
-              <p style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 14 }}>
+              )} */}
+              {/** <p style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 14 }}>
                 Unit not listed? You can add it from{" "}
                 <button
                   className="dash-btn dash-btn-ghost"
@@ -386,9 +404,10 @@ const CustomerBookService = () => {
                   My Aircon Units
                 </button>
                 .
-              </p>
+              </p> */}
+             
             </section>
-          )}
+          )} {/**end of step 2, select number of units   */}
 
           {/* Step 3 — date and slot (slots are static UI config — no slot table in schema) */}
           {step === 3 && (
@@ -612,10 +631,12 @@ const CustomerBookService = () => {
               </span>
             </div>
             <div className="cust-summary-row">
-              <span className="cust-summary-label">Units</span>
-              <span className={`cust-summary-value${unitIds.length ? "" : " is-muted"}`}>
+              <span className="cust-summary-label">Number of Units: </span>
+              {/**<span className={`cust-summary-value${unitIds.length ? "" : " is-muted"}`}>
                 {unitIds.length ? `${unitIds.length} selected` : "None"}
-              </span>
+              </span> */}
+              <span>{numberOfUnits}</span>
+              
             </div>
             <div className="cust-summary-row">
               <span className="cust-summary-label">Date</span>

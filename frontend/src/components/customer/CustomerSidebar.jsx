@@ -23,9 +23,9 @@ const navGroups = [
   {
     label: "My Account",
     items: [
-      { label: "My Bookings", path: "/customer/bookings", icon: "calendar", badgeKey: "upcoming" },
-      { label: "My Aircon Units", path: "/customer/my-units", icon: "snowflake" },
-      { label: "Profile & Settings", path: "/customer/profile", icon: "user" },
+      { label: "My Bookings", path: "/customer/bookings", icon: "calendar", badgeKey: "upcoming" },{ label: "Profile & Settings", path: "/customer/profile", icon: "user" },
+      
+      
     ],
   },
 ];
@@ -95,8 +95,8 @@ const CustomerSidebar = ({ isOpen, onClose }) => {
                   <span className="cust-nav-icon" aria-hidden="true">
                     <Icon name={item.icon} size={18} />
                   </span>
-                  <span>{item.label}</span>
-                  {badge > 0 && <span className="cust-nav-badge">{badge}</span>}
+                  <span>{item.label}</span> {/**    {badge > 0 && <span className="cust-nav-badge">{badge}</span>} */}
+              
                 </NavLink>
               );
             })}
