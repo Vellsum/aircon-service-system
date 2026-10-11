@@ -32,7 +32,7 @@ const quickActions = [
   { label: "Book a service", icon: "plus", path: "/customer/book-service" },
   { label: "View my bookings", icon: "calendar", path: "/customer/bookings" },
   { label: "Browse services", icon: "grid", path: "/customer/service-catalog" },
-  { label: "My aircon units", icon: "snowflake", path: "/customer/my-units" },
+ 
 ];
 
 const CustomerDashboard = () => {
@@ -143,14 +143,15 @@ const CustomerDashboard = () => {
           </p>
         </article>
 
-        <article className="cust-stat cust-stat-cyan">
+{/**   <article className="cust-stat cust-stat-cyan">
           <div className="cust-stat-icon"><Icon name="snowflake" size={17} /></div>
           <p className="cust-stat-label">Registered units</p>
           <p className="cust-stat-value">{stats.units}</p>
           <p className="cust-stat-note">
             {dueSoon.length > 0 ? `${dueSoon.length} due soon` : "All up to date"}
           </p>
-        </article>
+        </article>*/}
+      
 
         <article className="cust-stat cust-stat-success">
           <div className="cust-stat-icon"><Icon name="checkCircle" size={17} /></div>
@@ -333,7 +334,7 @@ const CustomerDashboard = () => {
             </div>
           </section>
 
-          <section className="cust-panel">
+{/**    <section className="cust-panel">
             <div className="cust-panel-head">
               <div>
                 <h2>My units</h2>
@@ -368,7 +369,7 @@ const CustomerDashboard = () => {
               );
             })}
 
-            {/* ✅ FIXED path */}
+        
             <button
               className="dash-btn dash-btn-outline"
               style={{ width: "100%", marginTop: 14 }}
@@ -376,9 +377,9 @@ const CustomerDashboard = () => {
             >
               Manage units
             </button>
-          </section>
-
-          <section className="cust-panel">
+          </section>*/}
+       
+{/**   <section className="cust-panel">
             <div className="cust-panel-head">
               <h2>Need help?</h2>
             </div>
@@ -399,7 +400,8 @@ const CustomerDashboard = () => {
                 <p className="cust-meta-value">30-day workmanship cover</p>
               </div>
             </div>
-          </section>
+          </section> */}
+       
         </div>
       </div>
 
