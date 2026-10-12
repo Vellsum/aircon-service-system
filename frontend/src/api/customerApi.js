@@ -30,11 +30,22 @@ export const getServices = () => request(`/customer/services`);
 export const getPromotions = () => request(`/customer/promotions`);
 export const getAddresses = () => request(`/customer/addresses?customerId=${getCurrentCustomerId()}`);
 
+// Create a new booking for the current customer
 export async function createBooking(payload) {
   const res = await fetch(`${BASE}/customer/bookings?customerId=${getCurrentCustomerId()}`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.success) throw new Error(body.message || `Request failed (${res.status})`);
+  return body;
+}
+// Cancel a booking by ID
+export async function cancelBooking(bookingId) {
+  const res = await fetch(`${BASE}/customer/bookings/${bookingId}/cancel?customerId=${getCurrentCustomerId()}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || !body.success) throw new Error(body.message || `Request failed (${res.status})`);

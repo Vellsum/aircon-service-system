@@ -3,7 +3,8 @@ import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
 
-// Status badge styling map
+const API = "http://localhost:5000/api/admin";
+
 const statusTone = {
   Confirmed: "success",
   Pending: "warning",
@@ -14,14 +15,16 @@ const statusTone = {
 
 const statusFilters = ["All", "Confirmed", "Pending", "Assigned", "Completed", "Cancelled"];
 
-const ManageBookings = () => {
+// Admin can only assign/reassign while the booking is still open
+const isAssignable = (booking) => !["Completed", "Cancelled"].includes(booking.status);
+
+const AssignTechnician = () => {
   const [bookings, setBookings] = useState([]);
   const [technicians, setTechnicians] = useState([]);
-  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeStatus, setActiveStatus] = useState("All");
-  const [modal, setModal] = useState(null);
+  const [modal, setModal] = useState(null); // { mode: "view" | "assign", record }
   const [toast, setToast] = useState(null);
 
   const showToast = (msg) => {
@@ -33,10 +36,7 @@ const ManageBookings = () => {
     if (!dateInput) return "";
     const d = new Date(dateInput);
     if (isNaN(d.getTime())) return "";
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
 
   const fetchData = useCallback(async () => {
@@ -46,40 +46,29 @@ const ManageBookings = () => {
       const headers = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      // 1. Fetch Bookings
-      const bookRes = await fetch("http://localhost:5000/api/admin/bookings", { headers });
+      const bookRes = await fetch(`${API}/bookings`, { headers });
       const bookData = await bookRes.json();
       if (bookRes.ok && bookData.success && Array.isArray(bookData.bookings)) {
-        const formatted = bookData.bookings.map((b) => {
-          const rawId = b.booking_ID || b.id || 0;
-          return {
-            booking_ID: rawId,
-            id: `#BK${String(rawId).padStart(3, "0")}`,
-            customer_ID: b.customer_ID || "",
-            customer_name: b.customer_name || "Guest Customer",
-            technician_ID: b.technician_ID || "",
-            technician_name: b.technician_name || "Unassigned",
-            booking_date: formatLocalDateString(b.booking_date),
-            status: b.status || "Pending",
-            location: b.location || "Singapore",
-            time: b.time || "09:00:00",
-          };
-        });
-        setBookings(formatted);
+        setBookings(
+          bookData.bookings.map((b) => {
+            const rawId = b.booking_ID || b.id || 0;
+            return {
+              booking_ID: rawId,
+              id: `#BK${String(rawId).padStart(3, "0")}`,
+              customer_name: b.customer_name || "Guest Customer",
+              technician_ID: b.technician_ID ? String(b.technician_ID) : "",
+              technician_name: b.technician_name || "Unassigned",
+              booking_date: formatLocalDateString(b.booking_date),
+              status: b.status || "Pending",
+            };
+          })
+        );
       }
 
-      // 2. Fetch Technicians
-      const techRes = await fetch("http://localhost:5000/api/admin/bookings/technicians", { headers });
+      const techRes = await fetch(`${API}/bookings/technicians`, { headers });
       const techData = await techRes.json();
       if (techRes.ok && techData.success && Array.isArray(techData.technicians)) {
         setTechnicians(techData.technicians);
-      }
-
-      // 3. Fetch Customers
-      const custRes = await fetch("http://localhost:5000/api/admin/users/customers", { headers });
-      const custData = await custRes.json();
-      if (custRes.ok && custData.success && Array.isArray(custData.customers)) {
-        setCustomers(custData.customers);
       }
     } catch (err) {
       console.error("Error fetching booking data:", err);
@@ -93,155 +82,67 @@ const ManageBookings = () => {
   }, [fetchData]);
 
   const filtered = bookings.filter((booking) => {
+    const q = search.toLowerCase();
     const matchesStatus = activeStatus === "All" || booking.status === activeStatus;
     const matchesSearch =
-      (booking.customer_name && booking.customer_name.toLowerCase().includes(search.toLowerCase())) ||
-      (booking.id && booking.id.toLowerCase().includes(search.toLowerCase()));
+      booking.customer_name.toLowerCase().includes(q) ||
+      booking.id.toLowerCase().includes(q) ||
+      booking.technician_name.toLowerCase().includes(q);
     return matchesStatus && matchesSearch;
   });
 
-  const isEditing = modal && modal.mode === "edit";
-
-  // Customer dropdown options (sorted A→Z)
-  const customerOptions = customers
-    .slice()
-    .sort((a, b) => (a.customer_name || "").localeCompare(b.customer_name || ""))
-    .map((c) => ({
-      label: `${c.customer_name} (ID ${c.customer_ID})`,
-      value: String(c.customer_ID),
-    }));
-
-  // Technician dropdown options
   const technicianOptions = technicians.map((t) => ({
     label: t.technician_name || t.username,
     value: String(t.technician_ID),
   }));
 
-  const bookingFields = isEditing
-    ? [
-        { key: "customer_name", label: "Customer Name", type: "text", readOnly: true },
-        { key: "technician_ID", label: "Technician", type: "select", options: technicianOptions },
-        { key: "booking_date", label: "Booking Date", type: "date" },
-        {
-          key: "status",
-          label: "Status",
-          type: "select",
-          options: ["Confirmed", "Pending", "Assigned", "Completed", "Cancelled"],
-        },
-      ]
-    : [
-        { key: "customer_ID", label: "Customer", type: "select", required: true, options: customerOptions },
-        { key: "technician_ID", label: "Technician", type: "select", options: technicianOptions },
-        { key: "booking_date", label: "Booking Date", type: "date" },
-        {
-          key: "status",
-          label: "Status",
-          type: "select",
-          options: ["Confirmed", "Pending", "Assigned", "Completed", "Cancelled"],
-        },
-      ];
+  // Everything is read-only except the technician dropdown
+  const assignFields = [
+    { key: "id", label: "Booking ID", type: "text", readOnly: true },
+    { key: "customer_name", label: "Customer", type: "text", readOnly: true },
+    { key: "booking_date", label: "Booking Date", type: "text", readOnly: true },
+    { key: "status", label: "Status", type: "text", readOnly: true },
+    { key: "technician_ID", label: "Technician", type: "select", required: true, options: technicianOptions },
+  ];
 
-  const bookingViewFields = [{ key: "id", label: "Booking ID" }, ...bookingFields];
+  const viewFields = [
+    { key: "id", label: "Booking ID" },
+    { key: "customer_name", label: "Customer" },
+    { key: "technician_name", label: "Technician" },
+    { key: "booking_date", label: "Booking Date" },
+    { key: "status", label: "Status" },
+  ];
 
-  const handleSave = async (formData) => {
-    const token = localStorage.getItem("token") || "";
-
-    let formattedDate = formData.booking_date || null;
-    if (formattedDate) {
-      const d = new Date(formattedDate);
-      if (!isNaN(d.getTime())) {
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, "0");
-        const day = String(d.getDate()).padStart(2, "0");
-        formattedDate = `${year}-${month}-${day}`;
-      }
+  const handleAssign = async (formData) => {
+    if (!formData.technician_ID) {
+      showToast("Error: Please select a technician");
+      return;
     }
-
-    if (modal.mode === "create") {
-      // Validate: must select a customer
-      if (!formData.customer_ID) {
-        showToast("Error: Please select a customer");
-        return;
-      }
-
-      try {
-        const res = await fetch("http://localhost:5000/api/admin/bookings", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            customer_ID: parseInt(formData.customer_ID, 10),
-            technician_ID: formData.technician_ID ? parseInt(formData.technician_ID, 10) : null,
-            booking_date: formattedDate,
-            time: "09:00:00",
-            location: "Singapore Main Branch",
-            isFollowup: 0,
-            status: formData.status || "Pending",
-            comments: "New booking request",
-          }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Failed to create booking");
-
-        showToast("Booking created successfully!");
-        setModal(null);
-        fetchData();
-      } catch (err) {
-        showToast(`Error: ${err.message}`);
-      }
-    } else if (modal.mode === "edit") {
-      try {
-        const targetId = formData.booking_ID || (modal.record && modal.record.booking_ID);
-        if (!targetId) throw new Error("Missing Booking ID for update request.");
-
-        const res = await fetch(`http://localhost:5000/api/admin/bookings/${targetId}/status`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            status: formData.status,
-            technician_ID: formData.technician_ID || null,
-            booking_date: formattedDate,
-          }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Failed to update booking");
-
-        showToast("Booking updated successfully!");
-        setModal(null);
-        fetchData();
-      } catch (err) {
-        showToast(`Error: ${err.message}`);
-      }
-    }
-  };
-
-  const handleCancel = async (booking) => {
-    if (!window.confirm(`Are you sure you want to cancel booking ${booking.id}?`)) return;
 
     try {
       const token = localStorage.getItem("token") || "";
-      const targetId = booking.booking_ID;
+      const record = modal.record;
 
-      const res = await fetch(`http://localhost:5000/api/admin/bookings/${targetId}/status`, {
+      // Assigning a technician moves an open booking to "Assigned"
+      const nextStatus = ["Pending", "Confirmed"].includes(record.status) ? "Assigned" : record.status;
+
+      const res = await fetch(`${API}/bookings/${record.booking_ID}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ status: "Cancelled" }),
+        body: JSON.stringify({
+          technician_ID: parseInt(formData.technician_ID, 10),
+          status: nextStatus,
+        }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to cancel booking");
+      if (!res.ok) throw new Error(data.message || "Failed to assign technician");
 
-      showToast(`Booking ${booking.id} set to Cancelled`);
+      showToast(`Technician assigned to ${record.id}`);
+      setModal(null);
       fetchData();
     } catch (err) {
       showToast(`Error: ${err.message}`);
@@ -250,17 +151,14 @@ const ManageBookings = () => {
 
   return (
     <div className="dash">
-      <Sidebar active="Manage Bookings" />
+      <Sidebar active="Assign Technician" />
 
       <main className="dash-main">
         <header className="dash-header">
           <div>
-            <h1>Manage Bookings</h1>
-            <p>View, filter, and manage all Cool Fix service bookings</p>
+            <h1>Assign Technician to Booking</h1>
+            <p>Assign or reassign a technician to each Cool Fix service booking</p>
           </div>
-          <button className="dash-btn dash-btn-primary" onClick={() => setModal({ mode: "create", record: {} })}>
-            + New Booking
-          </button>
         </header>
 
         <section className="dash-panel">
@@ -268,7 +166,7 @@ const ManageBookings = () => {
             <input
               className="dash-search"
               type="text"
-              placeholder="Search by customer name or booking ID..."
+              placeholder="Search by customer, technician or booking ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -319,9 +217,14 @@ const ManageBookings = () => {
                       </td>
                       <td>
                         <div className="dash-row-actions">
-                          <button className="dash-row-btn" onClick={() => setModal({ mode: "view", record: booking })}>View</button>
-                          <button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: booking })}>Edit</button>
-                          <button className="dash-row-btn is-danger" onClick={() => handleCancel(booking)}>Cancel</button>
+                          <button className="dash-row-btn" onClick={() => setModal({ mode: "view", record: booking })}>
+                            View
+                          </button>
+                          {isAssignable(booking) && (
+                            <button className="dash-row-btn" onClick={() => setModal({ mode: "assign", record: booking })}>
+                              {booking.technician_ID ? "Reassign" : "Assign"}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -345,12 +248,12 @@ const ManageBookings = () => {
 
       {modal && (
         <RecordModal
-          mode={modal.mode}
-          title={modal.mode === "create" ? "New Booking" : modal.mode === "edit" ? "Edit Booking" : "Booking Details"}
-          fields={modal.mode === "view" ? bookingViewFields : bookingFields}
+          mode={modal.mode === "assign" ? "edit" : "view"}
+          title={modal.mode === "assign" ? "Assign Technician" : "Booking Details"}
+          fields={modal.mode === "assign" ? assignFields : viewFields}
           data={modal.record}
           onClose={() => setModal(null)}
-          onSave={handleSave}
+          onSave={handleAssign}
         />
       )}
 
@@ -359,4 +262,4 @@ const ManageBookings = () => {
   );
 };
 
-export default ManageBookings;
+export default AssignTechnician;

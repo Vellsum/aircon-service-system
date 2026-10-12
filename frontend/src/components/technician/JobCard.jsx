@@ -1,14 +1,24 @@
+// =============================================================================
+// JobCard.jsx — mobile/tablet card for Assigned Jobs
+// Updated: 6 Oct 2026
+//   • Same date/time start-gate as JobRow: locked jobs show 🔒 with the
+//     unlock date/time instead of an active Start button.
+//   • 'scheduled' added to canStart (real DB status that was missing).
+// =============================================================================
 import React from 'react'
 import JobStatusBadge from './JobStatusBadge'
+import { evaluateJobStart } from '../../utils/jobSchedule' // 6 Oct 2026
 
-/**
- * JobCard Component
- * Refined mobile and tablet card view for Assigned Jobs.
- */
 function JobCard({ job, onView, onPrimaryAction, isActionPending = false, actionReadOnly = false }) {
   const normalizedStatus = String(job.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
-  const canStart = ['upcoming', 'assigned', 'pending'].includes(normalizedStatus)
+  // 6 Oct 2026: added 'scheduled'
+  const canStart = ['upcoming', 'assigned', 'pending', 'scheduled'].includes(normalizedStatus)
   const canContinue = normalizedStatus === 'in progress'
+
+  // 6 Oct 2026 — date/time gate
+  const gate = evaluateJobStart(job)
+  const startLocked = canStart && !gate.allowed
+
   const initials = job.customerName
     ? job.customerName
         .split(' ')
@@ -72,16 +82,38 @@ function JobCard({ job, onView, onPrimaryAction, isActionPending = false, action
           >
             <span>View</span>
           </button>
-          {(canStart || canContinue) && (
+          {canContinue && (
             <button
               type="button"
               className="job-primary-action"
               onClick={() => onPrimaryAction(job)}
               disabled={isActionPending || actionReadOnly}
               aria-busy={isActionPending}
-              title={actionReadOnly ? 'Status updates require an authenticated Technician session.' : undefined}
             >
-              {isActionPending ? 'Updating…' : canContinue ? 'Continue' : 'Start'}
+              {isActionPending ? 'Updating…' : 'Continue'}
+            </button>
+          )}
+          {/* 6 Oct 2026 — locked Start for future/later-today jobs */}
+          {startLocked && (
+            <button
+              type="button"
+              className="job-primary-action"
+              disabled
+              style={{ opacity: 0.55, cursor: 'not-allowed' }}
+              title={`This job is ${gate.reason} — Start unlocks then.`}
+            >
+              🔒 {gate.reason.replace('scheduled for ', '')}
+            </button>
+          )}
+          {canStart && gate.allowed && (
+            <button
+              type="button"
+              className="job-primary-action"
+              onClick={() => onPrimaryAction(job)}
+              disabled={isActionPending || actionReadOnly}
+              aria-busy={isActionPending}
+            >
+              {isActionPending ? 'Updating…' : 'Start'}
             </button>
           )}
         </div>

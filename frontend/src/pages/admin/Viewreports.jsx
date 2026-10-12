@@ -1,14 +1,5 @@
 import Sidebar from "../../components/admin/Sidebar";
-import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
-
-const reports = [
-  { name: "Monthly Revenue Report", meta: "Last generated 01 Sep 2026 · PDF" },
-  { name: "Booking Summary Report", meta: "Last generated 03 Sep 2026 · CSV" },
-  { name: "Technician Performance Report", meta: "Last generated 28 Aug 2026 · PDF" },
-  { name: "Customer Activity Report", meta: "Last generated 30 Aug 2026 · CSV" },
-  { name: "Inventory Stock Report", meta: "Last generated 02 Sep 2026 · PDF" },
-];
 
 const monthly = [
   { label: "Apr", value: 12800 },
@@ -30,7 +21,7 @@ const ViewReports = () => {
         <header className="dash-header">
           <div>
             <h1>View Reports</h1>
-            <p>Generate and download reports for your business</p>
+            <p>View business performance reports</p>
           </div>
           <select className="dash-search" style={{ maxWidth: 180 }}>
             <option>Last 6 months</option>
@@ -50,25 +41,6 @@ const ViewReports = () => {
                   style={{ height: `${(m.value / maxValue) * 100}%` }}
                 />
                 <span className="dash-chart-bar-label">{m.label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="dash-panel">
-          <div className="dash-panel-head">
-            <h2>Available Reports</h2>
-            <button className="dash-btn dash-btn-ghost">Generate New Report</button>
-          </div>
-
-          <div>
-            {reports.map((report) => (
-              <div className="dash-report-item" key={report.name}>
-                <div>
-                  <p className="dash-report-name">{report.name}</p>
-                  <p className="dash-report-meta">{report.meta}</p>
-                </div>
-                <button className="dash-btn dash-btn-outline">Download</button>
               </div>
             ))}
           </div>

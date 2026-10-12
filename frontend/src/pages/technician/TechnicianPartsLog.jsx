@@ -8,10 +8,9 @@
 //   4. Added loading state and error handling
 // =============================================================================
 
-import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
+import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import Modal from 'react-bootstrap/Modal'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
-import { useAuth } from '../../context/AuthContext'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 
 const API_BASE_URL = 'http://localhost:5000'
@@ -71,85 +70,54 @@ function ReferenceValue({ value }) {
   return value === null || value === undefined || value === '' ? '—' : value
 }
 
-function formatBookingReference(record) {
-  return record?.bookingID === null || record?.bookingID === undefined || record?.bookingID === ''
-    ? 'Booking unavailable'
-    : `Booking #${record.bookingID}`
-}
-
 function TechnicianPartsLog() {
-  const { token } = useAuth()
-  const { technicianID, identitySource } = useTechnicianWorkflow()
-  const identityKey = `${identitySource}:${technicianID ?? 'none'}`
-  const activeIdentityKeyRef = useRef(identityKey)
-  activeIdentityKeyRef.current = identityKey
-  const activeRequestRef = useRef(null)
+  const { loading: contextLoading } = useTechnicianWorkflow()
 
   // ---- Fetch parts log from API ----
-  const [requestState, setRequestState] = useState({
-    identityKey: null, records: [], loading: true, error: null,
-  })
-  const activeRequestState = requestState.identityKey === identityKey
-    ? requestState
-    : { records: [], loading: true, error: null }
-  const { records, loading, error } = activeRequestState
+  const [records, setRecords] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   const fetchPartsLog = useCallback(async () => {
-    activeRequestRef.current?.abort()
-    const controller = new AbortController()
-    activeRequestRef.current = controller
-    const isCurrent = () => !controller.signal.aborted
-      && activeRequestRef.current === controller
-      && activeIdentityKeyRef.current === identityKey
-    setRequestState({ identityKey, records: [], loading: true, error: null })
-
-    if (identitySource === 'initializing') return
-
-    if (technicianID === null || technicianID === undefined) {
-      setRequestState({
-        identityKey, records: [], loading: false,
-        error: { type: 'identity', message: 'Technician identity is unavailable.' },
-      })
-      return
-    }
-
+    setLoading(true)
+    setError(null)
     try {
+      const token = localStorage.getItem('token') || ''
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
 
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}')
+      const techId = storedUser.technician_ID || storedUser.id || storedUser.user_ID || 1
       const res = await fetch(
-        `${API_BASE_URL}/api/technician/reports/parts-log?techId=${technicianID}`,
-        { headers, signal: controller.signal }
+        `${API_BASE_URL}/api/technician/reports/parts-log?techId=${techId}`,
+        { headers }
       )
 
       if (!res.ok) throw new Error(`API returned ${res.status}`)
 
       const data = await res.json()
 
-      if (!data.success || !Array.isArray(data.records)) {
-        throw new Error(data.message || 'Parts usage response was unavailable')
+      if (data.success && Array.isArray(data.records)) {
+        // Format dates for display
+        const formatted = data.records.map((r) => ({
+          ...r,
+          formattedDate: formatBookingDate(r),
+        }))
+        setRecords(formatted)
+      } else {
+        setRecords([])
       }
-      if (!isCurrent()) return
-
-      // Format dates for display without introducing replacement record values.
-      const formatted = data.records.map((r) => ({
-        ...r,
-        formattedDate: formatBookingDate(r),
-      }))
-      setRequestState({ identityKey, records: formatted, loading: false, error: null })
     } catch (err) {
-      if (!isCurrent()) return
       console.error('[PartsLog] Fetch error:', err)
-      setRequestState({
-        identityKey, records: [], loading: false,
-        error: { type: 'request', message: err.message },
-      })
+      setError(err.message)
+      setRecords([])
+    } finally {
+      setLoading(false)
     }
-  }, [identityKey, identitySource, technicianID, token])
+  }, [])
 
   useEffect(() => {
     fetchPartsLog()
-    return () => activeRequestRef.current?.abort()
   }, [fetchPartsLog])
 
   // ---- Filters ----
@@ -182,7 +150,7 @@ function TechnicianPartsLog() {
 
       return [
         record.itemName, record.itemID, record.reportID,
-        record.bookingID, record.customerName, record.serviceName,
+        record.jobID, record.displayJobCode, record.customerName, record.serviceName,
       ].some((value) => String(value ?? '').toLowerCase().includes(normalizedQuery))
     })
   }, [dateFrom, dateTo, itemTypeFilter, records, searchQuery])
@@ -202,7 +170,6 @@ function TechnicianPartsLog() {
     reportGroups.find((r) => r.reportID === selectedReportID) || reportGroups[0] || null
 
   const hasActiveFilters = Boolean(searchQuery.trim() || itemTypeFilter !== 'ALL' || dateFrom || dateTo)
-  const requestSucceeded = !loading && !error
 
   const resetFilters = () => {
     setSearchQuery('')
@@ -212,9 +179,9 @@ function TechnicianPartsLog() {
   }
 
   const summaryItems = [
-    { label: 'Usage Records', value: requestSucceeded ? metrics.usageRecords : '—' },
-    { label: 'Reports With Parts', value: requestSucceeded ? metrics.reportsWithParts : '—' },
-    { label: 'Unique Items', value: requestSucceeded ? metrics.uniqueItems : '—' },
+    { label: 'Usage Records', value: metrics.usageRecords },
+    { label: 'Reports With Parts', value: metrics.reportsWithParts },
+    { label: 'Unique Items', value: metrics.uniqueItems },
   ]
 
   // ====================================================================
@@ -226,7 +193,7 @@ function TechnicianPartsLog() {
         <div className="cf-page-heading">
           <span className="cf-eyebrow">TECHNICIAN · PARTS LOG</span>
           <h1>Parts Log</h1>
-          <p>Review inventory items linked to service reports.</p>
+          <p>Review inventory items recorded against completed service reports.</p>
         </div>
         <dl className="parts-log-inline-metrics" aria-label="Parts usage summary">
           {summaryItems.map((item) => (
@@ -238,28 +205,9 @@ function TechnicianPartsLog() {
         </dl>
       </header>
 
-      <section className="parts-log-workspace" aria-labelledby="parts-log-workspace-title">
-        <header className="parts-log-workspace-header">
-          <div>
-            <span className="cf-widget-kicker">Service parts</span>
-            <h2 id="parts-log-workspace-title">Parts ledger</h2>
-            <p>Find reports and review their linked inventory items.</p>
-          </div>
-          <div className="parts-log-filter-result" aria-live="polite">
-            <strong>{requestSucceeded ? filteredRecords.length : '—'}</strong>
-            <span>
-              {loading
-                ? 'loading usage records'
-                : error
-                  ? 'usage records unavailable'
-                  : `of ${records.length} usage records`}
-            </span>
-          </div>
-        </header>
-
-        {/* ---- Filters ---- */}
-        <section className="parts-log-utility-bar" aria-label="Parts log filters">
-        <div className={`parts-log-toolbar${hasActiveFilters ? ' has-reset' : ''}`}>
+      {/* ---- Filters ---- */}
+      <section className="parts-log-utility-bar" aria-label="Parts log filters">
+        <div className="parts-log-toolbar">
           <div className="parts-log-field parts-log-search-field">
             <label htmlFor="parts-log-search">Search parts log</label>
             <div className="parts-log-search-control">
@@ -271,7 +219,7 @@ function TechnicianPartsLog() {
                 id="parts-log-search"
                 type="search"
                 value={searchQuery}
-                placeholder="Item, report, booking, customer, service..."
+                placeholder="Item, report, job, customer, service..."
                 onChange={(event) => setSearchQuery(event.target.value)}
               />
               {searchQuery && (
@@ -310,39 +258,32 @@ function TechnicianPartsLog() {
             </div>
           </fieldset>
 
-          {hasActiveFilters && (
-            <div className="parts-log-toolbar-actions">
+          <div className="parts-log-toolbar-actions">
+            <div className="parts-log-filter-result" aria-live="polite">
+              <strong>{filteredRecords.length}</strong>
+              <span>of {records.length} usage records</span>
+            </div>
+            {hasActiveFilters && (
               <button type="button" className="cf-button cf-button-quiet parts-log-reset-button" onClick={resetFilters}>
                 Reset Filters
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-        </section>
+      </section>
 
-        <div className="parts-log-workspace-body">
-        {/* ---- Loading State ---- */}
-        {loading ? (
-        <div className="parts-log-empty-state" role="status" aria-live="polite">
-          <span aria-hidden="true"><SummaryIcon type="items" /></span>
-          <h3>Loading parts usage records…</h3>
-          <p>Retrieving inventory references linked to your service reports.</p>
+      {/* ---- Error State ---- */}
+      {error && (
+        <div style={{ padding: '16px 24px', background: '#fff3f3', border: '1px solid #fcc', borderRadius: '8px', margin: '16px 0', color: '#c33' }}>
+          <strong>⚠️ API Error:</strong> {error}
+          <button type="button" onClick={fetchPartsLog} style={{ marginLeft: '12px', cursor: 'pointer' }}>Retry</button>
         </div>
-      ) : error ? (
-        /* ---- Unavailable State ---- */
-        <div className="parts-log-empty-state" role="alert">
-          <span aria-hidden="true"><SummaryIcon type="reports" /></span>
-          <h3>Parts usage data is currently unavailable.</h3>
-          <p>
-            {error.type === 'identity'
-              ? 'A technician identity could not be resolved for this session.'
-              : 'The records could not be retrieved. Please try again.'}
-          </p>
-          {error.type === 'request' && (
-            <button type="button" className="cf-button cf-button-secondary" onClick={fetchPartsLog}>
-              Retry
-            </button>
-          )}
+      )}
+
+      {/* ---- Loading State ---- */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '32px', color: '#888' }}>
+          <p>Loading parts usage records from database...</p>
         </div>
       ) : records.length === 0 ? (
         /* ---- Empty State ---- */
@@ -393,7 +334,7 @@ function TechnicianPartsLog() {
                     <span className="parts-log-report-row-meta">
                       <span>{formatBookingDate(context)}</span>
                       <span aria-hidden="true">·</span>
-                      <span>{formatBookingReference(context)}</span>
+                      <span>{context.displayJobCode || context.jobID || 'Job unavailable'}</span>
                     </span>
                   </button>
                 )
@@ -415,7 +356,7 @@ function TechnicianPartsLog() {
                     )}
                   </div>
                   <p className="parts-log-detail-service">
-                    {formatBookingReference(activeReport.context)}
+                    {activeReport.context.displayJobCode || activeReport.context.jobID || 'Job unavailable'}
                     <span aria-hidden="true"> · </span>
                     {activeReport.context.serviceName || 'Service not available'}
                   </p>
@@ -470,9 +411,7 @@ function TechnicianPartsLog() {
             </section>
           )}
         </section>
-        )}
-        </div>
-      </section>
+      )}
 
       {/* ---- Detail Modal ---- */}
       <Modal
@@ -502,6 +441,8 @@ function TechnicianPartsLog() {
                   <div><dt>Item name</dt><dd>{selectedRecord.itemName}</dd></div>
                   <div><dt>Item ID</dt><dd>{selectedRecord.itemID}</dd></div>
                   <div><dt>Item type</dt><dd>{selectedRecord.itemType || '—'}</dd></div>
+                  <div><dt>Qty used</dt><dd>{selectedRecord.quantityUsed ?? '—'}</dd></div>
+                  <div><dt>Unit cost</dt><dd>{selectedRecord.unitCost ? `$${Number(selectedRecord.unitCost).toFixed(2)}` : '—'}</dd></div>
                   <div><dt>Current stock</dt><dd>{selectedRecord.currentStock ?? '—'} <small>current inventory</small></dd></div>
                   <div className="parts-log-modal-wide"><dt>Description</dt><dd>{selectedRecord.itemDescription || '—'}</dd></div>
                 </dl>
@@ -514,6 +455,8 @@ function TechnicianPartsLog() {
                 </header>
                 <dl className="parts-log-modal-grid">
                   <div><dt>Report ID</dt><dd><ReferenceValue value={selectedRecord.reportID} /></dd></div>
+                  <div><dt>Job</dt><dd>{selectedRecord.displayJobCode || <ReferenceValue value={selectedRecord.jobID} />}</dd></div>
+                  <div><dt>Job ID</dt><dd><ReferenceValue value={selectedRecord.jobID} /></dd></div>
                   <div><dt>Booking ID</dt><dd><ReferenceValue value={selectedRecord.bookingID} /></dd></div>
                   <div><dt>Technician ID</dt><dd><ReferenceValue value={selectedRecord.technicianID} /></dd></div>
                   <div><dt>Job status</dt><dd>{selectedRecord.jobStatus ? <JobStatusBadge status={selectedRecord.jobStatus} /> : '—'}</dd></div>

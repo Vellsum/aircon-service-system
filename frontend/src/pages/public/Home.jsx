@@ -1,6 +1,5 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import CoolFixLogo from "../../components/common/CoolFixLogo";
 import "../../styles/shared.css";
 import "../../styles/Home.css"; // Local style import
 
@@ -31,7 +30,8 @@ const Home = () => {
     <div>
       <nav className="site-nav">
         <div className="site-nav-brand">
-          <CoolFixLogo />
+          <span>❄</span>
+          <span>Aircon Care</span>
         </div>
         <div className="site-nav-links">
           <a href="#services">Services</a>
@@ -90,7 +90,7 @@ const Home = () => {
           <div>
             <h2>Keeping Your Space Cool for Over 10 Years</h2>
             <p>
-              Cool Fix started with a simple goal: make quality aircon service
+              Aircon Care started with a simple goal: make quality aircon service
               accessible and hassle-free. Today, our team of certified technicians
               serves hundreds of homes and businesses with servicing, repairs,
               cleaning, and installations.
@@ -156,7 +156,8 @@ const Home = () => {
         <div className="site-footer-grid">
           <div>
             <div className="site-footer-brand">
-              <CoolFixLogo />
+              <span>❄</span>
+              <span>Aircon Care</span>
             </div>
             <p>Reliable aircon servicing, repairs, and installation you can trust.</p>
           </div>
@@ -177,7 +178,7 @@ const Home = () => {
             </ul>
           </div>
         </div>
-        <div className="site-footer-bottom">© 2026 Cool Fix. All rights reserved.</div>
+        <div className="site-footer-bottom">© 2026 Aircon Care. All rights reserved.</div>
       </footer>
     </div>
   );

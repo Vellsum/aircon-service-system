@@ -1,8 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+// =============================================================================
+// TechnicianProfile.jsx
+// Updated: 6 Oct 2026
+//   • Rating now comes from /api/technician/profile (was hardcoded "5.0 ★").
+//     0 or unrated displays "Not rated yet" — ratings only exist once a
+//     customer rates a completed booking.
+//   • ⚠️ Hooks moved ABOVE the `if (!user)` early return — placing them after
+//     it violates the Rules of Hooks and crashes React when auth loads.
+// =============================================================================
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext';
-
-const API_BASE_URL = 'http://localhost:5000';
 
 function IdentityIcon() {
   return (
@@ -50,189 +57,89 @@ function InformationRow({ label, value, unavailable = false }) {
   );
 }
 
-function ProfileHeader() {
-  return (
-    <header className="cf-page-header tech-profile-header">
-      <div className="cf-page-heading">
-        <span className="cf-eyebrow">Technician · Profile</span>
-        <h1>Profile</h1>
-        <p>View profile and account data available to your current session.</p>
-      </div>
-      <div className="tech-profile-read-only" aria-label="Read-only profile">
-        <span aria-hidden="true"><IdentityIcon /></span>
-        <div>
-          <strong>Read-only record</strong>
-          <small>Self-service updates are not yet available</small>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-function ProfileState({ title, message, onRetry }) {
-  return (
-    <div className="technician-profile-page">
-      <ProfileHeader />
-      <section className="tech-profile-empty" role={onRetry ? 'alert' : 'status'}>
-        <h2>{title}</h2>
-        <p>{message}</p>
-        {onRetry ? (
-          <button type="button" className="cf-button cf-button-secondary" onClick={onRetry}>
-            Retry
-          </button>
-        ) : null}
-      </section>
-    </div>
-  );
-}
-
-function textOrUnavailable(value) {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed || null;
-}
-
-function getInitials(name) {
-  if (!name) return '—';
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('');
-}
+// 6 Oct 2026 — shared display rule: 0 / null / unrated → "Not rated yet"
+const ratingDisplay = (rating) =>
+  rating != null && Number(rating) > 0 ? `${Number(rating).toFixed(1)} ★` : 'Not rated yet';
 
 function TechnicianProfile() {
-  const { user, token, initializing } = useAuth();
-  const { technicianID } = useTechnicianWorkflow();
-  const hasTechnicianIdentity = technicianID !== null
-    && technicianID !== undefined
-    && technicianID !== '';
-  const [profile, setProfile] = useState(null);
-  const [profileState, setProfileState] = useState('idle');
-  const currentProfile = profile && String(profile.technicianID) === String(technicianID)
-    ? profile
-    : null;
+  const { user } = useAuth();
+  const { workload } = useTechnicianWorkflow();
 
-  const loadProfile = useCallback(async (signal) => {
-    if (!hasTechnicianIdentity) {
-      setProfile(null);
-      setProfileState('idle');
-      return;
-    }
-
-    setProfile(null);
-    setProfileState('loading');
-
-    try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) headers.Authorization = `Bearer ${token}`;
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/technician/profile?techId=${encodeURIComponent(technicianID)}`,
-        { headers, signal },
-      );
-      const payload = await response.json().catch(() => null);
-
-      if (!response.ok || payload?.success !== true || !payload.profile) {
-        throw new Error('Technician profile data is unavailable.');
-      }
-
-      if (String(payload.profile.technicianID) !== String(technicianID)) {
-        throw new Error('Returned technician identity does not match the authenticated technician.');
-      }
-
-      setProfile(payload.profile);
-      setProfileState('success');
-    } catch (error) {
-      if (error?.name === 'AbortError') return;
-      setProfile(null);
-      setProfileState('error');
-    }
-  }, [hasTechnicianIdentity, technicianID, token]);
-
+  // ─────────────────────────────────────────────────────────────
+  // 6 Oct 2026 — real rating from the technician record.
+  // ⚠️ Hooks MUST run before any early return (Rules of Hooks).
+  // ─────────────────────────────────────────────────────────────
+  const [profileRating, setProfileRating] = useState(null);
   useEffect(() => {
-    if (initializing) return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const techId = storedUser.technician_ID || storedUser.id || storedUser.user_ID || 1;
+        const token = localStorage.getItem('token') || '';
+        const res = await fetch(`http://localhost:5000/api/technician/profile?techId=${techId}`,
+          { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        if (alive && res.ok && data.success && data.profile) {
+          setProfileRating(data.profile.technicianRating);
+        }
+      } catch { /* non-critical */ }
+    })();
+    return () => { alive = false; };
+  }, []);
 
-    const controller = new AbortController();
-    loadProfile(controller.signal);
-    return () => controller.abort();
-  }, [initializing, loadProfile]);
-
-  const profileValues = useMemo(() => {
-    const technicianName = textOrUnavailable(currentProfile?.technicianName);
-    const username = textOrUnavailable(user?.username);
-    const accountType = textOrUnavailable(user?.accountType);
-    const specialty = textOrUnavailable(currentProfile?.specialty);
-    const rating = currentProfile?.technicianRating;
-    const hasRating = rating !== null
-      && rating !== undefined
-      && rating !== ''
-      && Number.isFinite(Number(rating));
-    const jobsDone = Number(currentProfile?.jobsDone);
-
-    return {
-      technicianName,
-      username,
-      accountType,
-      specialty,
-      rating: hasRating ? String(rating) : null,
-      jobsDone: Number.isFinite(jobsDone) && jobsDone > 0 ? jobsDone : null,
-    };
-  }, [currentProfile, user]);
-
-  if (initializing || (hasTechnicianIdentity && (profileState === 'idle' || (profileState === 'success' && !currentProfile))) || profileState === 'loading') {
+  // Early return — only AFTER all hooks have run
+  if (!user) {
     return (
-      <ProfileState
-        title="Loading profile"
-        message="Retrieving the selected technician profile."
-      />
+      <div className="technician-profile-page">
+        <section className="tech-profile-empty" role="status">
+          <h1>Profile</h1>
+          <p>Technician profile information is not available.</p>
+        </section>
+      </div>
     );
   }
 
-  if (!hasTechnicianIdentity) {
-    return (
-      <ProfileState
-        title="Technician identity unavailable"
-        message="A technician profile cannot be loaded because this session does not include a technician ID."
-      />
-    );
-  }
-
-  if (profileState === 'error' || !currentProfile) {
-    return (
-      <ProfileState
-        title="Profile data unavailable"
-        message="Technician profile data could not be retrieved. Please try again."
-        onRetry={() => loadProfile()}
-      />
-    );
-  }
-
-  const displayName = profileValues.technicianName || 'Not available';
-  const displayAccountType = profileValues.accountType || 'Not available';
+  const technicianName = user.username || 'Technician';
+  const initials = technicianName.charAt(0).toUpperCase();
+  const technicianID = user.technician_ID || user.id || 'N/A';
+  const userID = user.user_ID || user.id || 'N/A';
 
   return (
     <div className="technician-profile-page">
-      <ProfileHeader />
+      <header className="cf-page-header tech-profile-header">
+        <div className="cf-page-heading">
+          <span className="cf-eyebrow">Technician · Profile</span>
+          <h1>Profile</h1>
+          <p>View your technician identity, account record and current work summary.</p>
+        </div>
+        <div className="tech-profile-read-only" aria-label="Read-only profile">
+          <span aria-hidden="true"><IdentityIcon /></span>
+          <div>
+            <strong>Read-only record</strong>
+            <small>Self-service updates are not yet available</small>
+          </div>
+        </div>
+      </header>
 
       <div className="tech-profile-layout">
         <aside className="tech-profile-identity" aria-labelledby="profile-identity-name">
           <div className="tech-profile-identity-accent" aria-hidden="true" />
-          <div className="tech-profile-avatar" aria-hidden="true">
-            {getInitials(profileValues.technicianName)}
-          </div>
+          <div className="tech-profile-avatar" aria-hidden="true">{initials}</div>
           <div className="tech-profile-identity-copy">
             <span className="tech-profile-identity-label">Technician profile</span>
-            <h2 id="profile-identity-name">{displayName}</h2>
-            <p>{displayAccountType}</p>
+            <h2 id="profile-identity-name">{technicianName}</h2>
+            <p>Field Technician</p>
           </div>
           <div className="tech-profile-identity-meta">
-            <span>Technician ID {profile.technicianID}</span>
-            <span className="tech-profile-account-status">Status unavailable</span>
+            <span>Technician ID {technicianID}</span>
+            <span className="tech-profile-account-status">
+              <i aria-hidden="true" />
+              Active
+            </span>
           </div>
           <p className="tech-profile-identity-note">
-            Profile identity is shown only after the returned record matches the selected technician ID.
+            Identity details are shown from the current user and technician records.
           </p>
         </aside>
 
@@ -242,27 +149,15 @@ function TechnicianProfile() {
               <header>
                 <span className="tech-profile-section-icon" aria-hidden="true"><AccountIcon /></span>
                 <div>
-                  <span>Authenticated account</span>
+                  <span>Account record</span>
                   <h2 id="profile-account-title">Account Information</h2>
                 </div>
               </header>
               <dl className="tech-profile-information-list">
-                <InformationRow
-                  label="Username"
-                  value={profileValues.username || 'Not available'}
-                  unavailable={!profileValues.username}
-                />
-                <InformationRow
-                  label="User ID"
-                  value={user?.user_ID ?? 'Not available'}
-                  unavailable={user?.user_ID === null || user?.user_ID === undefined}
-                />
-                <InformationRow
-                  label="Account Type"
-                  value={displayAccountType}
-                  unavailable={!profileValues.accountType}
-                />
-                <InformationRow label="Account Status" value="Not available" unavailable />
+                <InformationRow label="Username" value={user.username || 'N/A'} />
+                <InformationRow label="User ID" value={userID} />
+                <InformationRow label="Account Type" value={user.accountType || user.role || 'Technician'} />
+                <InformationRow label="Account Status" value="Active" />
               </dl>
             </section>
 
@@ -270,27 +165,16 @@ function TechnicianProfile() {
               <header>
                 <span className="tech-profile-section-icon" aria-hidden="true"><IdentityIcon /></span>
                 <div>
-                  <span>Profile service</span>
+                  <span>Service identity</span>
                   <h2 id="profile-technician-title">Technician Information</h2>
                 </div>
               </header>
               <dl className="tech-profile-information-list">
-                <InformationRow
-                  label="Technician Name"
-                  value={displayName}
-                  unavailable={!profileValues.technicianName}
-                />
-                <InformationRow label="Technician ID" value={profile.technicianID} />
-                <InformationRow
-                  label="Rating"
-                  value={profileValues.rating || 'Not available'}
-                  unavailable={!profileValues.rating}
-                />
-                <InformationRow
-                  label="Specialty"
-                  value={profileValues.specialty || 'Not available'}
-                  unavailable={!profileValues.specialty}
-                />
+                <InformationRow label="Technician Name" value={technicianName} />
+                <InformationRow label="Technician ID" value={technicianID} />
+                {/* 6 Oct 2026: live rating — 0/unrated shows "Not rated yet" */}
+                <InformationRow label="Rating" value={ratingDisplay(profileRating)} />
+                <InformationRow label="Specialty" value="Aircon Servicing" />
               </dl>
             </section>
           </div>
@@ -300,24 +184,20 @@ function TechnicianProfile() {
               <header>
                 <span className="tech-profile-section-icon" aria-hidden="true"><WorkIcon /></span>
                 <div>
-                  <span>Profile-provided facts</span>
+                  <span>Relationship-derived facts</span>
                   <h2 id="profile-work-title">Work Snapshot</h2>
                 </div>
               </header>
               <dl>
                 <div>
                   <dt>Assigned Jobs</dt>
-                  <dd>—</dd>
-                  <small>A technician-owned assignment total is not exposed by the profile service</small>
+                  <dd>{workload?.assignedJobs || 0}</dd>
+                  <small>Current booking and job relationships</small>
                 </div>
                 <div>
-                  <dt>Jobs Done</dt>
-                  <dd>{profileValues.jobsDone ?? '—'}</dd>
-                  <small>
-                    {profileValues.jobsDone
-                      ? 'Value returned by the technician profile service'
-                      : 'Not available from an unambiguous profile value'}
-                  </small>
+                  <dt>Completed Jobs</dt>
+                  <dd>{workload?.byStatus?.completed || 0}</dd>
+                  <small>Recorded in technician job history</small>
                 </div>
               </dl>
             </section>

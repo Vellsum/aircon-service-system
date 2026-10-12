@@ -13,6 +13,51 @@ function arrayToCsv(arr, maxLen) {
   return truncate(csv, maxLen);
 }
 
+// =============================================================================
+// 6 Oct 2026 — FOLLOW-UP AUTO-BOOKING
+// When a report flags "follow-up required", create the return visit as a real
+// booking (isFollowup = 1) for the same customer, assigned to the same
+// technician, so it appears on their Follow-Up page and Assigned Jobs.
+// Creates the job + work link too — otherwise the completion gate blocks it.
+// =============================================================================
+async function createFollowUpBooking(pool, { sourceBookingId, reasons, otherReason, followUpDate, priority }) {
+  const src = await pool.request()
+    .input('bid', sql.Int, Number(sourceBookingId))
+    .query(`SELECT customer_ID, technician_ID, location
+              FROM [new_jobBooking].[Booking] WHERE booking_ID = @bid`);
+  const s = src.recordset[0];
+  if (!s || !s.technician_ID) return null;
+
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(followUpDate || ''))
+    ? String(followUpDate)
+    : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]; // fallback: +7 days
+  const comment = `Follow-up visit${priority ? ` (${priority} priority)` : ''}: ${
+    [...(reasons || []), otherReason].filter(Boolean).join(', ') || 'Recommended by technician'}`;
+
+  const ins = await pool.request()
+    .input('cid', sql.Int, s.customer_ID)
+    .input('tid', sql.Int, s.technician_ID)
+    .input('date', sql.VarChar(10), date)
+    .input('loc', sql.VarChar(100), s.location)
+    .input('comment', sql.VarChar(500), comment)
+    .query(`INSERT INTO [new_jobBooking].[Booking] (customer_ID, technician_ID, [date], [time], isFollowup, location, [status], comments)
+            OUTPUT INSERTED.booking_ID
+            VALUES (@cid, @tid, @date, '09:00', 1, @loc, 'Scheduled', @comment)`);
+  const newBookingId = ins.recordset[0].booking_ID;
+
+  // job + work link (required for reports/completion later)
+  const svc = await pool.request().query(`SELECT TOP 1 service_id FROM [payables].[service] ORDER BY service_id`);
+  const j = await pool.request()
+    .input('svc', sql.Int, svc.recordset[0]?.service_id)
+    .query(`INSERT INTO [new_jobBooking].[job] (job_status, isFollowup, serviceID)
+            OUTPUT INSERTED.job_ID VALUES ('Pending', 1, @svc)`);
+  await pool.request()
+    .input('jid', sql.Int, j.recordset[0].job_ID)
+    .input('bid', sql.Int, newBookingId)
+    .query(`INSERT INTO [new_jobBooking].[work] (job_ID, booking_ID) VALUES (@jid, @bid)`);
+
+  return newBookingId;
+}
 var submitReport = async (req, res) => {
   try {
     var pool = await poolPromise;
@@ -106,18 +151,41 @@ var submitReport = async (req, res) => {
         await pool.request()
           .input('reportID', sql.Int, reportID)
           .input('itemID', sql.Int, parseInt(material.itemID))
-          .query('INSERT INTO [new_jobBooking].[partsUsed] (reportID, itemID) VALUES (@reportID, @itemID)');
+          .input('quantityUsed', sql.Int, Number(material.quantity) || 1)   // 6 Oct 2026: persist qty (column exists now)
+          .input('unitCost', sql.Float, Number(material.unitCost) || 0)     // 6 Oct 2026: persist cost
+          .query('INSERT INTO [new_jobBooking].[partsUsed] (reportID, itemID, quantityUsed, unitCost) VALUES (@reportID, @itemID, @quantityUsed, @unitCost)');
       }
     }
 
-    await pool.request()
-      .input('bookingId', sql.Int, parseInt(job_ID))
-      .query('UPDATE [new_jobBooking].[Booking] SET status = \'Completed\' WHERE booking_ID = @bookingId');
+    // =====================================================================
+    // 6 Oct 2026 — CHANGED: report no longer auto-completes the booking.
+    // Flow is now: Start → submit report (In Progress) → technician clicks
+    // Complete → updateJobStatus's report gate verifies and completes.
+    // The old "UPDATE ... SET status = 'Completed'" here bypassed the gate
+    // and made report-before-complete impossible.
+    // =====================================================================
+
+    // 6 Oct 2026 — create the return visit if the report flags follow-up
+    // (helper defined at the top of this file — was previously never called)
+    if (followUpRequired) {
+      try {
+        await createFollowUpBooking(pool, {
+          sourceBookingId: job_ID,
+          reasons: followUpReasons,
+          otherReason: followUpOtherReason,
+          followUpDate: followUpDate,
+          priority: followUpPriority,
+        });
+      } catch (fuErr) {
+        console.error('[Cool Fix] Follow-up booking creation skipped:', fuErr.message);
+        // non-fatal: the report itself is already saved
+      }
+    }
 
     res.status(201).json({
       success: true,
       reportID: reportID,
-      message: 'Service report submitted successfully'
+      message: 'Service report submitted successfully. You can now mark the job as completed.'
     });
 
   } catch (err) {

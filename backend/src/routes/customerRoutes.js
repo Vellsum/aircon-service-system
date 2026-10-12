@@ -11,6 +11,7 @@ const customerController = require('../controllers/customerController');
 const getDashboard = customerController.getDashboard || ((req, res) => res.status(500).json({ error: 'getDashboard missing in controller' }));
 const getMyBookings = customerController.getMyBookings || ((req, res) => res.status(500).json({ error: 'getMyBookings missing in controller' }));
 const getMyUnits = customerController.getMyUnits || ((req, res) => res.status(500).json({ error: 'getMyUnits missing in controller' }));
+const cancelBooking = customerController.cancelBooking || ((req, res) => res.status(500).json({ error: 'cancelBooking missing in controller' }));
 
 const getServices = customerController.getServices || ((req, res) => res.status(500).json({ error: 'getServices missing in controller' }));
 const getPromotions = customerController.getPromotions || ((req, res) => res.status(500).json({ error: 'getPromotions missing in controller' }));
@@ -21,6 +22,7 @@ router.get('/services', getServices);
 router.get('/promotions', getPromotions);
 router.get('/addresses', getAddresses);
 router.post('/bookings', createBooking);
+router.put('/bookings/:bookingId/cancel', cancelBooking);
 
 router.get('/dashboard', getDashboard);
 router.get('/bookings', getMyBookings);

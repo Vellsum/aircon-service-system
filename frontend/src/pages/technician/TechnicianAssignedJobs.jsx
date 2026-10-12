@@ -1,78 +1,53 @@
 // =============================================================================
-// TechnicianAssignedJobs.jsx — Fixed Start Button + Date/Time
-//
-// FIXES:
-//   1. Start/Complete now use context directly (single API call)
-//   2. Context hook called properly (no try/catch around hook)
-//   3. Jobs come from context (single source of truth)
-//   4. formattedDate used for display
+// TechnicianAssignedJobs.jsx
+// -----------------------------------------------------------------------------
+// CHANGELOG — 6 Oct 2026:
+//   1. [RULE] Start is gated by utils/jobSchedule.evaluateJobStart — future-
+//      dated (or later-today) jobs show why they're locked instead of starting.
+//      Backend enforces the same rule, so this cannot be bypassed.
+//   2. [FIX] "Upcoming" filter/status now maps to real DB statuses
+//      (Scheduled / Pending / Assigned) — the old filter matched a status that
+//      never exists, so it always showed 0 jobs.
+//   3. [FIX] todayStr uses the LOCAL date (was toISOString/UTC).
+//   4. [FIX] handleCompleteService refreshes jobs after completion so counts
+//      stay in sync with the database.
 // =============================================================================
 
 import React, { useMemo, useRef, useState } from 'react'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
+import { evaluateJobStart } from '../../utils/jobSchedule'   // 6 Oct 2026: shared start gate
 import FilterTabs from '../../components/technician/FilterTabs'
 import JobRow from '../../components/technician/JobRow'
 import JobCard from '../../components/technician/JobCard'
 import JobDetailsModal from '../../components/technician/JobDetailsModal'
 
-const normalizeStatus = (status) => String(status || '').trim().replace(/\s+/g, ' ').toLowerCase()
-const isUpcomingStatus = (status) => ['upcoming', 'assigned', 'pending'].includes(normalizeStatus(status))
+// 6 Oct 2026: LOCAL date (toISOString() was UTC — wrong before 8am SGT)
+const getTodayStr = () => new Date().toLocaleDateString('en-CA')
 
-function parseCalendarDate(value) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''))
-  if (!match) return null
+// Statuses that mean "not started yet" in our DB. 6 Oct 2026: there is no
+// 'Upcoming' status in the database — the UI label maps to these.
+const OPEN_FUTURE_STATUSES = ['Pending', 'Assigned', 'Scheduled', 'Upcoming']
 
-  const year = Number(match[1])
-  const monthIndex = Number(match[2]) - 1
-  const day = Number(match[3])
-  const date = new Date(year, monthIndex, day)
-
-  if (
-    Number.isNaN(date.getTime()) ||
-    date.getFullYear() !== year ||
-    date.getMonth() !== monthIndex ||
-    date.getDate() !== day
-  ) {
-    return null
-  }
-
-  return date
+const isTodayJob = (job) => {
+  if (job.status === 'In Progress') return true
+  if (job.timeframe === 'today') return true
+  return Boolean(job.date) && String(job.date).slice(0, 10) === getTodayStr()
 }
 
-function startOfLocalDay(value) {
-  return new Date(value.getFullYear(), value.getMonth(), value.getDate())
+// 6 Oct 2026: future-dated open job (the "Upcoming" concept)
+const isUpcomingJob = (job) => {
+  if (['Completed', 'Cancelled', 'In Progress'].includes(job.status)) return false
+  const today = getTodayStr()
+  const d = job.date ? String(job.date).slice(0, 10) : null
+  return (d && d > today) || OPEN_FUTURE_STATUSES.includes(job.status)
 }
 
-function isTodayJob(job, referenceDate = new Date()) {
-  const jobDate = parseCalendarDate(job.date)
-  if (!jobDate) return false
-
-  return jobDate.getTime() === startOfLocalDay(referenceDate).getTime()
-}
-
-function isThisWeekJob(job, referenceDate = new Date()) {
-  const jobDate = parseCalendarDate(job.date)
-  if (!jobDate) return false
-
-  const referenceDay = startOfLocalDay(referenceDate)
-  const mondayOffset = (referenceDay.getDay() + 6) % 7
-  const weekStart = new Date(referenceDay)
-  weekStart.setDate(referenceDay.getDate() - mondayOffset)
-  const nextWeek = new Date(weekStart)
-  nextWeek.setDate(weekStart.getDate() + 7)
-
-  return jobDate >= weekStart && jobDate < nextWeek
-}
+const isThisWeekJob = (job) => isTodayJob(job) || isUpcomingJob(job) || job.timeframe === 'this-week'
 
 function AssignedJobsSummaryIcon({ type }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {type === 'today' && <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4M17 3v4M3 10h18M8 15h3" /></>}
-      {type === 'progress' && <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>}
-      {type === 'upcoming' && <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4M17 3v4M3 10h18M9 15h6m-2-2 2 2-2 2" /></>}
-      {type === 'completed' && <><circle cx="12" cy="12" r="9" /><path d="m8 12 2.5 2.5L16 9" /></>}
-    </svg>
-  )
+  const icons = { today: '📅', progress: '⏳', upcoming: '📋', completed: '✅' }
+  const icon = icons[type] || '📌'
+  return <span className="summary-icon" aria-hidden="true">{icon}</span>
 }
 
 class JobListErrorBoundary extends React.Component {
@@ -91,8 +66,8 @@ class JobListErrorBoundary extends React.Component {
       return (
         <div className="cf-error-state" style={{ padding: '32px', textAlign: 'center' }}>
           <span aria-hidden="true" style={{ fontSize: '2rem' }}>⚠️</span>
-          <h3>Assigned jobs could not be displayed.</h3>
-          <p>Please try rendering the workspace again.</p>
+          <h3>Something went wrong</h3>
+          <p><small>{this.state.error?.message}</small></p>
           <button
             type="button"
             className="cf-button cf-button-secondary"
@@ -109,35 +84,12 @@ class JobListErrorBoundary extends React.Component {
 
 function TechnicianAssignedJobs() {
   const {
-    technicianID,
-    canMutateTechnicianData,
-    assignedJobs,
+    assignedJobs: jobs,
     startService,
     completeService,
     loading,
-    error,
-    dataAvailable,
     refreshJobs,
-    isTransitionPending,
   } = useTechnicianWorkflow()
-  const hasTechnicianIdentity = technicianID !== null && technicianID !== undefined
-  const requestSucceeded = hasTechnicianIdentity && dataAvailable && !error
-
-  const jobs = useMemo(() => {
-    if (!requestSucceeded) return []
-
-    return assignedJobs.map((job) => ({
-      ...job,
-      // These fields are currently constants in the backend mapper rather
-      // than values joined from service/equipment data.
-      serviceType: 'Service unavailable',
-      serviceCategory: null,
-      unitType: 'Equipment unavailable',
-      estimatedDuration: null,
-      postalCode: null,
-      notes: job.notes === 'No special instructions.' ? null : job.notes,
-    }))
-  }, [assignedJobs, requestSucceeded])
 
   const [activeTab, setActiveTab] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -158,80 +110,65 @@ function TechnicianAssignedJobs() {
     setShowJobDetails(false)
     setActionError(null)
   }
-  const handlePrimaryAction = (job) => {
-    const status = normalizeStatus(job.status)
-    if (status === 'in progress' || status === 'completed') {
-      openJobDetails(job)
-    } else if (isUpcomingStatus(job.status)) {
-      void handleStartService(job)
-    } else {
-      openJobDetails(job)
-    }
-  }
 
-  // ====================================================================
-  // ✅ FIXED: Start Service — uses context's startService directly
-  // Context handles: API persistence followed by a confirmed local update
-  // No duplicate API calls
-  // ====================================================================
-  const handleStartService = async (jobToStart) => {
+  /* -------------------------------------------------------------------------
+   * 6 Oct 2026 — START GATE (date + time)
+   * evaluateJobStart() returns { allowed, reason, kind }. Blocked starts show
+   * WHY in the banner. The backend enforces the identical rule, so even a
+   * crafted request can't start a future job.
+   * ---------------------------------------------------------------------- */
+  const handleStartService = (jobToStart) => {
+    const gate = evaluateJobStart(jobToStart)
+    if (!gate.allowed) {
+      setActionError(`"${jobToStart.id || `#BK${jobToStart.job_ID}`}" is ${gate.reason} — Start unlocks then.`)
+      closeJobDetails()
+      return
+    }
     setActionError(null)
-    if (!canMutateTechnicianData) {
-      setActionError('Status updates require an authenticated Technician session.')
-      return
-    }
-    if (!isUpcomingStatus(jobToStart.status)) {
-      setActionError('This booking cannot be started from its current status.')
-      return
-    }
-
     try {
-      await startService(jobToStart.job_ID)
+      if (typeof startService === 'function') startService(jobToStart.job_ID)
       closeJobDetails()
     } catch (err) {
       console.error('Error starting service:', err)
-      setActionError(err?.message || 'Service could not be started. Please try again.')
+      setActionError('Failed to start service. Please try again.')
     }
   }
 
-  // ====================================================================
-  // ✅ FIXED: Complete Service — uses context's completeService directly
-  // ====================================================================
+  const handlePrimaryAction = (job) => {
+    const status = (job.status || '').toLowerCase()
+    if (status === 'in progress' || status === 'completed') {
+      openJobDetails(job)
+    } else {
+      handleStartService(job)   // 6 Oct 2026: goes through the gate
+    }
+  }
+
   const handleCompleteService = async (jobToComplete) => {
     setActionError(null)
-    if (!canMutateTechnicianData) {
-      setActionError('Status updates require an authenticated Technician session.')
-      return
-    }
-    if (normalizeStatus(jobToComplete.status) !== 'in progress') {
-      setActionError('Only an in-progress booking can be completed.')
-      return
-    }
-
     try {
-      await completeService(jobToComplete.job_ID)
+      if (typeof completeService === 'function') completeService(jobToComplete.job_ID)
       closeJobDetails()
+      // 6 Oct 2026: re-sync with the DB so counts/lists reflect the completion
+      if (typeof refreshJobs === 'function') refreshJobs()
     } catch (err) {
       console.error('Error completing service:', err)
-      setActionError(err?.message || 'Service could not be completed. Please try again.')
+      setActionError(err?.message || 'Failed to complete service. Please try again.')
     }
   }
 
   // ---- Computed values ----
-  const tabCounts = useMemo(() => requestSucceeded
-    ? {
-        today: jobs.filter((job) => isTodayJob(job)).length,
-        thisWeek: jobs.filter((job) => isThisWeekJob(job)).length,
-        all: jobs.length,
-      }
-    : { today: '—', thisWeek: '—', all: '—' },
-  [jobs, requestSucceeded])
+  const tabCounts = useMemo(() => ({
+    today: jobs.filter(isTodayJob).length,
+    thisWeek: jobs.filter(isThisWeekJob).length,
+    all: jobs.length,
+  }), [jobs])
 
   const metrics = useMemo(() => ({
-    todayCount: jobs.filter((job) => isTodayJob(job)).length,
-    inProgressCount: jobs.filter((job) => normalizeStatus(job.status) === 'in progress').length,
-    upcomingCount: jobs.filter((job) => isUpcomingStatus(job.status)).length,
-    completedCount: jobs.filter((job) => normalizeStatus(job.status) === 'completed').length,
+    todayCount: jobs.filter(isTodayJob).length,
+    inProgressCount: jobs.filter((j) => j.status === 'In Progress').length,
+    // 6 Oct 2026 [FIX]: map "Upcoming" to real DB statuses + future dates
+    upcomingCount: jobs.filter(isUpcomingJob).length,
+    completedCount: jobs.filter((j) => j.status === 'Completed').length,
   }), [jobs])
 
   const filteredJobs = useMemo(() => {
@@ -241,10 +178,13 @@ function TechnicianAssignedJobs() {
       if (activeTab === 'today' && !isTodayJob(job)) return false
       if (activeTab === 'this-week' && !isThisWeekJob(job)) return false
 
+      // 6 Oct 2026 [FIX]: "Upcoming" matches Scheduled/Pending/Assigned/future
       if (statusFilter !== 'ALL') {
-        if (statusFilter === 'Upcoming') {
-          if (!isUpcomingStatus(job.status)) return false
-        } else if (normalizeStatus(job.status) !== normalizeStatus(statusFilter)) {
+        const jobStatus = (job.status || '').toLowerCase()
+        const filterLower = statusFilter.toLowerCase()
+        if (filterLower === 'upcoming') {
+          if (!isUpcomingJob(job)) return false
+        } else if (jobStatus !== filterLower) {
           return false
         }
       }
@@ -263,12 +203,11 @@ function TechnicianAssignedJobs() {
   }, [jobs, activeTab, statusFilter, searchQuery])
 
   const summaryItems = [
-    { label: 'Today', value: requestSucceeded ? metrics.todayCount : '—', tone: 'mint', icon: 'today' },
-    { label: 'In Progress', value: requestSucceeded ? metrics.inProgressCount : '—', tone: 'amber', icon: 'progress' },
-    { label: 'Upcoming', value: requestSucceeded ? metrics.upcomingCount : '—', tone: 'blue', icon: 'upcoming' },
-    { label: 'Completed', value: requestSucceeded ? metrics.completedCount : '—', tone: 'green', icon: 'completed' },
+    { label: 'Today', value: metrics.todayCount, tone: 'mint', icon: 'today' },
+    { label: 'In Progress', value: metrics.inProgressCount, tone: 'amber', icon: 'progress' },
+    { label: 'Upcoming', value: metrics.upcomingCount, tone: 'blue', icon: 'upcoming' },
+    { label: 'Completed', value: metrics.completedCount, tone: 'green', icon: 'completed' },
   ]
-  const hasActiveFilters = Boolean(searchQuery.trim()) || statusFilter !== 'ALL' || activeTab !== 'all'
 
   const resetFilters = () => {
     setSearchQuery('')
@@ -286,15 +225,13 @@ function TechnicianAssignedJobs() {
           <div className="cf-page-heading">
             <span className="cf-eyebrow">Work management</span>
             <h1>Assigned Jobs</h1>
-            <p>Review your workload, begin scheduled service, and track active jobs.</p>
+            <p>Review your workload, begin scheduled service, and track active jobs. Future-dated jobs unlock on their date.</p>
           </div>
           <div className="cf-page-header-status">
-            {requestSucceeded && <span className="duty-dot-pulse" aria-hidden="true" />}
+            <span className="duty-dot-pulse" aria-hidden="true" />
             <span>
               <small>Field sync</small>
-              <strong>
-                {loading ? 'Checking' : requestSucceeded ? 'Available' : 'Unavailable'}
-              </strong>
+              <strong>Active now</strong>
             </span>
           </div>
         </header>
@@ -321,24 +258,15 @@ function TechnicianAssignedJobs() {
               <h2 id="assigned-jobs-workspace-title">Job Workspace</h2>
               <p>Filter assignments and open the next service task.</p>
             </div>
-            <span className="cf-count-pill">
-              {requestSucceeded ? `${filteredJobs.length} shown` : '— shown'}
-            </span>
+            <span className="cf-count-pill">{filteredJobs.length} shown</span>
           </header>
 
           <div className="cf-jobs-toolbar jobs-toolbar">
             <div className="cf-jobs-tabs">
-              <div className="assigned-jobs-toolbar-caption">
-                <span className="cf-toolbar-label">Timeframe</span>
-                {hasActiveFilters && (
-                  <button type="button" className="cf-button cf-button-quiet assigned-jobs-reset-button" onClick={resetFilters}>
-                    Reset Filters
-                  </button>
-                )}
-              </div>
+              <span className="cf-toolbar-label">Timeframe</span>
               <FilterTabs
                 activeTab={activeTab}
-                onTabChange={setActiveTab}
+                onTabChange={(tab) => setActiveTab(tab)}
                 counts={tabCounts}
               />
             </div>
@@ -355,7 +283,7 @@ function TechnicianAssignedJobs() {
                     id="assigned-jobs-search"
                     type="text"
                     className="form-control search-input"
-                    placeholder="Booking ID, customer, service..."
+                    placeholder="Job ID, customer, service..."
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                     aria-label="Search assigned jobs"
@@ -377,7 +305,7 @@ function TechnicianAssignedJobs() {
                   onChange={(event) => setStatusFilter(event.target.value)}
                   aria-label="Filter by job status"
                 >
-                  <option value="ALL">All Status</option>
+                  <option value="ALL">All Statuses</option>
                   <option value="In Progress">In Progress</option>
                   <option value="Upcoming">Upcoming</option>
                   <option value="Completed">Completed</option>
@@ -386,101 +314,104 @@ function TechnicianAssignedJobs() {
             </div>
           </div>
 
-          <div className="cf-jobs-results assigned-jobs-records-canvas">
-            {/* Action Error */}
+          <div className="cf-jobs-results">
             {actionError && (
-              <div style={{ padding: '12px 24px', background: '#fff3f3', border: '1px solid #fcc', borderRadius: '8px', marginBottom: '16px', color: '#c33' }}>
+              <div style={{ padding: '12px 24px', background: '#fff8e1', border: '1px solid #f0d060', borderRadius: '8px', marginBottom: '16px', color: '#8a6d00' }}>
                 <strong>⚠️</strong> {actionError}
               </div>
             )}
 
-            {loading || !requestSucceeded || filteredJobs.length === 0 ? (
-              <div className="cf-empty-state assigned-jobs-state" role={!loading && !requestSucceeded ? 'alert' : undefined}>
-                <span aria-hidden="true">{loading ? '…' : !requestSucceeded ? '!' : '⌕'}</span>
-                <h3>
-                  {loading
-                    ? 'Loading field assignments…'
-                    : !requestSucceeded
-                      ? hasTechnicianIdentity ? 'Assigned job data is currently unavailable.' : 'Technician identity is unavailable.'
-                      : jobs.length === 0 ? 'No assigned jobs available.' : 'No jobs match these filters.'}
-                </h3>
-                <p>
-                  {loading
-                    ? 'Checking for assigned bookings.'
-                    : !requestSucceeded
-                      ? hasTechnicianIdentity
-                        ? 'We could not retrieve assigned bookings. Please try again.'
-                        : 'Assigned bookings require a technician identity from the signed-in account.'
-                      : jobs.length === 0
-                        ? 'No bookings were returned.'
-                        : 'Try another timeframe, search, or status.'}
-                </p>
-                {!loading && !requestSucceeded && hasTechnicianIdentity && (
-                  <button type="button" className="cf-button cf-button-secondary" onClick={refreshJobs}>Retry</button>
-                )}
+            {/* Desktop Table */}
+            <div className="assigned-jobs-table-view d-none d-lg-block">
+              <div className="table-responsive">
+                <table className="table job-table mb-0">
+                  <thead>
+                    <tr>
+                      <th scope="col" className="ps-4">JOB ID</th>
+                      <th scope="col">CUSTOMER</th>
+                      <th scope="col">SERVICE &amp; EQUIPMENT</th>
+                      <th scope="col">DATE &amp; TIME</th>
+                      <th scope="col">STATUS</th>
+                      <th scope="col" className="text-end pe-4">ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan="6" style={{ textAlign: 'center', padding: '24px' }}>
+                          Loading field assignments...
+                        </td>
+                      </tr>
+                    ) : filteredJobs.length > 0 ? (
+                      filteredJobs.map((job) => (
+                        <JobRow
+                          key={job.id || job.job_ID}
+                          job={job}
+                          onView={openJobDetails}
+                          onPrimaryAction={handlePrimaryAction}
+                        />
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="6">
+                          <div className="cf-empty-state">
+                            <span aria-hidden="true">⌕</span>
+                            <h3>No assigned jobs found</h3>
+                            <p>
+                              {searchQuery || statusFilter !== 'ALL'
+                                ? 'No jobs match your active search and filter criteria.'
+                                : 'You have no scheduled jobs in this selected timeframe.'}
+                            </p>
+                            {(searchQuery || statusFilter !== 'ALL' || activeTab !== 'all') && (
+                              <button type="button" className="cf-button cf-button-secondary" onClick={resetFilters}>
+                                Reset Filters
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            ) : (
-              <>
-                <div className="assigned-jobs-table-view d-none d-lg-block">
-                  <div className="table-responsive">
-                    <table className="table job-table mb-0">
-                      <thead>
-                        <tr>
-                          <th scope="col" className="ps-4">BOOKING ID</th>
-                          <th scope="col">CUSTOMER</th>
-                          <th scope="col">SERVICE &amp; EQUIPMENT</th>
-                          <th scope="col">DATE &amp; TIME</th>
-                          <th scope="col">STATUS</th>
-                          <th scope="col" className="text-end pe-4">ACTIONS</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredJobs.map((job) => (
-                          <JobRow
-                            key={job.id || job.job_ID}
-                            job={job}
-                            onView={openJobDetails}
-                            onPrimaryAction={handlePrimaryAction}
-                            isActionPending={isTransitionPending(job.job_ID)}
-                            actionReadOnly={!canMutateTechnicianData}
-                          />
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="assigned-jobs-mobile-view d-lg-none">
+              {loading ? (
+                <p style={{ textAlign: 'center', padding: '24px' }}>Loading jobs...</p>
+              ) : filteredJobs.length > 0 ? (
+                filteredJobs.map((job) => (
+                  <JobCard
+                    key={job.id || job.job_ID}
+                    job={job}
+                    onView={openJobDetails}
+                    onPrimaryAction={handlePrimaryAction}
+                  />
+                ))
+              ) : (
+                <div className="cf-empty-state">
+                  <span aria-hidden="true">⌕</span>
+                  <h3>No assigned jobs found</h3>
+                  <p>Try adjusting your search or active filters.</p>
+                  <button type="button" className="cf-button cf-button-secondary" onClick={resetFilters}>
+                    Reset Filters
+                  </button>
                 </div>
-                <div className="assigned-jobs-mobile-view d-lg-none">
-                  {filteredJobs.map((job) => (
-                    <JobCard
-                      key={job.id || job.job_ID}
-                      job={job}
-                      onView={openJobDetails}
-                      onPrimaryAction={handlePrimaryAction}
-                      isActionPending={isTransitionPending(job.job_ID)}
-                      actionReadOnly={!canMutateTechnicianData}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
+              )}
+            </div>
           </div>
 
           <footer className="cf-workspace-footer jobs-card-footer">
             <span>
-              {requestSucceeded ? (
-                <>Showing <strong>{filteredJobs.length}</strong> of <strong>{jobs.length}</strong> assigned bookings</>
-              ) : (
-                <>Showing <strong>—</strong> assigned bookings</>
-              )}
+              Showing <strong>{filteredJobs.length}</strong> of <strong>{jobs.length}</strong> assigned jobs
             </span>
             <span className="d-none d-sm-flex">
-              {requestSucceeded && <span className="duty-dot-pulse" aria-hidden="true" />}
-              {loading ? 'Loading assignments' : requestSucceeded ? 'Booking data available' : 'Booking data unavailable'}
+              <span className="duty-dot-pulse" aria-hidden="true" /> Field sync active
             </span>
           </footer>
         </section>
 
-        {/* Job Details Modal */}
         {showJobDetails && selectedJob && (
           <JobDetailsModal
             show={showJobDetails}
@@ -489,9 +420,6 @@ function TechnicianAssignedJobs() {
             onStartService={handleStartService}
             onCompleteService={handleCompleteService}
             returnFocusRef={jobDetailsTriggerRef}
-            actionPending={isTransitionPending(selectedJob.job_ID)}
-            actionReadOnly={!canMutateTechnicianData}
-            actionError={actionError}
           />
         )}
       </div>
