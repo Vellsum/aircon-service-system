@@ -23,9 +23,9 @@ const navGroups = [
   {
     label: "My Account",
     items: [
-      { label: "My Bookings", path: "/customer/bookings", icon: "calendar", badgeKey: "upcoming" },{ label: "Profile & Settings", path: "/customer/profile", icon: "user" },
-      
-      
+      { label: "My Bookings", path: "/customer/bookings", icon: "calendar", badgeKey: "upcoming" },
+      {label: "My Subscriptions", path: "/customer/subscriptions",icon: "calendar", },
+        { label: "Profile & Settings", path: "/customer/profile", icon: "user" },
     ],
   },
 ];

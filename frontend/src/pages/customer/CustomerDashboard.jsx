@@ -112,6 +112,14 @@ const CustomerDashboard = () => {
         </div>
       </section>
 
+      {/**view current subscription */}
+      <section className="cust-empty" >
+            <article  className="cust-stat cust-stat-success">
+              <h2>Your current subscriptions:</h2>
+              <h3>XXXX</h3>      {/**  <-- GET SUBSCRIPTIONS N SHOW ACTIVE SUBSCRIPTIONS HERE */}
+            </article>
+      </section>
+
       {/* Service-due nudge */}
       {dueSoon.length > 0 && (
         <div className="cust-alert">
