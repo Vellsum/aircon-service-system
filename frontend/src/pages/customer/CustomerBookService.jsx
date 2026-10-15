@@ -94,7 +94,8 @@ const CustomerBookService = () => {
   }, []);
 
   const service = useMemo(() => findService(serviceId, services), [serviceId, services]);
-  const slot = TIME_SLOTS.find((entry) => entry.id === slotId) || null;
+  //const slot = TIME_SLOTS.find((entry) => entry.id === slotId) || null;
+  const slot = slotId || null;
   const address = addresses.find((entry) => entry.address_ID === addressId) || null;
   const selectedUnits = units.filter((unit) => unitIds.includes(unit.installed_ID));
 
@@ -351,8 +352,8 @@ const handleChange = (e) => {
                     type="number"
                     value={numberOfUnits}
                     onChange={handleChange}
-                    min="0"
-                    max="120"
+                    min="1"
+                    max="3"
                     step="1"
       /><p>You entered: {numberOfUnits}</p>
                 </div>
@@ -409,13 +410,15 @@ const handleChange = (e) => {
             </section>
           )} {/**end of step 2, select number of units   */}
 
-          {/* Step 3 — date and slot (slots are static UI config — no slot table in schema) */}
+
+
+{/* Step 3 — date and time of day */}
           {step === 3 && (
             <section className="cust-panel">
               <div className="cust-panel-head">
                 <div>
                   <h2>When suits you?</h2>
-                  <p>Choose a date, then an available time slot.</p>
+                  <p>Choose a date, then select morning or afternoon.</p>
                 </div>
               </div>
 
@@ -434,36 +437,36 @@ const handleChange = (e) => {
               </div>
 
               {date ? (
-                ["Morning", "Afternoon", "Evening"].map((period) => {
-                  const periodSlots = TIME_SLOTS.filter((entry) => entry.period === period);
-                  if (periodSlots.length === 0) return null;
-                  return (
-                    <div className="cust-slot-group" key={period}>
-                      <p className="cust-slot-period">{period}</p>
-                      <div className="cust-slots">
-                        {periodSlots.map((entry) => (
-                          <button
-                            type="button"
-                            key={entry.id}
-                            disabled={!entry.available}
-                            className={`cust-slot${slotId === entry.id ? " is-selected" : ""}`}
-                            onClick={() => setSlotId(entry.id)}
-                            title={entry.available ? undefined : "Fully booked"}
-                          >
-                            {entry.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })
+                <div className="cust-slot-group">
+                  <p className="cust-slot-period">Time</p>
+                  <div className="cust-slots">
+                    {["Morning", "Afternoon"].map((period) => {
+                      const isAfternoonDisabled = period === "Afternoon" && Number(numberOfUnits) === 3;
+                      return (
+                        <button
+                          type="button"
+                          key={period}
+                          disabled={isAfternoonDisabled}
+                          className={`cust-slot${slotId === period ? " is-selected" : ""}`}
+                          onClick={() => setSlotId(period)}
+                          title={isAfternoonDisabled ? "Afternoon unavailable for 3 units" : undefined}
+                        >
+                          {period}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               ) : (
                 <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>
-                  Pick a date to see the available time slots.
+                  Pick a date to see available options.
                 </p>
               )}
             </section>
           )}
+
+
+
 
           {/* Step 4 — address and notes */}
           {step === 4 && (
@@ -644,24 +647,23 @@ const handleChange = (e) => {
                 {date ? formatLongDate(date) : "Not chosen"}
               </span>
             </div>
-            <div className="cust-summary-row">
-              <span className="cust-summary-label">Time</span>
-              <span className={`cust-summary-value${slot ? "" : " is-muted"}`}>
-                {slot?.label || "Not chosen"}
-              </span>
-            </div>
+           <div className="cust-summary-row">
+  <span className="cust-summary-label">Time</span>
+  <span className={`cust-summary-value${slot ? "" : " is-muted"}`}>
+    {slot || "Not chosen"}
+  </span>
+</div>
 
             {service && (
               <>
-                <div className="cust-summary-row">
-                  <span className="cust-summary-label">
-                    {formatMoney(service.price)} × {pricing.billableUnits}{" "}
-                    {service.unit_label === "per unit" ? "unit(s)" : ""}
-                  </span>
-                  <span className="cust-summary-value dash-mono">
-                    {formatMoney(pricing.subtotal)}
-                  </span>
-                </div>
+             <div className="cust-summary-row">
+  <span className="cust-summary-label">
+    {formatMoney(service.price)} × {numberOfUnits} unit{Number(numberOfUnits) !== 1 ? "s" : ""}
+  </span>
+  <span className="cust-summary-value dash-mono">
+    {formatMoney(service.price * Number(numberOfUnits))}
+  </span>
+</div>
                 {appliedPromo && (
                   <div className="cust-summary-row">
                     <span className="cust-summary-label">

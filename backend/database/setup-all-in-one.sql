@@ -123,14 +123,14 @@ GO
 /* ==================== SEED DATA (Wei Jie's, adapted) ==================== */
 SET IDENTITY_INSERT user3.topUser ON;
 INSERT INTO user3.topUser (user_ID, username, salt, hash, accountType, isDeleted, phoneNumber, email, joined) VALUES
-(1,'admin_sarah','salt_123_abc','hash_pwd_admin1','Admin',0,'+6591234567','sarah.admin@airconcool.com','2024-01-15'),
-(2,'tech_chen','salt_456_def','hash_pwd_tech1','Technician',0,'+6592345678','chen.wei@airconcool.com','2024-02-01'),
-(3,'tech_raj','salt_789_ghi','hash_pwd_tech2','Technician',0,'+6593456789','raj.kumar@airconcool.com','2024-03-10'),
-(4,'tech_alex','salt_101_jkl','hash_pwd_tech3','Technician',0,'+6594567890','alex.tan@airconcool.com','2024-05-20'),
-(5,'cust_john','salt_202_mno','hash_pwd_cust1','Customer',0,'+6595678901','john.doe@gmail.com','2024-06-01'),
-(6,'cust_mary','salt_303_pqr','hash_pwd_cust2','Customer',0,'+6596789012','mary.lim@yahoo.com','2024-06-15'),
-(7,'cust_david','salt_404_stu','hash_pwd_cust3','Customer',0,'+6597890123','david.wong@outlook.com','2024-07-02'),
-(8,'cust_elena','salt_505_vwx','hash_pwd_cust4','Customer',0,'+6598901234','elena.rodriguez@gmail.com','2024-08-10'),
+(1,'admin_sarah','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Admin',0,'+6591234567','sarah.admin@airconcool.com','2024-01-15'),
+(2,'tech_chen','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Technician',0,'+6592345678','chen.wei@airconcool.com','2024-02-01'),
+(3,'tech_raj','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Technician',0,'+6593456789','raj.kumar@airconcool.com','2024-03-10'),
+(4,'tech_alex','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Technician',0,'+6594567890','alex.tan@airconcool.com','2024-05-20'),
+(5,'cust_john','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Customer',0,'+6595678901','john.doe@gmail.com','2024-06-01'),
+(6,'cust_mary','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Customer',0,'+6596789012','mary.lim@yahoo.com','2024-06-15'),
+(7,'cust_david','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Customer',0,'+6597890123','david.wong@outlook.com','2024-07-02'),
+(8,'cust_elena','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Customer',0,'+6598901234','elena.rodriguez@gmail.com','2024-08-10'),
 (9,'scott','$2b$10$nf5BZ.T/IASMv.vNEMGlaO','$2b$10$nf5BZ.T/IASMv.vNEMGlaOoeJvdEZM3f2ysNFdEJ8txdp3JjdxeuS','Customer',0,'+6591112222','khar.sum@example.com','2026-01-05');
 SET IDENTITY_INSERT user3.topUser OFF;
 

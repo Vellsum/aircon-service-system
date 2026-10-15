@@ -31,7 +31,7 @@ const isUnitDueSoon = (unit) =>
 const quickActions = [
   { label: "Book a service", icon: "plus", path: "/customer/book-service" },
   { label: "View my bookings", icon: "calendar", path: "/customer/bookings" },
-  { label: "Browse services", icon: "grid", path: "/customer/service-catalog" },
+  { label: "Browse subscriptions", icon: "grid", path: "/customer/service-catalog" },
  
 ];
 
