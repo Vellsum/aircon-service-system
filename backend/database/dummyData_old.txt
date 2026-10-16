@@ -1,0 +1,187 @@
+-sql by weijie
+- last update 160926
+
+
+-- BEWARE THE PK IS AUTOMATICALLY MADE, SO GET IT TO MAKE CHILD DATA
+
+-- 1. Base Inventory Items (Parent table for aircon, airconPart, tools, disposableTools)
+INSERT INTO inventory.inventoryItem ( itemType, itemName, stock, [description], isDeleted, SKU, reorderAmount,price,stockStatus) VALUES
+( 'aircon', 'Daikin System 3 Aircon', 10, 'Inverter Multi-Split Air Conditioner', 0, 'F0978-VF432', 3, 300,'available'),
+('aircon', 'Mitsubishi Electric Starmex', 8, 'Wall Mounted Single Split Aircon', 0, 'M4122-Z3198', 3, 350.90, 'available'),
+( 'airconPart', 'R410A Refrigerant Gas Can', 25, 'Refrigerant gas cylinder 11.3kg', 0, 'G456', 10, 20.90, 'available'),
+('airconPart', 'Aircon Compressor Capacitor 45uF', 50, 'Run capacitor for outdoor units', 0, 'C43', 5, 3.90, 'avialable'),
+( 'tool', 'Manifold Gauge Set', 5, 'Digital pressure manifold gauge', 0, 'B45', 5, 2.90, 'out for use'),
+( 'disposableTool', 'Microfiber Cleaning Cloth', 100, 'Absorbent cleaning rags pack', 0, 'M9', 30, 1.99, 'available');
+
+-- 2. Aircon Table
+INSERT INTO inventory.aircon ( itemID, aircon_model, aircon_make, aircon_type,  aircon_serialNumber, aircon_warrantyNumber, isInstalled) VALUES
+( 2,  'Daikin', 'Split System', 'Daikin iSmile Series System 3', 'SN-DK-987654', 'WR-DK-001122', 1),
+( 3,  'Mitsubishi', 'Wall Mounted', 'Mitsubishi Starmex 9000 BTU', 'SN-ME-123456', 'WR-ME-334455', 0);
+
+-- 3. Aircon Part Table
+INSERT INTO inventory.airconPart ( compatibleAircon, itemID) VALUES
+(1, 4),
+( 2, 5);
+
+-- 4. Part Compatibility Junction Table
+INSERT INTO inventory.partCompatibility (airconID, airconPartid) VALUES
+(1, 1),
+(2, 2);
+
+-- 5. Installed Aircons Junction Table
+INSERT INTO inventory.installedAircons (airconID, customerid) VALUES
+(1, 1);
+
+
+-- 6. Tools Table
+INSERT INTO inventory.tools ( itemid, availability) VALUES
+( 6, 'Available');
+
+-- 7. Disposable Tools Table
+INSERT INTO inventory.disposableTools ( itemid) VALUES
+( 7);
+
+=====================================================================================================================
+//make an admin in parent
+insert into user3.topUser (username,salt,hash,accountType, isDeleted, phoneNumber,email,joined) 
+                    values('admin09', 'salt','hash', 'Admin', 0, '86867299', 'scottybombastic@apple.com', 2020-09-01);
+--The standard, unambiguous date format across most SQL databases is the ISO 8601 standard: 'YYYY-MM-DD' (e.g., '2026-09-15'), in the '' as if its a string
+
+//make admin in child
+insert into user3.admin (admin_name,authorityKey,user_ID)
+			values('Aekkaphone Chaleunsouk', 3552573 ,4);
+
+==============================================================================================================
+//make service report first
+insert into new_jobBooking.serviceReport(description, technicianID,isFollowup,findings, actionsTaken, AC_condition, recommendations,notes,serviceChecklist, comepletedDateTime   )
+values ('regular checkup+cleaning', 1,0,'machine in expected dusty condition', 'usual cleaning', 'good' ,'nil', 'nil', 'cleaning, check part', 'day of booking' );
+
+//make  a service first
+insert into payables.service( service_id,service_name,description,price,isdeleted,duration  )
+values( 1,'regular cleaning', 'open the shell and dust the parts visible', 29.90, 0, 2h );
+
+--//job for a booking, but make after service report
+--'HH:MM:SS' <- time datatype
+insert into new_jobBooking.job (job_status, isFollowup, serviceReport,serviceID)
+			values( 'complete',0,1  ,1);
+
+//job history
+insert into user3.jobHistory(technician_ID,job_ID)
+values(3,1)
+
+//service history
+insert into user3.serviceHistory(customerid, bookingid)
+values(1,1)
+
+--then can make work data
+insert into new_jobBooking.work(job_ID,booking_ID)
+values(3,1)
+
+--parts used
+--note that a single editing is like that or u see the more services how its done
+--where after the value is sets of data
+insert into  new_jobBooking.partsUsed(reportID,itemID)  values(1,7);
+insert into  new_jobBooking.partsUsed(reportID,itemID)   values(1,6);
+
+=================
+//more services
+INSERT INTO payables.service (service_id, service_name, description, price, isdeleted, duration) VALUES
+(11, 'advanced Cleaning', 'Basic dust filter cleaning and external shell wipe down', 29.90, 0, '01:00:00'),
+(2, 'Chemical Wash', 'Deep internal cleaning using chemical solution for clogged coils', 85.00, 0, '01:30:00'),
+(3, 'Chemical Overhaul', 'Complete disassembly and chemical bath for heavily neglected units', 150.00, 0, '02:30:00'),
+(4, 'Gas Top-Up (R410A)', 'Refrigerant pressure check and R410A gas refill', 60.00, 0, '00:45:00'),
+(5, 'Gas Top-Up (R32)', 'Eco-friendly R32 refrigerant gas top-up and system pressure test', 70.00, 0, '00:45:00'),
+(6, 'Drainage Pipe Flushing', 'High-pressure water flush to clear blocked condensate drain pipes', 45.00, 0, '00:30:00'),
+(7, 'Compressor Inspection & Repair', 'Diagnostic test and electrical component repair for outdoor compressor unit', 120.00, 0, '02:00:00'),
+(8, 'Blower Wheel Cleaning', 'Targeted mold and dirt removal from the internal fan blower wheel', 55.00, 0, '01:00:00'),
+(9, 'Thermostat Sensor Replacement', 'Replacement of faulty temperature sensor and recalibration', 80.00, 0, '01:15:00'),
+(10, 'Annual Maintenance Package', 'Comprehensive 4-times yearly regular servicing package', 280.00, 0, '04:00:00');
+
+===========================================
+
+
+//how to edit data
+update user3.topUser --choose table
+set isDeleted =0     --choose attribute
+where user_ID=1;     -- of which id
+
+============================
+
+//packages
+--need state the pk
+INSERT INTO payables.packages ( package_id,package_name, [description], serviceList, price, isdeleted) VALUES
+( 1,'Basic Aircon Servicing', 'Regular cleaning of air filters and cover for standard cooling performance.', 101, 40.00,0),
+( 2,'Chemical Wash Special', 'Deep chemical cleaning for coils and blower to eliminate odor and stubborn dirt.', 102, 85.00, 0),
+( 3,'Full Overhaul & Repair', 'Complete breakdown and overhaul including refrigerant top-up and leakage inspection.', 103, 150.00,0),
+( 4,'Annual Contract Saver', '4x regular servicing visits per year with priority scheduling.', 104, 140.00, 0),
+( 5,'Emergency Repair', 'On-demand inspection and repair for non-cooling or leaking units.', 105, 60.00, 0);
+
+
+========================================
+//promotions
+-- SQL INSERT script based on the database schema visible in the screenshot
+INSERT INTO payables.promotions (  promo_id, promo_name, promo_start,  promo_end,    description,  packageList,   serviceList,  promoCode,   isdeleted,  discount,  used) VALUES 
+(  1,  'Summer Cool Discount',   '2026-06-01',   '2026-08-31',   'Get $15 off on any basic or chemical aircon servicing package.',   1,    101,    'SUMMER15',   'false',    15.00,   'false'),
+( 2,   'New Customer Welcome', '2026-01-01', 
+    '2026-12-31', 
+    '10% discount for first-time customers booking online.', 
+    NULL, 
+    102, 
+    'WELCOME10', 
+    'false', 
+    10.00, 
+    'false'
+),
+(
+    3, 
+    'Overhaul Bundle Deal', 
+    '2026-03-15', 
+    '2026-05-15', 
+    'Save $30 on full overhaul and repair packages.', 
+    3, 
+    103, 
+    'OVERHAUL30', 
+    'false', 
+    30.00, 
+    'true'
+),
+(
+    4, 
+    'Year-End Aircon Care', 
+    '2026-11-01', 
+    '2026-12-31', 
+    'Special seasonal package price reduction.', 
+    4, 
+    104, 
+    'YEAREND20', 
+    'false', 
+    20.00, 
+    'false'
+),
+(
+    5, 
+    'Expired Flash Sale', 
+    '2026-01-10', 
+    '2026-01-20', 
+    'Limited-time $5 discount voucher.', 
+    NULL, 
+    105, 
+    'FLASH5', 
+    'true', 
+    5.00, 
+    'true'
+);
+
+
+==========================================================================================================================================================
+
+
+///servicelist
+--cannot have duplicates, service in a package
+INSERT INTO payables.serviceList (packageID,promoID,serviceID) values
+(101, null, 1) ,(101, null, 2) ,(101, null, 4) ,
+(102, null,2) ,(102, null,3) ,
+(103,null,7 ) ,(103,null,8 ) ,(103,null,9 ) ,(103,null,11 ) ,
+(105,null,4 ),(105,null,11 ) ;
+
+
