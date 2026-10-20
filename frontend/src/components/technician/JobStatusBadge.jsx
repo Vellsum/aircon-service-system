@@ -7,6 +7,12 @@ import React from 'react'
 function JobStatusBadge({ status, className = '' }) {
   const getBadgeConfig = (statusStr) => {
     switch (statusStr?.toLowerCase()) {
+      case 'scheduled':
+        return {
+          label: 'Assigned',
+          bgClass: 'status-badge-default',
+          dotClass: 'status-dot-default',
+        }
       case 'in progress':
       case 'inprogress':
         return {

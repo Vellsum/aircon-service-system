@@ -13,26 +13,74 @@
 //      stay in sync with the database.
 // =============================================================================
 
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import { evaluateJobStart } from '../../utils/jobSchedule'   // 6 Oct 2026: shared start gate
 import FilterTabs from '../../components/technician/FilterTabs'
 import JobRow from '../../components/technician/JobRow'
 import JobCard from '../../components/technician/JobCard'
 import JobDetailsModal from '../../components/technician/JobDetailsModal'
+import { Icon } from '../../components/customer/CustomerIcons'
 
 // 6 Oct 2026: LOCAL date (toISOString() was UTC — wrong before 8am SGT)
 const getTodayStr = () => new Date().toLocaleDateString('en-CA')
+
+function getLocalDateKey(date = new Date()) {
+  return `${String(date.getFullYear()).padStart(4, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function getAppointmentDateKey(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const [year, month, day] = value.split('-').map(Number)
+  if (year < 1) return null
+  const date = new Date(2000, 0, 1, 12)
+  date.setFullYear(year, month - 1, day)
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? value : null
+}
+
+function useCalendarDay() {
+  const [today, setToday] = useState(() => getLocalDateKey())
+  useEffect(() => {
+    let timer
+    let active = true
+    const syncDay = () => {
+      if (!active) return
+      window.clearTimeout(timer)
+      const now = new Date()
+      setToday(getLocalDateKey(now))
+      const midnight = new Date(now)
+      midnight.setHours(24, 0, 0, 0)
+      timer = window.setTimeout(syncDay, Math.max(1, midnight.getTime() - now.getTime()))
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') syncDay() }
+    window.addEventListener('focus', syncDay)
+    document.addEventListener('visibilitychange', onVisible)
+    syncDay()
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+      window.removeEventListener('focus', syncDay)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
+  return today
+}
+
+function getWeekKeys(today) {
+  const [year, month, day] = today.split('-').map(Number)
+  const monday = new Date(2000, 0, 1, 12)
+  monday.setFullYear(year, month - 1, day)
+  monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7)
+  const sunday = new Date(monday)
+  sunday.setDate(sunday.getDate() + 6)
+  return { weekStart: getLocalDateKey(monday), weekEnd: getLocalDateKey(sunday) }
+}
 
 // Statuses that mean "not started yet" in our DB. 6 Oct 2026: there is no
 // 'Upcoming' status in the database — the UI label maps to these.
 const OPEN_FUTURE_STATUSES = ['Pending', 'Assigned', 'Scheduled', 'Upcoming']
 
-const isTodayJob = (job) => {
-  if (job.status === 'In Progress') return true
-  if (job.timeframe === 'today') return true
-  return Boolean(job.date) && String(job.date).slice(0, 10) === getTodayStr()
-}
+const isTodayJob = (job, today) => getAppointmentDateKey(job.date) === today
 
 // 6 Oct 2026: future-dated open job (the "Upcoming" concept)
 const isUpcomingJob = (job) => {
@@ -42,12 +90,14 @@ const isUpcomingJob = (job) => {
   return (d && d > today) || OPEN_FUTURE_STATUSES.includes(job.status)
 }
 
-const isThisWeekJob = (job) => isTodayJob(job) || isUpcomingJob(job) || job.timeframe === 'this-week'
+const isThisWeekJob = (job, weekStart, weekEnd) => {
+  const date = getAppointmentDateKey(job.date)
+  return date !== null && date >= weekStart && date <= weekEnd
+}
 
 function AssignedJobsSummaryIcon({ type }) {
-  const icons = { today: '📅', progress: '⏳', upcoming: '📋', completed: '✅' }
-  const icon = icons[type] || '📌'
-  return <span className="summary-icon" aria-hidden="true">{icon}</span>
+  const icons = { today: 'calendar', progress: 'clock', upcoming: 'calendarPlus', completed: 'checkCircle' }
+  return <span className="summary-icon" aria-hidden="true"><Icon name={icons[type] || 'calendar'} size={20} strokeWidth={2} /></span>
 }
 
 class JobListErrorBoundary extends React.Component {
@@ -89,19 +139,45 @@ function TechnicianAssignedJobs() {
     completeService,
     loading,
     refreshJobs,
+    isTransitionPending,
+    canMutateTechnicianData,
+    error: jobsError,
+    dataAvailable,
+    technicianID,
   } = useTechnicianWorkflow()
 
+  const todayStr = useCalendarDay()
+  const { weekStart, weekEnd } = useMemo(() => getWeekKeys(todayStr), [todayStr])
   const [activeTab, setActiveTab] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
-  const [selectedJob, setSelectedJob] = useState(null)
+  const [selectedJobID, setSelectedJobID] = useState(null)
   const [showJobDetails, setShowJobDetails] = useState(false)
   const [actionError, setActionError] = useState(null)
+  const [statusSaved, setStatusSaved] = useState(false)
+  const [refreshError, setRefreshError] = useState(null)
   const jobDetailsTriggerRef = useRef(null)
+  const actionJobIDsRef = useRef(new Set())
+  const jobsAvailable = !loading && !jobsError && dataAvailable
+  const jobsUnavailable = !loading && !jobsAvailable
+  const canRetryJobs = Boolean(technicianID)
+  const savedRefreshMessage = 'The booking status was saved, but assignments could not be refreshed. Retry reloads the list; do not repeat the status change.'
+  const refreshWarning = refreshError || (statusSaved && jobsUnavailable ? savedRefreshMessage : null)
+  const selectedJob = useMemo(
+    () => jobs.find((job) => job.job_ID === selectedJobID) || null,
+    [jobs, selectedJobID],
+  )
+
+  useEffect(() => {
+    if (jobsAvailable) {
+      setStatusSaved(false)
+      setRefreshError(null)
+    }
+  }, [jobsAvailable])
 
   const openJobDetails = (job) => {
     jobDetailsTriggerRef.current = document.activeElement
-    setSelectedJob(job)
+    setSelectedJobID(job.job_ID)
     setShowJobDetails(true)
     setActionError(null)
   }
@@ -111,27 +187,54 @@ function TechnicianAssignedJobs() {
     setActionError(null)
   }
 
+  const persistJobTransition = async (job, transition, failureMessage) => {
+    const jobID = job.job_ID
+    if (actionJobIDsRef.current.has(jobID) || isTransitionPending(jobID)) return
+    if (!canMutateTechnicianData || !jobsAvailable) {
+      setActionError('Status updates require an authenticated Technician session and available assignments.')
+      return
+    }
+
+    actionJobIDsRef.current.add(jobID)
+    setActionError(null)
+    setStatusSaved(false)
+    setRefreshError(null)
+    try {
+      if (typeof transition !== 'function') throw new Error('Status transition unavailable')
+      const result = await transition(jobID)
+      if (result?.success !== true) throw new Error('Status transition was not confirmed')
+      setStatusSaved(true)
+      if (selectedJobID === jobID) closeJobDetails()
+    } catch (err) {
+      console.error('Error updating booking status:', err)
+      setActionError(failureMessage)
+      return
+    } finally {
+      actionJobIDsRef.current.delete(jobID)
+    }
+
+    // Context-reported GET failures are rendered separately from mutation errors.
+    try {
+      await refreshJobs()
+    } catch (err) {
+      console.error('Error refreshing assignments after saved status:', err)
+      setRefreshError(savedRefreshMessage)
+    }
+  }
+
   /* -------------------------------------------------------------------------
    * 6 Oct 2026 — START GATE (date + time)
    * evaluateJobStart() returns { allowed, reason, kind }. Blocked starts show
    * WHY in the banner. The backend enforces the identical rule, so even a
    * crafted request can't start a future job.
    * ---------------------------------------------------------------------- */
-  const handleStartService = (jobToStart) => {
+  const handleStartService = async (jobToStart) => {
     const gate = evaluateJobStart(jobToStart)
     if (!gate.allowed) {
       setActionError(`"${jobToStart.id || `#BK${jobToStart.job_ID}`}" is ${gate.reason} — Start unlocks then.`)
-      closeJobDetails()
       return
     }
-    setActionError(null)
-    try {
-      if (typeof startService === 'function') startService(jobToStart.job_ID)
-      closeJobDetails()
-    } catch (err) {
-      console.error('Error starting service:', err)
-      setActionError('Failed to start service. Please try again.')
-    }
+    await persistJobTransition(jobToStart, startService, 'Service could not be started. Please try again.')
   }
 
   const handlePrimaryAction = (job) => {
@@ -144,39 +247,30 @@ function TechnicianAssignedJobs() {
   }
 
   const handleCompleteService = async (jobToComplete) => {
-    setActionError(null)
-    try {
-      if (typeof completeService === 'function') completeService(jobToComplete.job_ID)
-      closeJobDetails()
-      // 6 Oct 2026: re-sync with the DB so counts/lists reflect the completion
-      if (typeof refreshJobs === 'function') refreshJobs()
-    } catch (err) {
-      console.error('Error completing service:', err)
-      setActionError(err?.message || 'Failed to complete service. Please try again.')
-    }
+    await persistJobTransition(jobToComplete, completeService, 'Service could not be completed. Please try again.')
   }
 
   // ---- Computed values ----
   const tabCounts = useMemo(() => ({
-    today: jobs.filter(isTodayJob).length,
-    thisWeek: jobs.filter(isThisWeekJob).length,
+    today: jobs.filter((job) => isTodayJob(job, todayStr)).length,
+    thisWeek: jobs.filter((job) => isThisWeekJob(job, weekStart, weekEnd)).length,
     all: jobs.length,
-  }), [jobs])
+  }), [jobs, todayStr, weekStart, weekEnd])
 
   const metrics = useMemo(() => ({
-    todayCount: jobs.filter(isTodayJob).length,
+    todayCount: jobs.filter((job) => isTodayJob(job, todayStr)).length,
     inProgressCount: jobs.filter((j) => j.status === 'In Progress').length,
     // 6 Oct 2026 [FIX]: map "Upcoming" to real DB statuses + future dates
     upcomingCount: jobs.filter(isUpcomingJob).length,
     completedCount: jobs.filter((j) => j.status === 'Completed').length,
-  }), [jobs])
+  }), [jobs, todayStr])
 
   const filteredJobs = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
 
     return jobs.filter((job) => {
-      if (activeTab === 'today' && !isTodayJob(job)) return false
-      if (activeTab === 'this-week' && !isThisWeekJob(job)) return false
+      if (activeTab === 'today' && !isTodayJob(job, todayStr)) return false
+      if (activeTab === 'this-week' && !isThisWeekJob(job, weekStart, weekEnd)) return false
 
       // 6 Oct 2026 [FIX]: "Upcoming" matches Scheduled/Pending/Assigned/future
       if (statusFilter !== 'ALL') {
@@ -200,10 +294,10 @@ function TechnicianAssignedJobs() {
 
       return true
     })
-  }, [jobs, activeTab, statusFilter, searchQuery])
+  }, [jobs, activeTab, statusFilter, searchQuery, todayStr, weekStart, weekEnd])
 
   const summaryItems = [
-    { label: 'Today', value: metrics.todayCount, tone: 'mint', icon: 'today' },
+    { label: 'Today’s Appointments', value: metrics.todayCount, tone: 'mint', icon: 'today' },
     { label: 'In Progress', value: metrics.inProgressCount, tone: 'amber', icon: 'progress' },
     { label: 'Upcoming', value: metrics.upcomingCount, tone: 'blue', icon: 'upcoming' },
     { label: 'Completed', value: metrics.completedCount, tone: 'green', icon: 'completed' },
@@ -214,6 +308,16 @@ function TechnicianAssignedJobs() {
     setStatusFilter('ALL')
     setActiveTab('all')
   }
+
+  const unavailableContent = (
+    <div className="cf-empty-state" role="alert">
+      <h3>Assigned job data unavailable</h3>
+      <p>{technicianID ? 'Assignments could not be loaded. Retry reloads the list only.' : 'Technician identity is unavailable. Sign in with a Technician account.'}</p>
+      {canRetryJobs && (
+        <button type="button" className="cf-button cf-button-secondary" onClick={() => refreshJobs()}>Retry</button>
+      )}
+    </div>
+  )
 
   // ====================================================================
   // RENDER
@@ -231,7 +335,7 @@ function TechnicianAssignedJobs() {
             <span className="duty-dot-pulse" aria-hidden="true" />
             <span>
               <small>Field sync</small>
-              <strong>Active now</strong>
+              <strong>{loading ? 'Loading' : jobsAvailable ? 'Active now' : 'Unavailable'}</strong>
             </span>
           </div>
         </header>
@@ -242,7 +346,7 @@ function TechnicianAssignedJobs() {
               <span className={`cf-job-stat-dot cf-job-stat-dot-${item.tone}`} aria-hidden="true" />
               <span>
                 <small>{item.label}</small>
-                <strong>{item.value}</strong>
+                <strong>{jobsAvailable ? item.value : '—'}</strong>
               </span>
               <span className={`cf-job-stat-icon cf-job-stat-icon-${item.tone}`}>
                 <AssignedJobsSummaryIcon type={item.icon} />
@@ -256,9 +360,9 @@ function TechnicianAssignedJobs() {
             <div>
               <span className="cf-widget-kicker">Operational queue</span>
               <h2 id="assigned-jobs-workspace-title">Job Workspace</h2>
-              <p>Filter assignments and open the next service task.</p>
+              <p>Filter assignments and open the next service task. Summary and timeframe counts cover all returned bookings; the shown count includes search and status filters.</p>
             </div>
-            <span className="cf-count-pill">{filteredJobs.length} shown</span>
+            <span className="cf-count-pill">{jobsAvailable ? filteredJobs.length : '—'} shown</span>
           </header>
 
           <div className="cf-jobs-toolbar jobs-toolbar">
@@ -267,7 +371,7 @@ function TechnicianAssignedJobs() {
               <FilterTabs
                 activeTab={activeTab}
                 onTabChange={(tab) => setActiveTab(tab)}
-                counts={tabCounts}
+                counts={jobsAvailable ? tabCounts : { today: '—', thisWeek: '—', all: '—' }}
               />
             </div>
 
@@ -315,9 +419,12 @@ function TechnicianAssignedJobs() {
           </div>
 
           <div className="cf-jobs-results">
-            {actionError && (
-              <div style={{ padding: '12px 24px', background: '#fff8e1', border: '1px solid #f0d060', borderRadius: '8px', marginBottom: '16px', color: '#8a6d00' }}>
-                <strong>⚠️</strong> {actionError}
+            {(actionError || refreshWarning) && (
+              <div role="alert" style={{ padding: '12px 24px', background: '#fff8e1', border: '1px solid #f0d060', borderRadius: '8px', marginBottom: '16px', color: '#8a6d00' }}>
+                <strong>⚠️</strong> {actionError || refreshWarning}
+                {refreshWarning && jobsAvailable && canRetryJobs && (
+                  <button type="button" className="cf-button cf-button-secondary" onClick={() => refreshJobs()}>Retry</button>
+                )}
               </div>
             )}
 
@@ -342,6 +449,8 @@ function TechnicianAssignedJobs() {
                           Loading field assignments...
                         </td>
                       </tr>
+                    ) : jobsUnavailable ? (
+                      <tr><td colSpan="6">{unavailableContent}</td></tr>
                     ) : filteredJobs.length > 0 ? (
                       filteredJobs.map((job) => (
                         <JobRow
@@ -349,6 +458,8 @@ function TechnicianAssignedJobs() {
                           job={job}
                           onView={openJobDetails}
                           onPrimaryAction={handlePrimaryAction}
+                          isActionPending={isTransitionPending(job.job_ID)}
+                          actionReadOnly={!canMutateTechnicianData}
                         />
                       ))
                     ) : (
@@ -360,7 +471,7 @@ function TechnicianAssignedJobs() {
                             <p>
                               {searchQuery || statusFilter !== 'ALL'
                                 ? 'No jobs match your active search and filter criteria.'
-                                : 'You have no scheduled jobs in this selected timeframe.'}
+                                : 'No appointments fall within the selected timeframe.'}
                             </p>
                             {(searchQuery || statusFilter !== 'ALL' || activeTab !== 'all') && (
                               <button type="button" className="cf-button cf-button-secondary" onClick={resetFilters}>
@@ -380,13 +491,15 @@ function TechnicianAssignedJobs() {
             <div className="assigned-jobs-mobile-view d-lg-none">
               {loading ? (
                 <p style={{ textAlign: 'center', padding: '24px' }}>Loading jobs...</p>
-              ) : filteredJobs.length > 0 ? (
+              ) : jobsUnavailable ? unavailableContent : filteredJobs.length > 0 ? (
                 filteredJobs.map((job) => (
                   <JobCard
                     key={job.id || job.job_ID}
                     job={job}
                     onView={openJobDetails}
                     onPrimaryAction={handlePrimaryAction}
+                    isActionPending={isTransitionPending(job.job_ID)}
+                    actionReadOnly={!canMutateTechnicianData}
                   />
                 ))
               ) : (
@@ -404,10 +517,10 @@ function TechnicianAssignedJobs() {
 
           <footer className="cf-workspace-footer jobs-card-footer">
             <span>
-              Showing <strong>{filteredJobs.length}</strong> of <strong>{jobs.length}</strong> assigned jobs
+              Showing <strong>{jobsAvailable ? filteredJobs.length : '—'}</strong> of <strong>{jobsAvailable ? jobs.length : '—'}</strong> assigned jobs
             </span>
             <span className="d-none d-sm-flex">
-              <span className="duty-dot-pulse" aria-hidden="true" /> Field sync active
+              <span className="duty-dot-pulse" aria-hidden="true" /> {loading ? 'Loading assignments' : jobsAvailable ? 'Field sync active' : 'Data unavailable'}
             </span>
           </footer>
         </section>
@@ -420,6 +533,9 @@ function TechnicianAssignedJobs() {
             onStartService={handleStartService}
             onCompleteService={handleCompleteService}
             returnFocusRef={jobDetailsTriggerRef}
+            actionPending={isTransitionPending(selectedJob.job_ID)}
+            actionReadOnly={!canMutateTechnicianData || !jobsAvailable}
+            actionError={actionError}
           />
         )}
       </div>

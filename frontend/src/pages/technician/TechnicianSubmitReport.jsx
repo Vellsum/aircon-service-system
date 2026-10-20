@@ -9,10 +9,9 @@
 //      require() of technicianSelectors never worked under Vite/ESM).
 //   3. [DEEP LINK] /technician/submit-report?job=<bookingId> pre-selects the
 //      job — used by the dashboard's "Submit report now" banner shortcut.
-//   4. [TRIM] Draft save/load simplified; payload shape UNCHANGED.
 // =============================================================================
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Modal from 'react-bootstrap/Modal'
 
@@ -24,7 +23,6 @@ import FollowUpSection, {
   FOLLOW_UP_REASON_OPTIONS,
 } from '../../components/technician/FollowUpSection'
 
-const DRAFT_STORAGE_KEY = 'aircon-care-technician-report-draft'
 const API_BASE_URL = 'http://localhost:5000'
 
 const OVERALL_CONDITIONS = ['Excellent', 'Good', 'Fair', 'Poor', 'Requires Follow-Up']
@@ -42,8 +40,51 @@ const NO_ABNORMAL_FINDING = 'No abnormal issue found'
 const currencyFormatter = new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD' })
 
 // -----------------------------------------------------------------------------
-// Draft helpers (simplified 6 Oct 2026)
+// Initial report state
 // -----------------------------------------------------------------------------
+function isFollowUpEligible(condition) {
+  return condition === 'Poor' || condition === 'Requires Follow-Up'
+}
+
+function isFollowUpRequired(report) {
+  return isFollowUpEligible(report.overallCondition) && report.followUp.required === 'yes'
+}
+
+function createInitialFollowUp() {
+  return { required: 'no', reasons: [], otherReason: '', date: '', priority: 'Normal' }
+}
+
+function getReportAccess({ loading, error, dataAvailable, technicianID, identitySource,
+  canMutateTechnicianData, reportableJobs, selectedJob, submitting }) {
+  const locked = (kind, message, canRetry = false) => ({
+    kind, message, canRetry, canSelectJob: false, canEdit: false,
+  })
+  if (loading || identitySource === 'initializing') {
+    return locked('loading', 'Loading assigned jobs…')
+  }
+  if (!technicianID) {
+    return locked('identity', 'Technician identity is unavailable. Sign in with a Technician account to continue.')
+  }
+  if (!canMutateTechnicianData) {
+    return locked('read-only', 'This session is read-only. Report editing and submission require an authenticated Technician account.')
+  }
+  if (error || !dataAvailable) {
+    return locked('unavailable', 'Assigned jobs could not be loaded. Please try again.', true)
+  }
+  if (reportableJobs.length === 0) {
+    return locked('empty', 'No In Progress jobs are available. Start an eligible job from Assigned Jobs before writing its report.')
+  }
+  if (submitting) return locked('submitting', 'Submitting service report…')
+  const hasEligibleSelection = selectedJob && reportableJobs.some((job) =>
+    job.status === 'In Progress' && job.id === selectedJob.id && job.job_ID === selectedJob.job_ID,
+  )
+  if (!hasEligibleSelection) {
+    return { ...locked('unselected', 'Select an In Progress job to begin editing.'), canSelectJob: true }
+  }
+  return { kind: 'ready', message: 'The selected In Progress job is ready for report editing.',
+    canRetry: false, canSelectJob: true, canEdit: true }
+}
+
 function createInitialReport() {
   return {
     selectedJobId: '',
@@ -52,32 +93,12 @@ function createInitialReport() {
     actionsTaken: [],
     actionsOther: '',
     overallCondition: '',
-    internalNotes: '',
     checklist: {},
     materials: [],
-    followUp: { required: 'no', reasons: [], otherReason: '', date: '', priority: 'Normal' },
+    followUp: createInitialFollowUp(),
     completionDateTime: new Date(Date.now() - new Date().getTimezoneOffset() * 60_000)
       .toISOString().slice(0, 16),
     customerAcknowledged: false,
-  }
-}
-
-function loadLocalDraft() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) || 'null')
-    if (!saved || typeof saved !== 'object') return createInitialReport()
-    const base = createInitialReport()
-    const merged = { ...base }
-    for (const key of Object.keys(base)) {
-      const v = saved[key]
-      if (v === undefined || v === null) continue
-      if (Array.isArray(base[key])) { if (Array.isArray(v)) merged[key] = v; continue }
-      if (typeof base[key] === 'object') { if (typeof v === 'object' && !Array.isArray(v)) merged[key] = { ...base[key], ...v }; continue }
-      if (typeof base[key] === typeof v) merged[key] = v
-    }
-    return merged
-  } catch {
-    return createInitialReport()
   }
 }
 
@@ -88,8 +109,9 @@ function calculateMaterialsTotal(materials) {
   }, 0)
 }
 
-// Payload — shape UNCHANGED (backend accepts this)
+// Submission payload
 function buildReportPayload(report, selectedJob, inventoryById) {
+  const followUpRequired = isFollowUpRequired(report)
   return {
     job_ID: selectedJob?.job_ID || selectedJob?.id || report.selectedJobId,
     findings: report.findings,
@@ -105,14 +127,14 @@ function buildReportPayload(report, selectedJob, inventoryById) {
       unitCost: Number(row.unitCost),
     })),
     materialsTotal: calculateMaterialsTotal(report.materials),
-    followUpRequired: report.followUp.required === 'yes',
-    followUpReasons: report.followUp.required === 'yes' ? report.followUp.reasons : [],
-    followUpOtherReason: report.followUp.otherReason || null,
-    followUpDate: report.followUp.required === 'yes' ? report.followUp.date : null,
-    followUpPriority: report.followUp.required === 'yes' ? report.followUp.priority : null,
+    followUpRequired,
+    followUpReasons: followUpRequired ? report.followUp.reasons : [],
+    followUpOtherReason: followUpRequired && report.followUp.reasons.includes('Other')
+      ? report.followUp.otherReason || null : null,
+    followUpDate: followUpRequired ? report.followUp.date : null,
+    followUpPriority: followUpRequired ? report.followUp.priority : null,
     completionDateTime: report.completionDateTime,
     customerAcknowledged: report.customerAcknowledged,
-    internalNotes: report.internalNotes || null,
   }
 }
 
@@ -155,16 +177,19 @@ function ReportMultiSelectField({ name, legend, options, values, error, onToggle
 // =============================================================================
 function TechnicianSubmitReport() {
   const navigate = useNavigate()
-  const { assignedJobs, refreshJobs } = useTechnicianWorkflow()
+  const { assignedJobs, refreshJobs, loading, error, dataAvailable,
+    technicianID, identitySource, canMutateTechnicianData } = useTechnicianWorkflow()
   const [searchParams] = useSearchParams()
   // 6 Oct 2026: deep link from the dashboard banner, e.g. /technician/submit-report?job=1012
   const presetJobId = Number(searchParams.get('job')) || null
 
-  const [report, setReport] = useState(loadLocalDraft)
+  const [report, setReport] = useState(createInitialReport)
   const [errors, setErrors] = useState({})
   const [notice, setNotice] = useState(null)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const submissionPendingRef = useRef(false)
+  const presetAppliedRef = useRef(false)
 
   // 6 Oct 2026: inventory from the backend (replaces the broken require())
   const [inventoryItems, setInventoryItems] = useState([])
@@ -200,30 +225,62 @@ function TechnicianSubmitReport() {
 
   // Pre-select the job passed in the URL once jobs are loaded
   useEffect(() => {
-    if (!presetJobId) return
+    if (presetAppliedRef.current || !presetJobId || loading || error || !dataAvailable
+      || !canMutateTechnicianData) return
+    presetAppliedRef.current = true
     const match = reportableJobs.find((j) => j.job_ID === presetJobId)
-    if (match) setReport((r) => ({ ...r, selectedJobId: match.id }))
-  }, [presetJobId, reportableJobs])
+    if (match) setReport((r) => r.selectedJobId ? r : { ...r, selectedJobId: match.id })
+  }, [presetJobId, reportableJobs, loading, error, dataAvailable, canMutateTechnicianData])
 
   const selectedJob = useMemo(
     () => reportableJobs.find((job) => job.id === report.selectedJobId) || null,
     [report.selectedJobId, reportableJobs],
   )
   const materialsTotal = useMemo(() => calculateMaterialsTotal(report.materials), [report.materials])
+  const followUpEligible = isFollowUpEligible(report.overallCondition)
+  const followUpRequired = isFollowUpRequired(report)
+  const reportAccess = getReportAccess({ loading, error, dataAvailable, technicianID,
+    identitySource, canMutateTechnicianData, reportableJobs, selectedJob, submitting })
+
+  useEffect(() => {
+    if (!reportAccess.canEdit) setShowConfirmation(false)
+  }, [reportAccess.canEdit])
+
+  const ensureReportEditable = () => {
+    if (submissionPendingRef.current || submitting) return false
+    if (!reportAccess.canEdit) {
+      setShowConfirmation(false)
+      setNotice({ type: 'error', message: reportAccess.message })
+      return false
+    }
+    return true
+  }
 
   // ---- Form updaters ----
   const updateReportField = (field, value) => {
-    setReport((r) => ({ ...r, [field]: value }))
-    setErrors((e) => ({ ...e, [field]: undefined }))
+    if (field === 'selectedJobId' ? !reportAccess.canSelectJob : !reportAccess.canEdit) return
+    const resetFollowUp = field === 'overallCondition' && !isFollowUpEligible(value)
+    setReport((r) => ({
+      ...r,
+      [field]: value,
+      ...(resetFollowUp ? { followUp: createInitialFollowUp() } : {}),
+    }))
+    setErrors((e) => ({
+      ...e,
+      [field]: undefined,
+      ...(resetFollowUp ? { followUp: undefined } : {}),
+    }))
     setNotice(null)
   }
 
   const updateChecklist = (checkId, checked) => {
+    if (!reportAccess.canEdit) return
     setReport((r) => ({ ...r, checklist: { ...r.checklist, [checkId]: checked } }))
     setNotice(null)
   }
 
   const toggleReportOption = (field, option, otherField) => {
+    if (!reportAccess.canEdit) return
     setReport((r) => {
       const current = Array.isArray(r[field]) ? r[field] : []
       const isSelected = current.includes(option)
@@ -262,7 +319,7 @@ function TechnicianSubmitReport() {
     })
     if (Object.keys(matErr).length) next.materials = matErr
 
-    if (report.followUp.required === 'yes') {
+    if (followUpRequired) {
       const fu = {}
       if (!report.followUp.reasons.length) fu.reasons = 'Select at least one reason for the follow-up.'
       if (!report.followUp.date) fu.date = 'Choose a recommended follow-up date.'
@@ -277,23 +334,20 @@ function TechnicianSubmitReport() {
     return true
   }
 
-  const handleSaveDraft = () => {
-    try {
-      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(report))
-      setNotice({ type: 'info', message: 'Draft saved in this browser only.' })
-    } catch {
-      setNotice({ type: 'error', message: 'This browser could not save the draft locally.' })
-    }
-  }
-
   const handleSubmit = (event) => {
     event.preventDefault()
+    if (!ensureReportEditable()) return
     setNotice(null)
     if (validateReport()) setShowConfirmation(true)
   }
 
   const confirmSubmission = async () => {
-    if (submitting) return
+    if (!ensureReportEditable()) return
+    if (!showConfirmation || !validateReport()) {
+      setShowConfirmation(false)
+      return
+    }
+    submissionPendingRef.current = true
     setSubmitting(true)
     setShowConfirmation(false)
     try {
@@ -309,16 +363,16 @@ function TechnicianSubmitReport() {
         throw new Error(errData.error || errData.message || `Server returned ${response.status}: ${response.statusText}`)
       }
       const result = await response.json()
-      localStorage.removeItem(DRAFT_STORAGE_KEY)
       refreshJobs() // refresh the assigned jobs list after submission
-      setNotice({ type: 'success', message: `Service report submitted successfully. Report ID: ${result.report_ID || 'N/A'} — you can now mark the job as completed.` })
+      setNotice({ type: 'success', message: `Service report submitted successfully. Report ID: ${result?.reportID ?? 'Unavailable'} — you can now mark the job as completed.` })
       window.scrollTo({ top: 0, behavior: 'smooth' })
       setTimeout(() => navigate('/technician/assigned-jobs'), 2000)
     } catch (error) {
       console.error('[TechnicianSubmitReport] Submission error:', error)
-      setNotice({ type: 'error', message: `Submission failed: ${error.message}. Your report draft is preserved — try again.` })
+      setNotice({ type: 'error', message: `Submission failed: ${error.message}. Your entered values are preserved on this page — try again.` })
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally {
+      submissionPendingRef.current = false
       setSubmitting(false)
     }
   }
@@ -384,6 +438,8 @@ function TechnicianSubmitReport() {
                     onChange={(event) => updateReportField('selectedJobId', event.target.value)}
                     aria-required="true"
                     aria-invalid={Boolean(errors.selectedJobId)}
+                    aria-describedby="report-job-access-state"
+                    disabled={!reportAccess.canSelectJob}
                   >
                     <option value="">Choose a job</option>
                     {reportableJobs.map((job) => (
@@ -392,11 +448,15 @@ function TechnicianSubmitReport() {
                       </option>
                     ))}
                   </select>
-                  {/* 6 Oct 2026: helpful hint when nothing is In Progress */}
-                  {reportableJobs.length === 0 && !errors.selectedJobId && (
-                    <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
-                      No In Progress jobs right now — start a job from Assigned Jobs first, then come back to write its report.
-                    </p>
+                  <p id="report-job-access-state"
+                    role={reportAccess.kind === 'unavailable' ? 'alert' : 'status'}
+                    style={{ fontSize: 12.5, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+                    {reportAccess.message}
+                  </p>
+                  {reportAccess.canRetry && (
+                    <button type="button" className="cf-button cf-button-secondary" onClick={() => refreshJobs()}>
+                      Retry
+                    </button>
                   )}
                   {errors.selectedJobId && (
                     <span className="report-field-error" id="assigned-job-error">{errors.selectedJobId}</span>
@@ -423,7 +483,7 @@ function TechnicianSubmitReport() {
             </section>
 
             {/* ---- 02: Inspection & Findings ---- */}
-            <section className="report-section report-workflow-section cf-report-card cf-inspection-card" aria-labelledby="service-report-title">
+            <fieldset disabled={!reportAccess.canEdit} className="report-section report-workflow-section cf-report-card cf-inspection-card" aria-labelledby="service-report-title">
               <div className="report-section-heading">
                 <div>
                   <span className="cf-card-step">02</span>
@@ -461,15 +521,15 @@ function TechnicianSubmitReport() {
                   {errors.overallCondition && <span className="report-field-error">{errors.overallCondition}</span>}
                 </div>
               </div>
-            </section>
+            </fieldset>
 
             {/* ---- 03: Work Performed ---- */}
-            <section className="report-section cf-report-card cf-work-performed-card" aria-labelledby="work-performed-title">
+            <fieldset disabled={!reportAccess.canEdit} className="report-section cf-report-card cf-work-performed-card" aria-labelledby="work-performed-title">
               <div className="report-section-heading">
                 <div>
                   <span className="cf-card-step">03</span>
                   <h3 id="work-performed-title">Work Performed</h3>
-                  <p>Capture completed actions, timing, and any internal service context.</p>
+                  <p>Capture completed actions and service timing.</p>
                 </div>
               </div>
               <div className="report-fields-grid cf-work-performed-fields">
@@ -494,32 +554,19 @@ function TechnicianSubmitReport() {
                     onChange={(event) => updateReportField('completionDateTime', event.target.value)}
                   />
                 </div>
-                <div className="report-field report-field-full">
-                  <label className="report-label" htmlFor="internal-notes">
-                    Internal Notes <span className="report-optional-label">(optional)</span>
-                  </label>
-                  <textarea
-                    id="internal-notes"
-                    className="report-control"
-                    rows="3"
-                    value={report.internalNotes}
-                    placeholder="Add internal context that should not form part of the customer-facing report."
-                    onChange={(event) => updateReportField('internalNotes', event.target.value)}
-                  />
-                </div>
               </div>
-            </section>
+            </fieldset>
 
             {/* ---- Parts & Materials (hidden if inventory unreachable — materials are optional) ---- */}
             {inventoryItems.length > 0 ? (
-              <div className="report-component-slot report-materials-slot cf-report-card cf-materials-card">
+              <fieldset disabled={!reportAccess.canEdit} className="report-component-slot report-materials-slot cf-report-card cf-materials-card" aria-labelledby="parts-materials-title">
                 <PartsMaterialsTable
                   rows={report.materials}
                   inventoryItems={inventoryItems}
                   errors={errors.materials}
                   onChange={(materials) => updateReportField('materials', materials)}
                 />
-              </div>
+              </fieldset>
             ) : (
               <div className="report-component-slot report-materials-slot cf-report-card" style={{ padding: 16 }}>
                 <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>
@@ -532,15 +579,17 @@ function TechnicianSubmitReport() {
 
           {/* ---- Sidebar ---- */}
           <aside className="report-support-column cf-report-rail" aria-label="Report completion and follow-up">
-            <div className="report-component-slot report-checklist-slot cf-report-side-card">
+            <fieldset disabled={!reportAccess.canEdit} className="report-component-slot report-checklist-slot cf-report-side-card" aria-labelledby="service-checklist-title">
               <ServiceChecklist values={report.checklist} onChange={updateChecklist} />
-            </div>
-            <div className="report-component-slot report-follow-up-slot cf-report-side-card">
-              <FollowUpSection value={report.followUp} errors={errors.followUp}
-                onChange={(followUp) => updateReportField('followUp', followUp)} />
-            </div>
+            </fieldset>
+            {followUpEligible && (
+              <fieldset disabled={!reportAccess.canEdit} className="report-component-slot report-follow-up-slot cf-report-side-card" aria-labelledby="follow-up-title">
+                <FollowUpSection value={report.followUp} errors={errors.followUp}
+                  onChange={(followUp) => updateReportField('followUp', followUp)} />
+              </fieldset>
+            )}
 
-            <section className="report-section report-completion-section cf-report-side-card" aria-labelledby="completion-information-title">
+            <fieldset disabled={!reportAccess.canEdit} className="report-section report-completion-section cf-report-side-card" aria-labelledby="completion-information-title">
               <div className="report-section-heading">
                 <div>
                   <h3 id="completion-information-title">Completion Information</h3>
@@ -562,16 +611,15 @@ function TechnicianSubmitReport() {
                   </label>
                 </div>
               </div>
-            </section>
+            </fieldset>
 
             <div className="report-form-actions cf-report-action-dock">
               <div>
                 <strong>Ready to finish?</strong>
-                <span>Save a local draft or submit the report to the server.</span>
+                <span>Review and submit the report to the server.</span>
               </div>
-              <button type="button" className="cf-button cf-button-secondary" onClick={handleSaveDraft}>Save Draft</button>
               <button type="button" className="cf-button cf-button-quiet" onClick={handleCancel}>Cancel</button>
-              <button type="submit" className="cf-button cf-button-primary" disabled={submitting}>
+              <button type="submit" className="cf-button cf-button-primary" disabled={!reportAccess.canEdit}>
                 {submitting ? 'Submitting...' : 'Submit Report'}
               </button>
             </div>
@@ -580,7 +628,7 @@ function TechnicianSubmitReport() {
       </form>
 
       {/* ---- Confirmation Modal ---- */}
-      <Modal show={showConfirmation} onHide={() => setShowConfirmation(false)} centered contentClassName="report-confirmation-modal">
+      <Modal show={showConfirmation && reportAccess.canEdit} onHide={() => setShowConfirmation(false)} centered contentClassName="report-confirmation-modal">
         <Modal.Header closeButton>
           <Modal.Title>Confirm service report</Modal.Title>
         </Modal.Header>
@@ -590,13 +638,13 @@ function TechnicianSubmitReport() {
             <div><dt>Job</dt><dd>{selectedJob?.id} · {selectedJob?.customerName}</dd></div>
             <div><dt>Overall condition</dt><dd>{report.overallCondition}</dd></div>
             <div><dt>Materials total</dt><dd>{currencyFormatter.format(materialsTotal)}</dd></div>
-            <div><dt>Follow-up required</dt><dd>{report.followUp.required === 'yes' ? `Yes — ${report.followUp.priority} priority` : 'No'}</dd></div>
+            <div><dt>Follow-up required</dt><dd>{followUpRequired ? `Yes — ${report.followUp.priority} priority` : 'No'}</dd></div>
             <div><dt>Customer acknowledged</dt><dd>{report.customerAcknowledged ? 'Yes' : 'No'}</dd></div>
           </dl>
         </Modal.Body>
         <Modal.Footer>
           <button type="button" className="btn btn-outline-secondary" onClick={() => setShowConfirmation(false)}>Continue Editing</button>
-          <button type="button" className="btn btn-primary" onClick={confirmSubmission} disabled={submitting}>
+          <button type="button" className="btn btn-primary" onClick={confirmSubmission} disabled={!reportAccess.canEdit}>
             {submitting ? 'Submitting...' : 'Confirm Submit'}
           </button>
         </Modal.Footer>

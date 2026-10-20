@@ -9,11 +9,20 @@
 //   5. Date formatting helper
 // =============================================================================
 
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
+import { useAuth } from '../../context/AuthContext'
 
 const API_BASE_URL = 'http://localhost:5000'
+const isPositiveID = (value) => Number.isSafeInteger(value) && value > 0
+
+function formatMaterialsTotal(value) {
+  if (typeof value !== 'number' && (typeof value !== 'string'
+    || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim()))) return '—'
+  const total = Number(value)
+  return Number.isFinite(total) && total >= 0 ? `$${total.toFixed(2)}` : '—'
+}
 
 function ViewDetailsIcon() {
   return (
@@ -55,11 +64,17 @@ function formatDate(dateStr) {
 // =============================================================================
 function TechnicianJobHistory() {
   // ---- Get live data from context ----
-  const { assignedJobs, loading } = useTechnicianWorkflow()
+  const { assignedJobs, loading, error, dataAvailable, technicianID, identitySource } = useTechnicianWorkflow()
+  const { token } = useAuth()
+  const hasIdentity = isPositiveID(technicianID)
+    && (identitySource === 'development' || (identitySource === 'authenticated' && Boolean(token)))
+  const session = useMemo(() => ({ technicianID, identitySource, token }), [technicianID, identitySource, token])
+  const jobsLoading = loading || identitySource === 'initializing'
+  const jobsAvailable = hasIdentity && !jobsLoading && !error && dataAvailable
 
   // ---- Filter for completed jobs only (job history) ----
   const historyJobs = useMemo(() => {
-    return assignedJobs
+    return (jobsAvailable ? assignedJobs : [])
       .filter((job) => {
         const status = (job.status || '').toLowerCase()
         return status === 'completed'
@@ -68,60 +83,76 @@ function TechnicianJobHistory() {
         ...job,
         formattedDate: formatDate(job.date),
       }))
-  }, [assignedJobs])
+  }, [assignedJobs, jobsAvailable])
 
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [selectedJob, setSelectedJob] = useState(null)
+  const [jobSelection, setJobSelection] = useState(null)
+  const setSelectedJob = (job) => setJobSelection(job ? { session, bookingID: job.job_ID } : null)
+  const selectedJob = jobSelection?.session === session
+    ? historyJobs.find((job) => job.job_ID === jobSelection.bookingID) || null : null
+  const selectedBookingID = selectedJob?.job_ID ?? null
+  const reportKey = useMemo(() => ({ session, bookingID: selectedBookingID }), [session, selectedBookingID])
+  const activeReportKeyRef = useRef(reportKey)
+  activeReportKeyRef.current = reportKey
 
   // ---- Fetch service report when viewing job details ----
-  const [jobReport, setJobReport] = useState(null)
-  const [reportLoading, setReportLoading] = useState(false)
+  const [reportState, setReportState] = useState({})
+  const activeReportRequestRef = useRef(null)
+  const reportGenerationRef = useRef(0)
+  const fetchReport = useCallback(async () => {
+    if (!hasIdentity || !isPositiveID(selectedBookingID) || activeReportKeyRef.current !== reportKey) return
+    if (activeReportRequestRef.current?.key === reportKey && !activeReportRequestRef.current.controller.signal.aborted) return
+    activeReportRequestRef.current?.controller.abort()
+    const request = { key: reportKey, generation: ++reportGenerationRef.current, controller: new AbortController() }
+    activeReportRequestRef.current = request
+    const isCurrent = () => activeReportKeyRef.current === reportKey
+      && activeReportRequestRef.current === request && reportGenerationRef.current === request.generation
+      && !request.controller.signal.aborted
+    setReportState({ key: reportKey, generation: request.generation, status: 'loading', report: null, error: null })
+    try {
+      const headers = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch(`${API_BASE_URL}/api/technician/reports?techId=${technicianID}`, {
+        headers, signal: request.controller.signal,
+      })
+      if (!res.ok) throw new Error(`API returned ${res.status}`)
+      const data = await res.json()
+      if (data?.success !== true || !Array.isArray(data.reports)) {
+        throw new Error(data?.message || 'Service report response is unavailable.')
+      }
+      if (!data.reports.every((report) => report && report.technicianID === technicianID
+        && isPositiveID(report.reportID) && isPositiveID(report.job_ID))) {
+        throw new Error('Report ownership or booking references could not be verified.')
+      }
+      const match = data.reports.find((report) => report.job_ID === selectedBookingID) || null
+      if (isCurrent()) setReportState({ key: reportKey, generation: request.generation,
+        status: match ? 'success' : 'no-match', report: match, error: null })
+    } catch (err) {
+      if (!isCurrent()) return
+      console.error('[JobHistory] Failed to fetch report:', err)
+      setReportState({ key: reportKey, generation: request.generation, status: 'error', report: null,
+        error: err.message || 'Service report response is unavailable.' })
+    } finally {
+      if (isCurrent()) activeReportRequestRef.current = null
+    }
+  }, [hasIdentity, reportKey, selectedBookingID, technicianID, token])
 
   useEffect(() => {
-    if (!selectedJob) {
-      setJobReport(null)
-      return
-    }
-
-    // Fetch the service report for this job from the API
-    const fetchReport = async () => {
-      setReportLoading(true)
-      try {
-        const token = localStorage.getItem('token') || ''
-        const headers = { 'Content-Type': 'application/json' }
-        if (token) headers['Authorization'] = `Bearer ${token}`
-
-        // Find report by job_ID
-        const storedUser = JSON.parse(localStorage.getItem('user') || '{}')
-        const techId = storedUser.technician_ID || storedUser.id || storedUser.user_ID || 1
-        
-        const res = await fetch(
-          `${API_BASE_URL}/api/technician/reports?techId=${techId}`,
-          { headers }
-        )
-        const data = await res.json()
-
-        if (res.ok && data.success && Array.isArray(data.reports)) {
-          // Find the report matching this job
-          const match = data.reports.find(
-            (r) => r.job_ID === selectedJob.job_ID
-          )
-          setJobReport(match || null)
-        } else {
-          setJobReport(null)
-        }
-      } catch (err) {
-        console.error('[JobHistory] Failed to fetch report:', err)
-        setJobReport(null)
-      } finally {
-        setReportLoading(false)
+    fetchReport()
+    return () => {
+      if (activeReportRequestRef.current?.key === reportKey) {
+        activeReportRequestRef.current.controller.abort()
+        activeReportRequestRef.current = null
       }
     }
+  }, [fetchReport, reportKey])
 
-    fetchReport()
-  }, [selectedJob])
+  const reportStatus = reportState.key === reportKey && reportState.generation === reportGenerationRef.current
+    ? reportState.status : 'loading'
+  const reportLoading = reportStatus === 'loading'
+  const jobReport = reportStatus === 'success' ? reportState.report : null
 
   // ---- Filtered results ----
   const filteredJobs = useMemo(() => {
@@ -276,6 +307,14 @@ function TechnicianJobHistory() {
               <div style={{ padding: '16px', textAlign: 'center', color: '#888' }}>
                 <span aria-hidden="true">⏳</span> Loading report details...
               </div>
+            ) : reportStatus === 'error' ? (
+              <div className="cf-empty-state" role="alert">
+                <h3>Service report unavailable</h3>
+                <p>{reportState.error}</p>
+                <button type="button" className="cf-button cf-button-secondary" onClick={fetchReport} disabled={reportLoading}>
+                  Retry
+                </button>
+              </div>
             ) : jobReport ? (
               <dl className="cf-history-information-grid">
                 {/* Report ID */}
@@ -344,9 +383,7 @@ function TechnicianJobHistory() {
                 <div>
                   <dt>Materials Cost</dt>
                   <dd>
-                    {jobReport.materialsTotal && Number(jobReport.materialsTotal) > 0
-                      ? `$${Number(jobReport.materialsTotal).toFixed(2)}`
-                      : '—'}
+                    {formatMaterialsTotal(jobReport.materialsTotal)}
                   </dd>
                 </div>
 
@@ -376,12 +413,12 @@ function TechnicianJobHistory() {
                 <div>
                   <dt>Customer Acknowledged</dt>
                   <dd>
-                    {jobReport.customerAcknowledged ? (
+                    {jobReport.customerAcknowledged === true ? (
                       <span style={{ color: '#2e7d32', fontWeight: 600 }}>
                         ✓ Yes
                       </span>
                     ) : (
-                      <span style={{ color: '#999' }}>No</span>
+                      <span style={{ color: '#999' }}>{jobReport.customerAcknowledged === false ? 'No' : 'Unavailable'}</span>
                     )}
                   </dd>
                 </div>
@@ -405,12 +442,12 @@ function TechnicianJobHistory() {
               </dl>
             ) : (
               <>
-                <div className="cf-history-rating-placeholder" aria-label="No service report found">
+                <div className="cf-history-rating-placeholder" aria-label="No matching report returned">
                   <span aria-hidden="true">📋</span>
                   <strong>—</strong>
                 </div>
                 <p style={{ color: '#888', fontSize: '0.9em' }}>
-                  No service report was submitted for this job.
+                  No matching report was returned for this booking
                 </p>
               </>
             )}
@@ -440,7 +477,7 @@ function TechnicianJobHistory() {
           </span>
           <span>
             <small>Completed jobs</small>
-            <strong>{historyJobs.length}</strong>
+            <strong>{jobsAvailable ? historyJobs.length : '—'}</strong>
           </span>
         </div>
       </header>
@@ -517,12 +554,18 @@ function TechnicianJobHistory() {
             <span className="cf-widget-kicker">Completed work</span>
             <h2 id="job-history-list-title">Service Records</h2>
           </div>
-          <span>{filteredJobs.length} of {historyJobs.length} records</span>
+          <span>{jobsAvailable ? `${filteredJobs.length} of ${historyJobs.length} records` : '— records'}</span>
         </header>
 
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '32px' }}>
+        {jobsLoading ? (
+          <div role="status" style={{ textAlign: 'center', padding: '32px' }}>
             <p>Loading job history from database...</p>
+          </div>
+        ) : !jobsAvailable ? (
+          <div className="cf-empty-state" role="alert">
+            <h3>Current completed assignments unavailable</h3>
+            <p>{hasIdentity ? 'Assigned jobs could not be loaded. No history totals can be shown.'
+              : 'Technician identity is unavailable. Sign in with a Technician account.'}</p>
           </div>
         ) : (
           <>
@@ -592,8 +635,9 @@ function TechnicianJobHistory() {
             {filteredJobs.length === 0 && (
               <div className="cf-empty-state" role="status">
                 <span aria-hidden="true">⌕</span>
-                <h3>No historical jobs found</h3>
-                <p>Try changing the search text or selected date range.</p>
+                <h3>{historyJobs.length === 0 ? 'No completed assignments returned' : 'No completed assignments match your filters'}</h3>
+                <p>{historyJobs.length === 0 ? 'The successfully loaded assignment list contains no completed bookings.'
+                  : 'Try changing the search text or selected date range.'}</p>
                 {hasActiveFilters && (
                   <button type="button" className="cf-button cf-button-secondary" onClick={resetFilters}>
                     Clear filters
@@ -606,7 +650,7 @@ function TechnicianJobHistory() {
 
         <footer className="cf-workspace-footer">
           <span>
-            Showing <strong>{filteredJobs.length}</strong> of <strong>{historyJobs.length}</strong> completed jobs
+            Showing <strong>{jobsAvailable ? filteredJobs.length : '—'}</strong> of <strong>{jobsAvailable ? historyJobs.length : '—'}</strong> completed jobs
           </span>
         </footer>
       </section>

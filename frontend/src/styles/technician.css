@@ -1884,6 +1884,16 @@
   overflow: hidden;
 }
 
+.technician-dashboard-page .cf-schedule-widget > .cf-widget-header > div {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.technician-dashboard-page .cf-schedule-widget > .cf-widget-header > .cf-text-link {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .cf-schedule-list {
   padding: 0 1.25rem 0.4rem;
 }
@@ -13170,6 +13180,22 @@ textarea.report-control {
   margin: 0.45rem 0 0;
   color: var(--cf-muted);
   font-size: 0.86rem;
+}
+
+.technician-performance-page > .tech-performance-empty:has(> h2) {
+  min-height: 0;
+  justify-items: start;
+  margin-bottom: 1rem;
+  padding: 1rem 1.15rem;
+  text-align: left;
+}
+
+.technician-performance-page > .tech-performance-empty:has(> h2) > h2 {
+  margin: 0;
+  color: var(--cf-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 @media (max-width: 1199.98px) {

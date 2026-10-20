@@ -8,12 +8,14 @@
 //   4. Added loading state and error handling
 // =============================================================================
 
-import React, { useMemo, useState, useEffect, useCallback } from 'react'
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import Modal from 'react-bootstrap/Modal'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
+import { useAuth } from '../../context/AuthContext'
 
 const API_BASE_URL = 'http://localhost:5000'
+const isPositiveID = (value) => Number.isSafeInteger(value) && value > 0
 
 const dateFormatter = new Intl.DateTimeFormat('en-SG', {
   day: 'numeric',
@@ -26,6 +28,13 @@ function formatBookingDate(record) {
   if (!record.bookingDate) return '—'
   const date = new Date(`${record.bookingDate}T00:00:00`)
   return Number.isNaN(date.getTime()) ? record.bookingDate : dateFormatter.format(date)
+}
+
+function formatUnitCost(value) {
+  if (typeof value !== 'number' && (typeof value !== 'string'
+    || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim()))) return '—'
+  const cost = Number(value)
+  return Number.isFinite(cost) ? `$${cost.toFixed(2)}` : '—'
 }
 
 function SummaryIcon({ type }) {
@@ -71,62 +80,95 @@ function ReferenceValue({ value }) {
 }
 
 function TechnicianPartsLog() {
-  const { loading: contextLoading } = useTechnicianWorkflow()
+  const { technicianID, identitySource } = useTechnicianWorkflow()
+  const { token } = useAuth()
+  const hasIdentity = isPositiveID(technicianID)
+    && (identitySource === 'development' || (identitySource === 'authenticated' && Boolean(token)))
+  const session = useMemo(() => ({ technicianID, identitySource, token }), [technicianID, identitySource, token])
+  const activeSessionRef = useRef(session)
+  activeSessionRef.current = session
 
   // ---- Fetch parts log from API ----
-  const [records, setRecords] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [requestState, setRequestState] = useState({})
+  const activeRequestRef = useRef(null)
+  const requestGenerationRef = useRef(0)
 
   const fetchPartsLog = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    if (!hasIdentity || activeSessionRef.current !== session) return
+    if (activeRequestRef.current?.session === session && !activeRequestRef.current.controller.signal.aborted) return
+    activeRequestRef.current?.controller.abort()
+    const request = { session, generation: ++requestGenerationRef.current, controller: new AbortController() }
+    activeRequestRef.current = request
+    const isCurrent = () => activeSessionRef.current === session
+      && activeRequestRef.current === request && requestGenerationRef.current === request.generation
+      && !request.controller.signal.aborted
+    setRequestState({ session, generation: request.generation, status: 'loading', records: [], error: null })
     try {
-      const token = localStorage.getItem('token') || ''
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
 
-      const storedUser = JSON.parse(localStorage.getItem('user') || '{}')
-      const techId = storedUser.technician_ID || storedUser.id || storedUser.user_ID || 1
       const res = await fetch(
-        `${API_BASE_URL}/api/technician/reports/parts-log?techId=${techId}`,
-        { headers }
+        `${API_BASE_URL}/api/technician/reports/parts-log?techId=${technicianID}`,
+        { headers, signal: request.controller.signal }
       )
 
       if (!res.ok) throw new Error(`API returned ${res.status}`)
 
       const data = await res.json()
 
-      if (data.success && Array.isArray(data.records)) {
-        // Format dates for display
-        const formatted = data.records.map((r) => ({
-          ...r,
-          formattedDate: formatBookingDate(r),
-        }))
-        setRecords(formatted)
-      } else {
-        setRecords([])
+      if (data?.success !== true || !Array.isArray(data.records)) {
+        throw new Error(data?.message || 'Parts log response is unavailable.')
       }
+      if (!data.records.every((record) => record && record.technicianID === technicianID
+        && isPositiveID(record.reportID) && isPositiveID(record.itemID)
+        && isPositiveID(record.bookingID) && record.jobID === record.bookingID)) {
+        throw new Error('Parts log ownership or booking references could not be verified.')
+      }
+      const formatted = data.records.map((record) => ({ ...record, formattedDate: formatBookingDate(record) }))
+      if (isCurrent()) setRequestState({ session, generation: request.generation, status: 'success', records: formatted, error: null })
     } catch (err) {
+      if (!isCurrent()) return
       console.error('[PartsLog] Fetch error:', err)
-      setError(err.message)
-      setRecords([])
+      setRequestState({ session, generation: request.generation, status: 'error', records: [], error: err.message || 'Parts log response is unavailable.' })
     } finally {
-      setLoading(false)
+      if (isCurrent()) activeRequestRef.current = null
     }
-  }, [])
+  }, [hasIdentity, session, technicianID, token])
 
   useEffect(() => {
     fetchPartsLog()
-  }, [fetchPartsLog])
+    return () => {
+      if (activeRequestRef.current?.session === session) {
+        activeRequestRef.current.controller.abort()
+        activeRequestRef.current = null
+      }
+    }
+  }, [fetchPartsLog, session])
+
+  const status = identitySource === 'initializing' ? 'loading' : !hasIdentity ? 'identity'
+    : requestState.session === session && requestState.generation === requestGenerationRef.current
+      ? requestState.status : 'loading'
+  const loading = status === 'loading'
+  const error = status === 'identity' ? 'Technician identity is unavailable. Sign in with a Technician account.'
+    : status === 'error' ? requestState.error : null
+  const dataAvailable = status === 'success'
+  const records = dataAvailable ? requestState.records : []
 
   // ---- Filters ----
   const [searchQuery, setSearchQuery] = useState('')
   const [itemTypeFilter, setItemTypeFilter] = useState('ALL')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [selectedReportID, setSelectedReportID] = useState(null)
-  const [selectedRecord, setSelectedRecord] = useState(null)
+  const [reportSelection, setReportSelection] = useState(null)
+  const [recordSelection, setRecordSelection] = useState(null)
+  const selectedReportID = reportSelection?.session === session ? reportSelection.reportID : null
+  const setSelectedReportID = (reportID) => setReportSelection({ session, reportID })
+  const selectedRecord = recordSelection?.session === session ? records.find((record) =>
+    record.reportID === recordSelection.reportID && record.itemID === recordSelection.itemID
+      && record.bookingID === recordSelection.bookingID) || null : null
+  const setSelectedRecord = (record) => setRecordSelection(record ? {
+    session, reportID: record.reportID, itemID: record.itemID, bookingID: record.bookingID,
+  } : null)
 
   const itemTypes = useMemo(
     () => Array.from(new Set(records.map((r) => r.itemType).filter(Boolean))).sort(),
@@ -179,9 +221,9 @@ function TechnicianPartsLog() {
   }
 
   const summaryItems = [
-    { label: 'Usage Records', value: metrics.usageRecords },
-    { label: 'Reports With Parts', value: metrics.reportsWithParts },
-    { label: 'Unique Items', value: metrics.uniqueItems },
+    { label: 'Usage Records', value: dataAvailable ? metrics.usageRecords : '—' },
+    { label: 'Reports With Parts', value: dataAvailable ? metrics.reportsWithParts : '—' },
+    { label: 'Unique Items', value: dataAvailable ? metrics.uniqueItems : '—' },
   ]
 
   // ====================================================================
@@ -193,7 +235,7 @@ function TechnicianPartsLog() {
         <div className="cf-page-heading">
           <span className="cf-eyebrow">TECHNICIAN · PARTS LOG</span>
           <h1>Parts Log</h1>
-          <p>Review inventory items recorded against completed service reports.</p>
+          <p>Review inventory items linked to service reports.</p>
         </div>
         <dl className="parts-log-inline-metrics" aria-label="Parts usage summary">
           {summaryItems.map((item) => (
@@ -260,8 +302,8 @@ function TechnicianPartsLog() {
 
           <div className="parts-log-toolbar-actions">
             <div className="parts-log-filter-result" aria-live="polite">
-              <strong>{filteredRecords.length}</strong>
-              <span>of {records.length} usage records</span>
+              <strong>{dataAvailable ? filteredRecords.length : '—'}</strong>
+              <span>{dataAvailable ? `of ${records.length} usage records` : loading ? 'Loading usage records' : 'Usage records unavailable'}</span>
             </div>
             {hasActiveFilters && (
               <button type="button" className="cf-button cf-button-quiet parts-log-reset-button" onClick={resetFilters}>
@@ -272,18 +314,16 @@ function TechnicianPartsLog() {
         </div>
       </section>
 
-      {/* ---- Error State ---- */}
-      {error && (
-        <div style={{ padding: '16px 24px', background: '#fff3f3', border: '1px solid #fcc', borderRadius: '8px', margin: '16px 0', color: '#c33' }}>
-          <strong>⚠️ API Error:</strong> {error}
-          <button type="button" onClick={fetchPartsLog} style={{ marginLeft: '12px', cursor: 'pointer' }}>Retry</button>
-        </div>
-      )}
-
-      {/* ---- Loading State ---- */}
+      {/* ---- Request and Records States ---- */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '32px', color: '#888' }}>
+        <div role="status" style={{ textAlign: 'center', padding: '32px', color: '#888' }}>
           <p>Loading parts usage records from database...</p>
+        </div>
+      ) : !dataAvailable ? (
+        <div role="alert" style={{ padding: '16px 24px', background: '#fff3f3', border: '1px solid #fcc', borderRadius: '8px', margin: '16px 0', color: '#c33' }}>
+          <h3>Parts usage records unavailable.</h3>
+          <strong>{status === 'identity' ? 'Technician identity:' : '⚠️ API Error:'}</strong> {error || 'Parts log response is unavailable.'}
+          <button type="button" className="cf-button cf-button-secondary" onClick={fetchPartsLog} disabled={loading || !hasIdentity} style={{ marginLeft: '12px', cursor: 'pointer' }}>Retry</button>
         </div>
       ) : records.length === 0 ? (
         /* ---- Empty State ---- */
@@ -442,7 +482,7 @@ function TechnicianPartsLog() {
                   <div><dt>Item ID</dt><dd>{selectedRecord.itemID}</dd></div>
                   <div><dt>Item type</dt><dd>{selectedRecord.itemType || '—'}</dd></div>
                   <div><dt>Qty used</dt><dd>{selectedRecord.quantityUsed ?? '—'}</dd></div>
-                  <div><dt>Unit cost</dt><dd>{selectedRecord.unitCost ? `$${Number(selectedRecord.unitCost).toFixed(2)}` : '—'}</dd></div>
+                  <div><dt>Unit cost</dt><dd>{formatUnitCost(selectedRecord.unitCost)}</dd></div>
                   <div><dt>Current stock</dt><dd>{selectedRecord.currentStock ?? '—'} <small>current inventory</small></dd></div>
                   <div className="parts-log-modal-wide"><dt>Description</dt><dd>{selectedRecord.itemDescription || '—'}</dd></div>
                 </dl>
