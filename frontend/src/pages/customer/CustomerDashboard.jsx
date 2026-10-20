@@ -31,7 +31,7 @@ const isUnitDueSoon = (unit) =>
 const quickActions = [
   { label: "Book a service", icon: "plus", path: "/customer/book-service" },
   { label: "View my bookings", icon: "calendar", path: "/customer/bookings" },
-  { label: "Browse subscriptions", icon: "grid", path: "/customer/service-catalog" },
+  { label: "Browse services", icon: "grid", path: "/customer/service-catalog" },
  
 ];
 
@@ -112,13 +112,105 @@ const CustomerDashboard = () => {
         </div>
       </section>
 
-      {/**view current subscription */}
-      <section className="cust-empty" >
-            <article  className="cust-stat cust-stat-success">
-              <h2>Your current subscriptions:</h2>
-              <h3>XXXX</h3>      {/**  <-- GET SUBSCRIPTIONS N SHOW ACTIVE SUBSCRIPTIONS HERE */}
-            </article>
-      </section>
+      {/* APPROVE PROCESSED BOOKING------------------------------------------------------------------------------------------------ */}
+<section className="cust-panel" style={{ borderLeft: "4px solid var(--primary, #1b8a5a)" }}>
+  <div className="cust-panel-head">
+      <div>
+        <h2>Bookings awaiting your approval</h2>
+        <p>Please review and confirm your processed service bookings.</p>
+      </div>
+  </div>
+
+  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    {/* Example Mock Booking Card - Replace or map your actual processed bookings array here */}
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "16px 20px",
+        borderRadius: "var(--radius)",
+        background: "var(--bg-app)",
+        border: "1px solid var(--border)",
+        flexWrap: "wrap",
+        gap: 16,
+      }}>
+    
+          <div>
+            <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: 15 }}>
+              Aircon General Servicing · 2 units
+            </p>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+              Monday, 15 Nov 2026 · Morning (9:00 AM – 12:00 PM)
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }} onClick={() => handleRequestReschedule(booking.booking_ID)}>
+            <button className="dash-btn dash-btn-ghost"   style={{ color: "var(--danger, #c0392b)" }} >
+               Request reschedule
+           </button>   {/** <--- this button to reschdule booking, booking status change to back to pending, admin must redo timing */}
+
+            <button   className="dash-btn dash-btn-primary"     onClick={() => {    /* TODO: Handle Approve API call */   }} >   
+              Approve timing
+            </button>    {/** <---- THIS BUTTON CALL METHOD TO CHANGE BOOKING STATUS TO CONFIRMED, NOTIFY TECHNICIAN */}
+          </div>
+
+
+    </div>
+    
+  </div>
+</section>
+
+{/* View current subscriptions ---------------------------------------------------------------------------------------------*/}
+<section className="cust-panel">
+  <div className="cust-panel-head">
+    <div>
+      <h2>Your current subscriptions</h2>
+      <p>Active maintenance plans and packages</p>
+    </div>
+  </div>
+
+  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    {/* Example Mock Subscription Card - Replace or map with your actual subscription data */}
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "16px 20px",
+        borderRadius: "var(--radius)",
+        background: "var(--bg-app)",
+        border: "1px solid var(--border)",
+        flexWrap: "wrap",
+        gap: 16,
+      }}
+    >
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 15 }}>
+            Quarterly Aircon Maintenance Plan
+          </p>
+          <span className="cust-badge tone-success" style={{ fontSize: 11, padding: "2px 8px" }}>
+            Active
+          </span>
+        </div>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+          Covers 3 units · Renews on 12 Dec 2026
+        </p>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button
+          className="dash-btn dash-btn-outline"
+          onClick={() => navigate("/customer/service-catalog")}
+        >
+          Manage plan
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
 
       {/* Service-due nudge */}
       {dueSoon.length > 0 && (
