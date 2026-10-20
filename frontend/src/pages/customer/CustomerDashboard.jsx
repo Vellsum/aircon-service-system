@@ -8,7 +8,7 @@ import {
   Icon,
   SnowfieldBackdrop,
 } from "../../components/customer/CustomerIcons";
-import { getDashboard } from "../../api/customerApi";
+import { getDashboard, getMySubscriptions } from "../../api/customerApi";
 import {
   describeBookingUnits,
   describeCountdown,
@@ -31,8 +31,8 @@ const isUnitDueSoon = (unit) =>
 const quickActions = [
   { label: "Book a service", icon: "plus", path: "/customer/book-service" },
   { label: "View my bookings", icon: "calendar", path: "/customer/bookings" },
-  { label: "Browse services", icon: "grid", path: "/customer/service-catalog" },
- 
+  { label: "Browse subscriptions", icon: "grid", path: "/customer/service-catalog" },
+
 ];
 
 const CustomerDashboard = () => {
@@ -44,12 +44,36 @@ const CustomerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // ✅ NEW: subscriptions panel state (moved INSIDE the component)
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [subsLoading, setSubsLoading] = useState(true);
+  const [subsError, setSubsError] = useState("");
+
   useEffect(() => {
     let alive = true;
     getDashboard()
       .then((res) => alive && setData(res))
       .catch((err) => alive && setError(err.message))
       .finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+  }, []);
+
+  // ✅ NEW: load subscriptions the same way the dashboard loads
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await getMySubscriptions();
+        if (!alive) return;
+        if (res && res.success) setSubscriptions(res.subscriptions || []);
+        else setSubsError((res && res.message) || "Could not load subscriptions");
+      } catch (err) {
+        if (alive) setSubsError(err.message || "Server error");
+      } finally {
+        if (alive) setSubsLoading(false);
+      }
+    };
+    load();
     return () => { alive = false; };
   }, []);
 
@@ -110,6 +134,34 @@ const CustomerDashboard = () => {
         <div className="cust-banner-art d-none d-md-block">
           <AirconUnitArt width={230} />
         </div>
+      </section>
+
+      {/**view current subscription */}
+      <section className="cust-empty" >
+            <article  className="cust-stat cust-stat-success">
+              <h3>Your current subscriptions</h3>
+
+              {subsLoading && <p>Loading your subscriptions…</p>}
+              {!subsLoading && subsError && <p className="error-text">{subsError}</p>}
+
+              {!subsLoading && !subsError && subscriptions.length === 0 && (
+                <p>You have no package subscriptions yet.</p>
+              )}
+
+              {!subsLoading && !subsError && subscriptions.map((sub) => (
+                <div key={sub.package_id} className="subscription-item">
+                  <div className="subscription-header">
+                    <strong>{sub.package_name}</strong>
+                    <span className={`badge badge-${sub.status.toLowerCase()}`}>{sub.status}</span>
+                  </div>
+                  <p>{sub.description}</p>
+                  <p>
+                    Includes: {sub.services_included.length > 0 ? sub.services_included.join(', ') : '—'}
+                  </p>
+                  <p>RM {Number(sub.price).toFixed(2)}</p>
+                </div>
+              ))}
+            </article>
       </section>
 
       {/* Service-due nudge */}

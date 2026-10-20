@@ -24,7 +24,7 @@ const CustomerServiceCatalog = () => {
       <section className="cust-banner">
         <SnowfieldBackdrop />
         <div className="cust-banner-text">
-          <p className="cust-banner-eyebrow">Service catalogue</p>
+          <p className="cust-banner-eyebrow">Subscription packages</p>
           <h1>Everything we can do for your aircon.</h1>
           <p>
             Transparent pricing, certified technicians and a 30-day workmanship guarantee on every
@@ -37,8 +37,8 @@ const CustomerServiceCatalog = () => {
       </section>
 
       {/* Individual services */}
-      <section className="cust-panel">
-        <div className="cust-panel-head">
+     {/**  <section className="cust-panel">
+         <div className="cust-panel-head">
           <div>
             <h2>Individual services</h2>
             <p>Book a one-off visit — pay only for what you need.</p>
@@ -55,8 +55,8 @@ const CustomerServiceCatalog = () => {
             ))}
           </div>
         </div>
-
-        <div className="cust-choice-grid">
+      
+     <div className="cust-choice-grid">
           {visible.map((service) => (
             <article className="cust-choice" key={service.service_id} style={{ cursor: "default" }}>
               {service.popular && (
@@ -103,9 +103,10 @@ const CustomerServiceCatalog = () => {
             </article>
           ))}
         </div>
-      </section>
+      
+      </section>*/}
 
-      {/* Maintenance plans */}
+      {/* Maintenance plans */} {/**this script of service catalogue is where they buy subscription */}
       <section className="cust-panel">
         <div className="cust-panel-head">
           <div>
@@ -124,7 +125,8 @@ const CustomerServiceCatalog = () => {
                 className={`cust-plan${plan.featured ? " is-featured" : ""}`}
                 key={plan.package_ID}
               >
-                {plan.featured && <span className="cust-plan-flag">Most popular</span>}
+                {/**               {plan.featured && <span className="cust-plan-flag">Most popular</span>}*/}
+  
 
                 <div>
                   <h3 className="cust-plan-name">{plan.package_name}</h3>
