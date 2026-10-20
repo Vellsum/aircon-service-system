@@ -1,3 +1,4 @@
+/* 
 const sql = require('mssql');
 const path = require('path');
 
@@ -34,3 +35,32 @@ const poolPromise = new sql.ConnectionPool(config)
     });
 
 module.exports = { sql, poolPromise };
+*/
+
+const sql = require('mssql');
+
+// Supports both "localhost" and "localhost\SQLEXPRESS" style server names
+const [server, instanceName] = String(process.env.DB_SERVER || 'localhost').split('\\');
+
+const config = {
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  server,
+  database: process.env.DB_DATABASE,
+  options: {
+    encrypt: process.env.DB_ENCRYPT === 'true',          // false locally, true on Azure
+    trustServerCertificate: true,                        // ← fixes your error
+    ...(instanceName ? { instanceName } : {}),           // handles \SQLEXPRESS
+  },
+  pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
+};
+
+const poolPromise = new sql.ConnectionPool(config)
+  .connect()
+  .then((pool) => {
+    console.log('[DB] Connected to', process.env.DB_DATABASE);
+    return pool;
+  })
+  .catch((err) => console.error('[DB] Connection failed:', err.message));
+
+module.exports = { poolPromise, sql };
