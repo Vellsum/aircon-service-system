@@ -67,8 +67,30 @@ CREATE TABLE payables.promotions (
 CREATE TABLE payables.serviceList (packageID INT NOT NULL, promoID INT NOT NULL, serviceID INT NOT NULL, PRIMARY KEY (packageID, promoID, serviceID));
 CREATE TABLE payables.packageList (promoID INT NOT NULL, packageID INT NOT NULL, serviceID INT NOT NULL, PRIMARY KEY (promoID, packageID, serviceID));
 CREATE TABLE payables.purchases (purchase_id INT IDENTITY PRIMARY KEY, customerID INT NULL, promoID INT NULL, packageID INT NULL, serviceID INT NULL);
-GO
 
+--the table of subscriptions
+CREATE TABLE payables.subscription (
+    [subscriptionID]     INT IDENTITY(1,1) NOT NULL,
+    [name]               VARCHAR(255) NULL,
+    [description]        VARCHAR(MAX) NULL,
+    [recurringServiceID] INT NULL,       -- this is the standard service that gets repeated, take from the services we alr have
+    [timeTillNextService] INT NULL,       -- Representing interval/days/months till next service booking. lets do it in days
+    [numberOfBookings]   INT NULL     -- Total number of bookings included in this subscription cycle
+) 
+
+
+--junction table of who has subscriptions
+CREATE TABLE payables.currentSubscribers(
+
+  customerID INT NOT NULL,
+  subscriptionid INT NOT NULL,
+  remainingBookings INT,
+  dateStarted DATE,
+  nextBookingDate DATE,
+
+);
+
+GO
 /* ============ inventory ============ */
 CREATE TABLE inventory.inventoryItem (
   itemID INT IDENTITY PRIMARY KEY, itemType VARCHAR(100) NULL, itemName VARCHAR(100) NULL,
@@ -231,5 +253,44 @@ SET IDENTITY_INSERT new_jobBooking.Booking OFF;
 
 INSERT INTO new_jobBooking.partsUsed (reportID, itemID) VALUES (8002,306),(8003,305),(8003,309);
 INSERT INTO new_jobBooking.work (job_ID, booking_ID) VALUES (5001,1001),(5002,1002),(5003,1003),(5004,1004),(5005,1005),(5006,1006),(5007,1007);
+
+--dummy data for the 2 new tables of subscriptionTable and currentSubscribers
+INSERT INTO payables.subscription
+    ([name], [description], [recurringServiceID], [timeTillNextService], [numberOfBookings])
+VALUES 
+    (
+        'Quarterly Aircon Care Plan', 
+        'Covers routine chemical flushing and standard maintenance every 3 months for up to 3 units. Includes priority scheduling.', 
+        10,   -- Assuming serviceID 1 is standard general servicing
+        90,  -- 90 days till next service
+        4    -- 4 total bookings per year
+    ),
+    (
+        'Bi-Monthly Intensive Maintenance Shield', 
+        'Designed for heavy-usage environments and homes with pets. Servicing scheduled every 2 months.', 
+        11,   -- Assuming serviceID 2 is chemical wash / intensive servicing
+        60,  -- 60 days till next service
+        6    -- 6 total bookings per year
+    ),
+    (
+        'Half-Yearly Seasonal Checkup', 
+        'Light maintenance plan for secondary rooms or low-usage units, scheduled every 6 months.', 
+        12,   -- Standard service
+        180, -- 180 days till next service
+        2    -- 2 total bookings per year
+    );
+
+
+INSERT INTO payables.currentSubscribers
+ (customerID, subscriptionid, remainingBookings, dateStarted, nextBookingDate)
+VALUES 
+    (1, 101, 3, '2026-01-15', '2026-02-15'),
+    (2, 102, 1, '2026-02-01', '2026-03-01'),
+    (3, 101, 5, '2026-03-10', '2026-04-10'),
+    (4, 103, 2, '2026-04-05', '2026-05-05'),
+    (5, 102, 4, '2026-05-20', '2026-06-20');
+
+
+
 GO
 PRINT 'DONE: [aircon-db] created with schemas + demo data.';
