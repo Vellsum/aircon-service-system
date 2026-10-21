@@ -133,8 +133,26 @@ CREATE TABLE new_jobBooking.Booking (
   booking_ID INT IDENTITY PRIMARY KEY, customer_ID INT NOT NULL, technician_ID INT NULL,
   [date] DATE NOT NULL, [time] TIME NOT NULL, isFollowup BIT DEFAULT 0,
   location VARCHAR(100) NOT NULL, [status] VARCHAR(100) NOT NULL, comments VARCHAR(500) NULL,
+
+ --new data of timing, number of units, estimated total time, estimate total cost, 
+  timing VARCHAR(50), --the morning or afternoon when customer first book. time is the actual time admin state
+  numberOfUnits int,
+  estimateTotalTime_minutes int, --in minutes
+  estimateTotalCost float,
+  reasonOfReassignment VARCHAR(100), --if admin need to reassign technician, need not let customer know
+
   CONSTRAINT FK_bk_customer FOREIGN KEY (customer_ID) REFERENCES user3.newCustomer(customer_ID),
-  CONSTRAINT FK_bk_tech FOREIGN KEY (technician_ID) REFERENCES user3.technician(technician_ID));
+  CONSTRAINT FK_bk_tech FOREIGN KEY (technician_ID) REFERENCES user3.technician(technician_ID)
+  
+ 
+
+  );
+
+-- the junction table if booking has multiple services
+  create table new_jobBooking.bookedServices(
+    booking_ID INT
+    service_id int --wat services is in the booking
+  );
 
 CREATE TABLE new_jobBooking.partsUsed (reportID INT NOT NULL, itemID INT NOT NULL, PRIMARY KEY (reportID, itemID));
 CREATE TABLE new_jobBooking.work (job_ID INT NOT NULL, booking_ID INT NOT NULL, PRIMARY KEY (job_ID, booking_ID),
