@@ -377,71 +377,36 @@ const handleChange = (e) => {
             </section>
           )}
 
+
           {/* Step 2 —  number units */}
           {step === 2 && (
             <section className="cust-panel">
               <div className="cust-panel-head">
-                <div>
-                  <h2>How many units need attention?</h2>
-                  <input
-                    id="amount"
-                    type="number"
-                    value={numberOfUnits}
-                    onChange={handleChange}
-                    min="1"
-                    max="3"
-                    step="1"
-      /><p>You entered: {numberOfUnits}</p>
-                </div>
+              <div>
+  <h2>How many units need attention?</h2>
+  <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+    {[1, 2, 3].map((num) => {
+      const isSelected = Number(numberOfUnits) === num;
+      return (
+        <button
+          type="button"
+          key={num}
+          className={`dash-btn ${isSelected ? "dash-btn-primary" : "dash-btn-outline"}`}
+          style={{ flex: 1, padding: "12px 0" }}
+          onClick={() => setNumOfUnits(num)}
+        >
+          {num} unit{num !== 1 ? "s" : ""}
+        </button>
+      );
+    })}
+  </div>
+  
+  <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)" }}>
+    You selected: {numberOfUnits || "None"}
+  </p>
+</div>
               </div>
-              {/**{units.length === 0 ? (
-                <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                  You have no registered units yet. Add one from My Aircon Units first.
-                </p>
-              ) : (
-                <div className="cust-choice-grid">
-                  {units.map((unit) => (
-                    <button
-                      type="button"
-                      key={unit.installed_ID}
-                      className={`cust-choice${
-                        unitIds.includes(unit.installed_ID) ? " is-selected" : ""
-                      }`}
-                      onClick={() => toggleUnit(unit.installed_ID)}
-                    >
-                      {unitIds.includes(unit.installed_ID) && (
-                        <span className="cust-choice-tick">
-                          <Icon name="check" size={12} strokeWidth={3} />
-                        </span>
-                      )}
-                      <span className="cust-choice-icon">
-                        <Icon name="snowflake" size={19} />
-                      </span>
-                      <h3 className="cust-choice-title">{unit.nickname}</h3>
-                      <p className="cust-choice-desc">
-                        {unit.brand} {unit.model}
-                      </p>
-                      <div className="cust-choice-foot">
-                        <span className="cust-duration">
-                          <Icon name="history" size={12} />
-                          Last: {unit.last_service || "—"}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )} */}
-              {/** <p style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 14 }}>
-                Unit not listed? You can add it from{" "}
-                <button
-                  className="dash-btn dash-btn-ghost"
-                  style={{ padding: 0 }}
-                  onClick={() => navigate("/customer/my-units")}
-                >
-                  My Aircon Units
-                </button>
-                .
-              </p> */}
+             
              
             </section>
           )} {/**end of step 2, select number of units   */}
