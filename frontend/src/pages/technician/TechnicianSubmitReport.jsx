@@ -207,7 +207,8 @@ function TechnicianSubmitReport() {
           setInventoryItems(rows.map((r) => ({
             itemID: r.itemID ?? r.item_id,
             itemName: r.itemName ?? r.item_name,
-            price: r.price ?? 0,
+            price: r.price,
+            stock: r.stock,
           })).filter((r) => r.itemID != null))
         }
       } catch { /* materials stay optional if inventory is unreachable */ }
