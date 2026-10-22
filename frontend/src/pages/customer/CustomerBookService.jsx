@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "../../components/customer/CustomerIcons";
+import { TIME_SLOTS } from "../../data/customer/customerMockData";
 import {
   findPromotion,
   findService,
@@ -11,6 +12,7 @@ import {
 import {
   createBooking,
   getAddresses,
+  getMyUnits,
   getPromotions,
   getServices,
 } from "../../api/customerApi";
@@ -30,24 +32,32 @@ function todayISO() {
   return new Date(now.getTime() - offset).toISOString().slice(0, 10);
 }
 
-// ✅ FIX: the DB needs a REAL time, not the word "Morning"/"Afternoon".
-// This replaces the old TIME_SLOTS lookup and the unused slotStartTime() helper —
-// it's also the fix for the "everything books at 9:00 AM" bug.
-const PERIOD_START_TIMES = {
-  Morning: "09:00 AM",
-  Afternoon: "02:00 PM",
-};
+/** "9:00 AM" / "09:00 – 10:00" → "09:00" (24h) for the DB time column. */
+function slotStartTime(label) {
+  const m = String(label).match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i);
+  if (!m) return "09:00";
+  let h = parseInt(m[1], 10);
+  const min = m[2] ? parseInt(m[2], 10) : 0;
+  const ap = m[3]?.toUpperCase();
+  if (ap === "PM" && h < 12) h += 12;
+  if (ap === "AM" && h === 12) h = 0;
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
 
 const CustomerBookService = () => {
   const navigate = useNavigate();
-  const [numberOfUnits, setNumOfUnits] = useState(""); //change unit selection to just how many
+  const [numberOfUnits, setNumOfUnits]=useState(); //change unit selection to just how many
   const [searchParams] = useSearchParams();
 
-  // Deep link from the catalogue preselects services, e.g. /customer/book-service?service=2
+  // Deep links from the catalogue and unit cards preselect the draft,
+  // e.g. /customer/book-service?service=2&unit=9003
   const presetServiceId = Number(searchParams.get("service")) || null;
+  const presetUnitId = Number(searchParams.get("unit")) || null;
 
   const [step, setStep] = useState(1);
-  const [serviceIds, setServiceIds] = useState(presetServiceId ? [presetServiceId] : []);
+  const [serviceId, setServiceId] = useState(presetServiceId);
+  const [serviceIds, setServiceIds] = useState([]);   //this is to hold multiple services in a single booking
+  const [unitIds, setUnitIds] = useState(presetUnitId ? [presetUnitId] : []);
   const [date, setDate] = useState("");
   const [slotId, setSlotId] = useState(null);
   const [addressId, setAddressId] = useState(null);
@@ -61,6 +71,7 @@ const CustomerBookService = () => {
 
   // Live data
   const [services, setServices] = useState([]);
+  const [units, setUnits] = useState([]);
   const [promotions, setPromotions] = useState([]);
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,10 +79,11 @@ const CustomerBookService = () => {
 
   useEffect(() => {
     let alive = true;
-    Promise.all([getServices(), getPromotions(), getAddresses()])
-      .then(([svcRes, promoRes, addrRes]) => {
+    Promise.all([getServices(), getMyUnits(), getPromotions(), getAddresses()])
+      .then(([svcRes, unitRes, promoRes, addrRes]) => {
         if (!alive) return;
         setServices(svcRes.services || []);
+        setUnits(unitRes.units || []);
         setPromotions(promoRes.promotions || []);
         setAddresses(addrRes.addresses || []);
         const defaultAddr = (addrRes.addresses || []).find((a) => a.isDefault) || (addrRes.addresses || [])[0];
@@ -82,20 +94,18 @@ const CustomerBookService = () => {
     return () => { alive = false; };
   }, []);
 
-  // All currently selected services (multi-service booking)
-  const selectedServices = useMemo(
-    () => services.filter((s) => serviceIds.includes(s.service_id)),
-    [serviceIds, services]
-  );
-
-  // "Morning" / "Afternoon" — displayed as-is, converted to a real time on submit
+  const service = useMemo(() => findService(serviceId, services), [serviceId, services]);
+  //const slot = TIME_SLOTS.find((entry) => entry.id === slotId) || null;
   const slot = slotId || null;
   const address = addresses.find((entry) => entry.address_ID === addressId) || null;
-
-  const pricing = useMemo(() => {
+  const selectedUnits = units.filter((unit) => unitIds.includes(unit.installed_ID));
+  
+const pricing = useMemo(() => {
     const unitCount = Number(numberOfUnits) || 0;
-    const subtotal = selectedServices.reduce((acc, svc) => acc + svc.price * unitCount, 0);
-
+    const selectedServices = services.filter((s) => serviceIds.includes(s.service_id));
+    const subtotal = selectedServices.reduce((acc, svc) => acc + (svc.price * unitCount), 0);
+    
+    // Calculate discount based on your appliedPromo logic
     let discount = 0;
     if (appliedPromo) {
       if (appliedPromo.type === "percentage") {
@@ -104,23 +114,30 @@ const CustomerBookService = () => {
         discount = appliedPromo.value || 0;
       }
     }
-
+    
     const total = Math.max(0, subtotal - discount);
     return { subtotal, discount, total };
-  }, [selectedServices, numberOfUnits, appliedPromo]);
+  }, [serviceIds, services, numberOfUnits, appliedPromo]);
 
   // Each step gates the "Continue" button until it has what it needs.
   const stepComplete = {
-    1: serviceIds.length > 0,
-    2: Number(numberOfUnits) > 0,
+    1:serviceIds.length > 0,
+    2: numberOfUnits > 0,
     3: Boolean(date) && Boolean(slot),
     4: Boolean(address),
     5: true,
   };
 
-  const toggleService = (id) => {
-    setServiceIds((current) =>
-      current.includes(id) ? current.filter((x) => x !== id) : [...current, id]
+  //method to link set amount to database or something, replaces below method
+const setNumberUnits= (amount)=>{
+
+};
+
+  const toggleUnit = (installedId) => {
+    setUnitIds((current) =>
+      current.includes(installedId)
+        ? current.filter((id) => id !== installedId)
+        : [...current, installedId]
     );
   };
 
@@ -138,17 +155,17 @@ const CustomerBookService = () => {
   const goNext = () => setStep((current) => Math.min(current + 1, STEPS.length));
   const goBack = () => setStep((current) => Math.max(current - 1, 1));
 
-  {/** this is the method to take all the data in this frontend to backend */}
-  const submitBooking = async () => {
+  {/** this is the method to take all the data in this frontend to  backend */}
+const submitBooking = async () => {    
     if (serviceIds.length === 0 || !date || !slot || !address) return;
     setSubmitting(true);
     setSubmitError("");
     try {
       const res = await createBooking({
-        serviceIds,                                    // all selected services
-        numberOfUnits: Number(numberOfUnits) || 1,
+        serviceIds: serviceIds,
+        numberOfUnits: Number(numberOfUnits),
         date,
-        time: PERIOD_START_TIMES[slot] || "09:00 AM",  // ✅ FIX: real time stored in DB
+        time: slot,
         location: `${address.line}${address.postal ? `, Singapore ${address.postal}` : ""}`,
         comments: notes || null,
         promoCode: appliedPromo?.code || null,
@@ -205,8 +222,8 @@ const CustomerBookService = () => {
           </div>
           <h3 style={{ fontSize: 19 }}>Booking confirmed</h3>
           <p>
-            We've received your request for <strong>{selectedServices.map((s) => s.service_name).join(", ") || "your service"}</strong> on{" "}
-            <strong>{formatLongDate(date)}</strong> at <strong>{slot}</strong>. A technician
+            We've received your request for <strong>{service?.service_name}</strong> on{" "}
+            <strong>{formatLongDate(date)}</strong> at <strong>{slot?.label}</strong>. A technician
             will be assigned shortly and you'll get a confirmation email.
           </p>
 
@@ -227,7 +244,7 @@ const CustomerBookService = () => {
             <div className="cust-summary-row">
               <span className="cust-summary-label">Units</span>
               <span className="cust-summary-value">
-                {numberOfUnits ? `${numberOfUnits} aircon unit(s)` : "—"}
+                {selectedUnits.map((unit) => unit.nickname).join(", ") || "—"}
               </span>
             </div>
             <div className="cust-summary-row">
@@ -257,11 +274,10 @@ const CustomerBookService = () => {
     );
   }
 
-  //this method shows the number of aircons entered
-  const handleChange = (e) => {
+  //this method is to show number of aircons, uses usestate var from above
+const handleChange = (e) => {
     setNumOfUnits(e.target.value);
   };
-
   /* ---------------------------------------------------------- the wizard */
   return (
     <>
@@ -292,7 +308,7 @@ const CustomerBookService = () => {
 
       <div className="cust-grid-2">
         <div>
-
+          
         {/* Step 1 — services */}
           {step === 1 && (
             <section className="cust-panel">
@@ -309,14 +325,29 @@ const CustomerBookService = () => {
               ) : (
                 <div className="cust-choice-grid">
                   {services.map((entry) => {
-                    const isSelected = serviceIds.includes(entry.service_id);
+                    const isSelected = Array.isArray(serviceIds) 
+                      ? serviceIds.includes(entry.service_id) 
+                      : serviceId === entry.service_id;
+
+                    const handleServiceToggle = () => {
+                      if (Array.isArray(serviceIds)) {
+                        if (isSelected) {
+                          setServiceIds(serviceIds.filter((id) => id !== entry.service_id));
+                        } else {
+                          setServiceIds([...serviceIds, entry.service_id]);
+                        }
+                      } else {
+                        // Fallback if transitioning from a single serviceId state
+                        setServiceId(entry.service_id);
+                      }
+                    };
 
                     return (
                       <button
                         type="button"
                         key={entry.service_id}
                         className={`cust-choice${isSelected ? " is-selected" : ""}`}
-                        onClick={() => toggleService(entry.service_id)}
+                        onClick={handleServiceToggle}
                       >
                         {isSelected && (
                           <span className="cust-choice-tick">
@@ -346,62 +377,41 @@ const CustomerBookService = () => {
             </section>
           )}
 
-          {/* Step 2 — number of units */}
+
+          {/* Step 2 —  number units */}
           {step === 2 && (
             <section className="cust-panel">
               <div className="cust-panel-head">
-                <div>
-                  <h2>How many units need attention?</h2>
-                  <input
-                    id="amount"
-                    type="number"
-                    value={numberOfUnits}
-                    onChange={handleChange}
-                    min="1"
-                    max="3"
-                    step="1"
-                  /><p>You entered: {numberOfUnits}</p>
-                </div>
+              <div>
+  <h2>How many units need attention?</h2>
+  <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+    {[1, 2, 3].map((num) => {
+      const isSelected = Number(numberOfUnits) === num;
+      return (
+        <button
+          type="button"
+          key={num}
+          className={`dash-btn ${isSelected ? "dash-btn-primary" : "dash-btn-outline"}`}
+          style={{ flex: 1, padding: "12px 0" }}
+          onClick={() => setNumOfUnits(num)}
+        >
+          {num} unit{num !== 1 ? "s" : ""}
+        </button>
+      );
+    })}
+  </div>
+  
+  <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)" }}>
+    You selected: {numberOfUnits || "None"}
+  </p>
+</div>
               </div>
-              {/**{units.length === 0 ? (
-                <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                  You have no registered units yet. Add one from My Aircon Units first.
-                </p>
-              ) : (
-                <div className="cust-choice-grid">
-                  {units.map((unit) => (
-                    <button
-                      type="button"
-                      key={unit.installed_ID}
-                      className={`cust-choice${
-                        unitIds.includes(unit.installed_ID) ? " is-selected" : ""
-                      }`}
-                      onClick={() => toggleUnit(unit.installed_ID)}
-                    >
-                      {unitIds.includes(unit.installed_ID) && (
-                        <span className="cust-choice-tick">
-                          <Icon name="check" size={12} strokeWidth={3} />
-                        </span>
-                      )}
-                      <span className="cust-choice-icon">
-                        <Icon name="snowflake" size={19} />
-                      </span>
-                      <h3 className="cust-choice-title">{unit.nickname}</h3>
-                      <p className="cust-choice-desc">
-                        {unit.brand} {unit.model}
-                      </p>
-                      <div className="cust-choice-foot">
-                        <span className="cust-duration">
-                          <Icon name="history" size={12} />
-                          Last: {unit.last_service || "—"}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )} */}
+             
+             
             </section>
-          )} {/**end of step 2, select number of units */}
+          )} {/**end of step 2, select number of units   */}
+
+
 
 {/* Step 3 — date and time of day */}
           {step === 3 && (
@@ -455,6 +465,9 @@ const CustomerBookService = () => {
               )}
             </section>
           )}
+
+
+
 
           {/* Step 4 — address and notes */}
           {step === 4 && (
@@ -528,7 +541,10 @@ const CustomerBookService = () => {
               <div className="cust-summary-row">
                 <span className="cust-summary-label">Services</span>
                 <span className="cust-summary-value">
-                  {selectedServices.map((s) => s.service_name).join(", ") || "None"}
+                  {services
+                    .filter((s) => serviceIds.includes(s.service_id))
+                    .map((s) => s.service_name)
+                    .join(", ") || "None"}
                 </span>
               </div>
               <div className="cust-summary-row">
@@ -556,6 +572,24 @@ const CustomerBookService = () => {
                   <span className="cust-summary-value is-muted">{notes}</span>
                 </div>
               )}
+
+        
+            
+          
+              {/**
+              {service && (
+                <div style={{ marginTop: 20 }}>
+                  <p className="cust-meta-label">What's included</p>
+                  <ul className="cust-perks" style={{ marginTop: 8 }}>
+                    {service.includes.map((line) => (
+                      <li className="cust-perk" key={line}>
+                        <Icon name="check" size={14} strokeWidth={2.6} />
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )} */}
             </section>
           )}
 
@@ -594,7 +628,6 @@ const CustomerBookService = () => {
             </p>
           )}
         </div>
-
 {/* Live summary */}
         <aside className="cust-summary">
           <div className="cust-summary-head">
@@ -604,8 +637,8 @@ const CustomerBookService = () => {
             <div className="cust-summary-row">
               <span className="cust-summary-label">Services</span>
               <span className={`cust-summary-value${serviceIds.length ? "" : " is-muted"}`}>
-                {serviceIds.length > 0
-                  ? selectedServices.map((s) => s.service_name).join(", ")
+                {serviceIds.length > 0 
+                  ? services.filter(s => serviceIds.includes(s.service_id)).map(s => s.service_name).join(", ") 
                   : "Not chosen"}
               </span>
             </div>
@@ -626,27 +659,31 @@ const CustomerBookService = () => {
               </span>
             </div>
 
-            {serviceIds.length > 0 && Number(numberOfUnits) > 0 && (
+            {serviceIds.length > 0 && numberOfUnits && (
               <>
-                {selectedServices.map((svc) => {
-                  const unitCount = Number(numberOfUnits) || 0;
-                  const itemTotal = svc.price * unitCount;
-                  return (
-                    <div key={svc.service_id} className="cust-summary-row">
-                      <span className="cust-summary-label">
-                        {svc.service_name} ({formatMoney(svc.price)} × {unitCount})
-                      </span>
-                      <span className="cust-summary-value dash-mono">
-                        {formatMoney(itemTotal)}
-                      </span>
-                    </div>
-                  );
-                })}
+                {services
+                  .filter((s) => serviceIds.includes(s.service_id))
+                  .map((svc) => {
+                    const unitCount = Number(numberOfUnits) || 0;
+                    const itemTotal = svc.price * unitCount;
+                    return (
+                      <div key={svc.service_id} className="cust-summary-row">
+                        <span className="cust-summary-label">
+                          {svc.service_name} ({formatMoney(svc.price)} × {unitCount})
+                        </span>
+                        <span className="cust-summary-value dash-mono">
+                          {formatMoney(itemTotal)}
+                        </span>
+                      </div>
+                    );
+                  })}
 
                 <div className="cust-summary-row">
                   <span className="cust-summary-label">Total Estimated Time</span>
                   <span className="cust-summary-value">
-                    {selectedServices.reduce((acc, svc) => acc + (svc.duration_mins || 0), 0) * (Number(numberOfUnits) || 0)} mins
+                    {services
+                      .filter((s) => serviceIds.includes(s.service_id))
+                      .reduce((acc, svc) => acc + (svc.duration_mins || 0), 0) * (Number(numberOfUnits) || 0)} mins
                   </span>
                 </div>
 
@@ -689,6 +726,8 @@ const CustomerBookService = () => {
             <span className="cust-summary-total-value">{formatMoney(pricing.total)}</span>
           </div>
         </aside>
+
+
 
       </div>
     </>

@@ -1,6 +1,7 @@
 import React, { useRef } from 'react'
 import Modal from 'react-bootstrap/Modal'
 import JobStatusBadge from './JobStatusBadge'
+import { evaluateJobStart } from '../../utils/jobSchedule'
 
 function JobDetailsModal({
   job,
@@ -50,8 +51,17 @@ function JobDetailsModal({
   const normalizedStatus = String(job.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
   const canStart = ['upcoming', 'assigned', 'pending'].includes(normalizedStatus)
   const canComplete = normalizedStatus === 'in progress'
+  const gate = evaluateJobStart(job)
+  const startDisabledReason = actionPending
+    ? 'A status update for this booking is already in progress.'
+    : actionReadOnly ? 'Status updates require an authenticated Technician session.'
+      : !gate.allowed ? `This job is ${gate.reason} — Start unlocks then.` : undefined
   const handleHide = () => {
     if (!actionPending) onHide?.()
+  }
+  const handleStart = () => {
+    if (!canStart || actionPending || actionReadOnly || !evaluateJobStart(job).allowed) return
+    return onStartService ? onStartService(job) : handleHide()
   }
 
   return (
@@ -178,10 +188,10 @@ function JobDetailsModal({
           <button
             type="button"
             className="cf-button cf-button-primary"
-            onClick={() => (onStartService ? onStartService(job) : handleHide())}
-            disabled={actionPending || actionReadOnly}
+            onClick={handleStart}
+            disabled={actionPending || actionReadOnly || !gate.allowed}
             aria-busy={actionPending}
-            title={actionReadOnly ? 'Status updates require an authenticated Technician session.' : undefined}
+            title={startDisabledReason}
           >
             {actionPending ? 'Starting…' : 'Start Service'}
           </button>

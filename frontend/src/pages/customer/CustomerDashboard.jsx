@@ -136,32 +136,96 @@ const CustomerDashboard = () => {
         </div>
       </section>
 
-      {/**view current subscription */}
-      <section className="cust-empty" >
-            <article  className="cust-stat cust-stat-success">
-              <h3>Your current subscriptions</h3>
+            {/* Current subscriptions */}
+      <section className="cust-panel">
+        <div className="cust-panel-head">
+          <div>
+            <h2>Your current subscriptions</h2>
+            <p>Active care plans keeping your units on schedule</p>
+          </div>
+          <button
+            className="dash-btn dash-btn-ghost"
+            onClick={() => navigate("/customer/subscriptions")}
+          >
+            Manage →
+          </button>
+        </div>
 
-              {subsLoading && <p>Loading your subscriptions…</p>}
-              {!subsLoading && subsError && <p className="error-text">{subsError}</p>}
+        {subsLoading && (
+          <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Loading your subscriptions…</p>
+        )}
+        {!subsLoading && subsError && (
+          <p style={{ fontSize: 13, color: "var(--danger, #c0392b)" }}>{subsError}</p>
+        )}
 
-              {!subsLoading && !subsError && subscriptions.length === 0 && (
-                <p>You have no package subscriptions yet.</p>
-              )}
+        {!subsLoading && !subsError && subscriptions.length === 0 && (
+          <div className="cust-empty" style={{ padding: "24px 0" }}>
+            <h3>No package subscriptions yet</h3>
+            <p>Prepay for a servicing cycle and save with every visit.</p>
+            <button
+              className="dash-btn dash-btn-primary"
+              onClick={() => navigate("/customer/service-catalog")}
+            >
+              Browse care plans
+            </button>
+          </div>
+        )}
 
-              {!subsLoading && !subsError && subscriptions.map((sub) => (
-                <div key={sub.package_id} className="subscription-item">
-                  <div className="subscription-header">
-                    <strong>{sub.package_name}</strong>
-                    <span className={`badge badge-${sub.status.toLowerCase()}`}>{sub.status}</span>
+        {!subsLoading && !subsError && subscriptions.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {subscriptions.map((sub) => (
+              <div
+                key={sub.package_id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 16,
+                  border: "1px solid var(--border-color, #e2e8f0)",
+                  borderRadius: 12,
+                  padding: "14px 18px",
+                  backgroundColor: "var(--bg-surface, #fff)",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <strong style={{ fontSize: 14 }}>{sub.package_name}</strong>
+                    <span
+                      className={`cust-badge tone-${sub.status === "Active" ? "success" : "warning"}`}
+                    >
+                      <i /> {sub.status}
+                    </span>
                   </div>
-                  <p>{sub.description}</p>
-                  <p>
-                    Includes: {sub.services_included.length > 0 ? sub.services_included.join(', ') : '—'}
+                  <p
+                    style={{
+                      margin: "4px 0 0",
+                      fontSize: 12.5,
+                      color: "var(--text-secondary, #64748b)",
+                    }}
+                  >
+                    {sub.description}
                   </p>
-                  <p>RM {Number(sub.price).toFixed(2)}</p>
+                  <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text-secondary, #64748b)" }}>
+                    Includes: {sub.services_included?.length ? sub.services_included.join(", ") : "—"}
+                    {Number(sub.remaining_bookings) > 0 &&
+                      ` · ${sub.remaining_bookings} of ${sub.visits_included} visits left`}
+                    {sub.next_booking_date && ` · Next visit ${formatDate(sub.next_booking_date)}`}
+                  </p>
                 </div>
-              ))}
-            </article>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text-main)" }}>
+                    {formatMoney(sub.price)}
+                  </p>
+                  {sub.price_per_visit ? (
+                    <p style={{ margin: 0, fontSize: 11.5, color: "var(--text-secondary, #64748b)" }}>
+                      {formatMoney(sub.price_per_visit)}/visit
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Service-due nudge */}

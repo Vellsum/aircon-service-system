@@ -260,6 +260,12 @@ Complete → Customer rates → Follow-up visit auto-created if flagged
 Pending · Assigned · Scheduled · In Progress · Completed · Cancelled(No "Upcoming" status exists
 — UIs map Pending/Assigned/Scheduled to "Upcoming".)
 
+### GET /api/customer/profile?customerId={id}
+Returns `{ success, profile: { customer_id, user_id, username, name, email, phone, address, joined, loyalty_points, total_bookings, total_spent } }`
 
+### PUT /api/customer/profile?customerId={id}
+Body: `{ name?, email?, phone?, address? }` — all optional, at least one required.
+Validates email/phone format; 409 if email belongs to another account.
+Returns `{ success, message, profile }` with the updated record.
 
 
