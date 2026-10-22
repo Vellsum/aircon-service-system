@@ -266,11 +266,7 @@ const getServices = async (req, res) => {
   }
 };
 
-/* ---------- GET /api/customer/subscriptions?customerId=# ----------
- * 6 Oct 2026 — "Subscriptions" = packages the customer purchased
- * (payables.purchases with packageID set), joined with payables.packages.
- * Includes the services covered by each package (via payables.serviceList).
- * --------------------------------------------------------------------------- */
+/* ---------- GET /api/customer/subscriptions?customerId=# ---------- */
 const getMySubscriptions = async (req, res) => {
   try {
     const customerId = parseInt(req.query.customerId, 10) || 1;
@@ -317,11 +313,7 @@ const getMySubscriptions = async (req, res) => {
   }
 };
 
-/* ---------- GET /api/customer/plans ----------
- * Full subscription plan catalog from payables.subscription,
- * joined with payables.service for the recurring service each plan covers.
- * Powers the Service Catalog "Maintenance plans" section.
- * --------------------------------------------- */
+/* ---------- GET /api/customer/plans ---------- */
 const getPlans = async (req, res) => {
   try {
     const pool = await poolPromise;
@@ -429,6 +421,72 @@ const createBooking = async (req, res) => {
     if (ids.length === 0 || !date || !time || !location)
       return res.status(400).json({ success: false, message: 'serviceIds, date, time and location are required' });
 
+    // ---- Normalize date to strict YYYY-MM-DD (SQL-safe for DATE/DATETIME columns) ----
+    const normalizeDate = (value) => {
+      const s = String(value || '').trim();
+      // Already ISO (e.g. "2026-10-25" or "2026-10-25T00:00:00.000Z"): take the date part
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+      // Singapore-style DD/MM/YYYY (e.g. "25/10/2026")
+      const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (dmy) {
+        const dd = parseInt(dmy[1], 10), mm = parseInt(dmy[2], 10);
+        if (dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12) {
+          return `${dmy[3]}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+        }
+        return null;
+      }
+      // Last resort: let JS parse ("Oct 25 2026", etc.)
+      const d = new Date(s);
+      if (!Number.isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+      return null;
+    };
+
+    // ---- Normalize time to 24h HH:MM:SS (SQL-safe for TIME columns) ----
+    const normalizeTime = (value) => {
+      const s = String(value || '').trim().toLowerCase();
+      // Some pickers send a period label ("Morning") instead of a clock time — map it
+      if (/\bmorning\b/.test(s)) return '09:00:00';
+      if (/\bnoon\b/.test(s)) return '12:00:00';
+      if (/\bafternoon\b/.test(s)) return '14:00:00';
+      if (/\bevening\b/.test(s)) return '18:00:00';
+      if (/\bnight\b/.test(s)) return '20:00:00';
+      // "9:00 am", "09:00 pm", "9:00:30 am"
+      let m = s.match(/^(\d{1,2})[:.](\d{2})(?::(\d{2}))?\s*(am|pm)\.?$/);
+      if (m) {
+        let h = parseInt(m[1], 10) % 12;
+        if (m[4] === 'pm') h += 12;
+        return `${String(h).padStart(2, '0')}:${m[2]}:${m[3] || '00'}`;
+      }
+      // "09:00", "9:00", "09:00:00"
+      m = s.match(/^(\d{1,2})[:.](\d{2})(?::(\d{2}))?$/);
+      if (m) {
+        const h = parseInt(m[1], 10);
+        if (h > 23) return null;
+        return `${String(h).padStart(2, '0')}:${m[2]}:${m[3] || '00'}`;
+      }
+      // "0900" or "090000"
+      m = s.match(/^(\d{2})(\d{2})(\d{2})?$/);
+      if (m) {
+        const h = parseInt(m[1], 10), mm = parseInt(m[2], 10);
+        if (h > 23 || mm > 59) return null;
+        return `${m[1]}:${m[2]}:${m[3] || '00'}`;
+      }
+      return null;
+    };
+
+    const cleanDate = normalizeDate(date);
+    const cleanTime = normalizeTime(time);
+    if (!cleanDate)
+      return res.status(400).json({ success: false, message: `Invalid date received: "${date}". Expected e.g. 2026-10-25.` });
+    if (!cleanTime)
+      return res.status(400).json({ success: false, message: `Invalid time received: "${time}". Expected e.g. "9:00 AM" or "09:00".` });
+    console.log(`[Cool Fix] Booking date/time normalized: "${date}" -> ${cleanDate}, "${time}" -> ${cleanTime}`);
+
     // Unit count goes into comments so the technician sees it on the job
     const finalComments = units > 1
       ? `${comments ? String(comments) + ' | ' : ''}[${units} aircon units]`
@@ -436,8 +494,8 @@ const createBooking = async (req, res) => {
 
     const inserted = await pool.request()
       .input('cid', sql.Int, customer.customer_ID)
-      .input('date', sql.VarChar(10), String(date))
-      .input('time', sql.VarChar(20), String(time))
+      .input('date', sql.VarChar(10), cleanDate)
+      .input('time', sql.VarChar(8), cleanTime)
       .input('location', sql.VarChar(100), String(location))
       .input('status', sql.VarChar(100), 'Pending')
       .input('comments', sql.VarChar(500), finalComments)
@@ -481,7 +539,8 @@ const createBooking = async (req, res) => {
     return res.status(201).json({ success: true, booking_ID: bookingId, jobs_created: jobCount,
       reference: `BK-${new Date().getFullYear()}-${String(bookingId).padStart(3, '0')}` });
   } catch (err) {
-    console.error('[Cool Fix] POST Customer Booking Error:', err.message);
+    console.error('[Cool Fix] POST Customer Booking Error:', err.message,
+      '| received date =', req.body && req.body.date, '| received time =', req.body && req.body.time);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -529,9 +588,7 @@ const cancelBooking = async (req, res) => {
 
 /* ============================================================================
  * CUSTOMER PROFILE — GET + PUT /api/customer/profile?customerId=<id>
- * Real tables (from resolveCustomer): [user3].[newCustomer] + [user3].[topUser]
- *   topUser     -> email, phoneNumber (login identity)
- *   newCustomer -> customer_name, customer_address (display profile)
+ * Real tables: [user3].[newCustomer] + [user3].[topUser]
  * Body (all optional, at least one): { name, email, phone, address }
  * ========================================================================== */
 const shapeProfile = (row) => ({
