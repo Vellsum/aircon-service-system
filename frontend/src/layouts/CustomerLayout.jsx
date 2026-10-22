@@ -32,7 +32,11 @@ const CustomerLayout = () => {
       />
 
       <div className="cust-main">
+<<<<<<< HEAD
         {/**      //removed the top strip
+=======
+        {/** 
+>>>>>>> origin/main
         <header className="cust-topbar">
           <div className="cust-topbar-left">
             <button

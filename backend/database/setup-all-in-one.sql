@@ -86,7 +86,11 @@ CREATE TABLE payables.currentSubscribers(
   subscriptionid INT NOT NULL,
   remainingBookings INT,
   dateStarted DATE,
+<<<<<<< HEAD
   nextBookingDate DATE,
+=======
+  nextBookingDate DATE
+>>>>>>> origin/main
 
 );
 
@@ -150,7 +154,11 @@ CREATE TABLE new_jobBooking.Booking (
 
 -- the junction table if booking has multiple services
   create table new_jobBooking.bookedServices(
+<<<<<<< HEAD
     booking_ID INT
+=======
+    booking_ID INT,
+>>>>>>> origin/main
     service_id int --wat services is in the booking
   );
 
@@ -299,6 +307,7 @@ VALUES
     );
 
 
+<<<<<<< HEAD
 INSERT INTO payables.currentSubscribers
  (customerID, subscriptionid, remainingBookings, dateStarted, nextBookingDate)
 VALUES 
@@ -307,6 +316,14 @@ VALUES
     (3, 101, 5, '2026-03-10', '2026-04-10'),
     (4, 103, 2, '2026-04-05', '2026-05-05'),
     (5, 102, 4, '2026-05-20', '2026-06-20');
+=======
+INSERT INTO payables.currentSubscribers (customerID, subscriptionid, remainingBookings, dateStarted, nextBookingDate)
+VALUES
+    (205, 1, 3, '2026-09-01', '2026-12-01'),  -- Scott: Quarterly Care Plan
+    (205, 2, 5, '2026-10-01', '2026-12-01'),  -- Scott: Bi-Monthly Shield
+    (201, 1, 2, '2026-07-01', '2026-10-01'),  -- John
+    (203, 3, 1, '2026-08-01', '2027-02-01');  -- David
+>>>>>>> origin/main
 
 
 

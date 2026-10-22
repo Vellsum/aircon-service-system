@@ -1,21 +1,15 @@
 // =============================================================================
-// TechnicianFollowUp.jsx — return visits created from service reports
-// Updated: 6 Oct 2026
-//   1. [FIX] 'Scheduled' now counts as Upcoming (real DB status — was missing,
-//      so Scheduled follow-ups never appeared in the Upcoming group).
-//   2. [DATA] Follow-up bookings are auto-created when a report flags
-//      "follow-up required" (technicianReportController). This page shows
-//      bookings where isFollowup = 1, grouped by their status.
-//   3. [TRIM] Removed verbose icon components, dead fields and duplicate
-//      mapping. Same CSS classes — styling untouched.
+// TechnicianFollowUp.jsx — returned bookings flagged as follow-ups.
+// Booking status groups describe service progress, not customer approval.
 // =============================================================================
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import Modal from 'react-bootstrap/Modal'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 
 // Statuses meaning "not started yet" ('Upcoming' itself doesn't exist in the DB)
 const UPCOMING_STATUSES = ['pending', 'assigned', 'scheduled', 'upcoming']
+const availableText = (value, missing) => typeof value === 'string' && value.trim() ? value : missing
 
 function formatDate(dateStr) {
   if (!dateStr) return 'TBD'
@@ -54,10 +48,32 @@ const GROUPS = [
 ]
 
 function TechnicianFollowUp() {
-  const { assignedJobs, loading } = useTechnicianWorkflow()
+  const { assignedJobs, loading, error, dataAvailable, technicianID, identitySource, refreshJobs } = useTechnicianWorkflow()
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [selected, setSelected] = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshFailed, setRefreshFailed] = useState(false)
+  const refreshPendingRef = useRef(false)
+  const isLoading = loading || identitySource === 'initializing' || refreshing
+  const bookingsAvailable = Boolean(technicianID && !isLoading && !error && dataAvailable && !refreshFailed)
+  const displayCount = (count) => bookingsAvailable ? count : '—'
+
+  const handleRefresh = async () => {
+    if (!technicianID || isLoading || refreshPendingRef.current) return
+    refreshPendingRef.current = true
+    setRefreshing(true)
+    setRefreshFailed(false)
+    try {
+      // refreshJobs reports normal GET failures through context state, not its return value.
+      await refreshJobs()
+    } catch {
+      setRefreshFailed(true)
+    } finally {
+      refreshPendingRef.current = false
+      setRefreshing(false)
+    }
+  }
 
   // Bookings flagged as follow-ups, mapped to the display shape
   const followUps = useMemo(
@@ -66,14 +82,14 @@ function TechnicianFollowUp() {
       .map((job) => ({
         bookingID: job.job_ID,
         id: job.id || `#BK${String(job.job_ID).padStart(3, '0')}`,
-        customerName: job.customerName || 'Guest Customer',
+        customerName: availableText(job.customerName, 'Customer unavailable'),
         customerID: job.customer_ID,
-        serviceName: job.serviceType || 'Aircon Servicing',
-        location: job.address || 'Singapore',
+        serviceName: availableText(job.serviceType, 'Service unavailable'),
+        location: availableText(job.address, 'Location unavailable'),
         date: job.date,
         formattedDate: formatDate(job.date),
         time: job.time || '',
-        status: job.status || 'Pending',
+        status: job.status,
         technicianID: job.technician_ID,
       })),
     [assignedJobs],
@@ -102,6 +118,11 @@ function TechnicianFollowUp() {
   }, [followUps, searchQuery, statusFilter])
 
   const visibleGroups = statusFilter === 'ALL' ? GROUPS : GROUPS.filter((g) => g.status === statusFilter)
+  const groupedVisits = visibleGroups.map((group) => ({
+    ...group, records: filtered.filter((record) => matchesGroup(record.status, group.status)),
+  }))
+  const shownCount = groupedVisits.reduce((count, group) => count + group.records.length, 0)
+  const outsideGroupCount = filtered.length - shownCount
   const hasActiveFilters = Boolean(searchQuery.trim() || statusFilter !== 'ALL')
 
   return (
@@ -110,31 +131,31 @@ function TechnicianFollowUp() {
         <div className="cf-page-heading">
           <span className="cf-eyebrow">TECHNICIAN · FOLLOW-UP</span>
           <h1>Follow-Up</h1>
-          <p>Return visits created when a service report flags “follow-up required”.</p>
+          <p>View returned follow-up bookings assigned to this technician.</p>
         </div>
         <div className="follow-up-assignment-status" aria-label="Follow-up assignment status">
           <span className="follow-up-assignment-icon"><LoopIcon /></span>
-          <span><small>Assigned visits</small><strong>{metrics.total}</strong></span>
+          <span><small>Assigned visits</small><strong>{displayCount(metrics.total)}</strong></span>
         </div>
       </header>
 
       {/* Summary cards */}
       <section className="follow-up-summary-grid" aria-label="Follow-up visit summary">
         <article className="follow-up-summary-card">
-          <span className="follow-up-summary-icon-follow-up-summary-icon-mint"><LoopIcon /></span>
-          <span className="follow-up-summary-copy"><small>Total Follow-Ups</small><strong>{metrics.total}</strong><span>Assigned return visits</span></span>
+          <span className="follow-up-summary-icon follow-up-summary-icon-mint"><LoopIcon /></span>
+          <span className="follow-up-summary-copy"><small>Total Follow-Ups</small><strong>{displayCount(metrics.total)}</strong><span>Assigned return visits</span></span>
         </article>
         <article className="follow-up-summary-card">
-          <span className="follow-up-summary-icon-follow-up-summary-icon-blue"><CalendarIcon /></span>
-          <span className="follow-up-summary-copy"><small>Upcoming</small><strong>{metrics.upcoming}</strong><span>Waiting for service</span></span>
+          <span className="follow-up-summary-icon follow-up-summary-icon-blue"><CalendarIcon /></span>
+          <span className="follow-up-summary-copy"><small>Upcoming</small><strong>{displayCount(metrics.upcoming)}</strong><span>Waiting for service</span></span>
         </article>
         <article className="follow-up-summary-card">
-          <span className="follow-up-summary-icon-follow-up-summary-icon-amber"><ClockIcon /></span>
-          <span className="follow-up-summary-copy"><small>In Progress</small><strong>{metrics.inProgress}</strong><span>Currently being handled</span></span>
+          <span className="follow-up-summary-icon follow-up-summary-icon-amber"><ClockIcon /></span>
+          <span className="follow-up-summary-copy"><small>In Progress</small><strong>{displayCount(metrics.inProgress)}</strong><span>Currently being handled</span></span>
         </article>
         <article className="follow-up-summary-card">
-          <span className="follow-up-summary-icon-follow-up-summary-icon-green"><CheckIcon /></span>
-          <span className="follow-up-summary-copy"><small>Completed</small><strong>{metrics.completed}</strong><span>Return visits completed</span></span>
+          <span className="follow-up-summary-icon follow-up-summary-icon-green"><CheckIcon /></span>
+          <span className="follow-up-summary-copy"><small>Completed</small><strong>{displayCount(metrics.completed)}</strong><span>Return visits completed</span></span>
         </article>
       </section>
 
@@ -172,22 +193,39 @@ function TechnicianFollowUp() {
               Clear filters
             </button>
           )}
+          <button type="button" className="cf-button cf-button-quiet"
+            onClick={handleRefresh} disabled={isLoading || !technicianID}>
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
         </div>
         <span className="follow-up-result-count" aria-live="polite">
-          <strong>{filtered.length}</strong> of {followUps.length} visits shown
+          {isLoading ? 'Loading follow-up bookings…' : !bookingsAvailable ? 'Follow-up booking data unavailable'
+            : <><strong>{shownCount}</strong> of {followUps.length} visits shown</>}
         </span>
       </section>
 
       {/* States */}
-      {loading ? (
+      {isLoading ? (
         <section className="follow-up-empty-state follow-up-empty-state-page" role="status">
           <h3>Loading follow-up visits from database...</h3>
+        </section>
+      ) : !bookingsAvailable ? (
+        <section className="follow-up-empty-state follow-up-empty-state-page" role="status">
+          <span className="follow-up-empty-icon" aria-hidden="true"><LoopIcon /></span>
+          <h3>{technicianID ? 'Follow-up bookings unavailable.' : 'Technician identity is unavailable.'}</h3>
+          <p>{technicianID ? 'The booking list could not be loaded. Please try again.'
+            : 'Sign in with a Technician account to view assigned follow-up bookings.'}</p>
+          {technicianID && (
+            <button type="button" className="cf-button cf-button-secondary" onClick={handleRefresh}>
+              Retry
+            </button>
+          )}
         </section>
       ) : followUps.length === 0 ? (
         <section className="follow-up-empty-state follow-up-empty-state-page" role="status">
           <span className="follow-up-empty-icon" aria-hidden="true"><LoopIcon /></span>
           <h3>No follow-up visits yet.</h3>
-          <p>Flag “Follow-up required” when submitting a service report — the return visit is created automatically and appears here.</p>
+          <p>No follow-up bookings were returned for this technician.</p>
         </section>
       ) : filtered.length === 0 ? (
         <section className="follow-up-empty-state follow-up-empty-state-page" role="status">
@@ -201,8 +239,17 @@ function TechnicianFollowUp() {
       ) : (
         /* Groups */
         <div className="follow-up-groups">
-          {visibleGroups.map((group) => {
-            const records = filtered.filter((r) => matchesGroup(r.status, group.status))
+          {outsideGroupCount > 0 && (
+            <div className="follow-up-group-empty" role="status">
+              <p>
+                {shownCount === 0
+                  ? `All matching visits (${outsideGroupCount}) are outside the current status groups.`
+                  : `${outsideGroupCount} additional matching ${outsideGroupCount === 1 ? 'visit is' : 'visits are'} outside the current status groups.`}
+              </p>
+            </div>
+          )}
+          {groupedVisits.map((group) => {
+            const { records } = group
             return (
               <section className={`follow-up-group follow-up-group-${group.tone}`}
                 aria-labelledby={`follow-up-group-${group.tone}`} key={group.status}>
@@ -273,8 +320,8 @@ function TechnicianFollowUp() {
       )}
 
       <footer className="follow-up-page-footer">
-        <span>Showing <strong>{filtered.length}</strong> of <strong>{followUps.length}</strong> return visits</span>
-        <span><span className="duty-dot-pulse" aria-hidden="true" /> Live sync active</span>
+        <span>Showing <strong>{displayCount(shownCount)}</strong> of <strong>{displayCount(followUps.length)}</strong> return visits</span>
+        <span>{isLoading ? 'Loading bookings…' : bookingsAvailable ? 'Refresh to check for updates' : 'Booking data unavailable'}</span>
       </footer>
 
       {/* Detail modal */}

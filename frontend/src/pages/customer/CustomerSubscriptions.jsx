@@ -6,49 +6,9 @@ import {
   Icon,
   SnowfieldBackdrop,
 } from "../../components/customer/CustomerIcons";
-import { formatDate, formatLongDate, formatMoney } from "../../data/customer/customerSelectors";
+import { formatMoney } from "../../data/customer/customerSelectors";
 import { useAuth } from "../../context/AuthContext";
-
-//this page was made by giving the dashboard script to geimini and asking it to recreate for subscriptions, im surprised it works so well
-
-// Dummy Subscription Data, scrapping this
-const DUMMY_SUBSCRIPTIONS = [
-  {
-    subscription_id: "SUB-1001",
-    plan_name: "Quarterly Aircon Care Plan",
-    status: "Active", // Active, Paused, Cancelled, Expired
-    billing_cycle: "Quarterly",
-    price: 120.0,
-    start_date: "2025-01-15",
-    next_billing_date: "2026-04-15",
-    next_service_date: "2026-04-20",
-    coverage_units: 3,
-    included_services: [
-      "Filter cleaning & chemical flush",
-      "Free priority booking slot",
-      "15% off spare part replacements",
-      "30-day workmanship guarantee",
-    ],
-    auto_renew: true,
-  },
-  {
-    subscription_id: "SUB-1002",
-    plan_name: "Bi-Annual Maintenance Shield",
-    status: "Paused",
-    billing_cycle: "Half-Yearly",
-    price: 85.0,
-    start_date: "2024-06-01",
-    next_billing_date: "2026-06-01",
-    next_service_date: "2026-06-10",
-    coverage_units: 1,
-    included_services: [
-      "Basic aircon routine servicing",
-      "Gas top-up discount",
-      "Standard response time",
-    ],
-    auto_renew: false,
-  },
-];
+import { getMySubscriptions } from "../../api/customerApi";
 
 const CustomerSubscriptions = () => {
   const navigate = useNavigate();
@@ -59,20 +19,23 @@ const CustomerSubscriptions = () => {
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("all"); // 'all' | 'active' | 'inactive'
 
-  // Simulate API fetch using dummy data
+  // Real data — same endpoint the dashboard subscriptions panel uses
   useEffect(() => {
     let alive = true;
-    const timer = setTimeout(() => {
-      if (alive) {
-        setSubscriptions(DUMMY_SUBSCRIPTIONS);
-        setLoading(false);
+    const load = async () => {
+      try {
+        const res = await getMySubscriptions();
+        if (!alive) return;
+        if (res && res.success) setSubscriptions(res.subscriptions || []);
+        else setError((res && res.message) || "Could not load subscriptions");
+      } catch (err) {
+        if (alive) setError(err.message || "Server error");
+      } finally {
+        if (alive) setLoading(false);
       }
-    }, 400);
-
-    return () => {
-      alive = false;
-      clearTimeout(timer);
     };
+    load();
+    return () => { alive = false; };
   }, []);
 
   const activeSubscriptions = useMemo(
@@ -85,6 +48,16 @@ const CustomerSubscriptions = () => {
     if (activeTab === "inactive") return subscriptions.filter((s) => s.status !== "Active");
     return subscriptions;
   }, [subscriptions, activeTab]);
+
+  // ✅ Real stats (no billing/expiry columns exist yet, so we show what we actually have)
+  const coveredServiceCount = useMemo(
+    () => new Set(subscriptions.flatMap((s) => s.services_included || [])).size,
+    [subscriptions]
+  );
+  const totalPlanValue = useMemo(
+    () => subscriptions.reduce((acc, s) => acc + Number(s.price || 0), 0),
+    [subscriptions]
+  );
 
   const firstName = (user?.customer_name || "there").split(" ")[0];
 
@@ -118,10 +91,10 @@ const CustomerSubscriptions = () => {
           <h1>My Subscriptions</h1>
           <p>
             {activeSubscriptions.length > 0
-              ? `Hi ${firstName}, you currently have ${activeSubscriptions.length} active subscription plan${
+              ? `Hi ${firstName}, you currently have ${activeSubscriptions.length} active package${
                   activeSubscriptions.length > 1 ? "s" : ""
                 } keeping your aircon units running efficiently.`
-              : `Hi ${firstName}, you don't have any active subscription plans at the moment.`}
+              : `Hi ${firstName}, you don't have any active packages at the moment.`}
           </p>
           <div className="cust-banner-actions">
             <button
@@ -151,39 +124,25 @@ const CustomerSubscriptions = () => {
           </div>
           <p className="cust-stat-label">Active plans</p>
           <p className="cust-stat-value">{activeSubscriptions.length}</p>
-          <p className="cust-stat-note">Auto-renewing recurring care</p>
+          <p className="cust-stat-note">Package purchases in your account</p>
         </article>
 
         <article className="cust-stat">
           <div className="cust-stat-icon">
-            <Icon name="calendar" size={17} />
+            <Icon name="snowflake" size={17} />
           </div>
-          <p className="cust-stat-label">Next servicing date</p>
-          <p className="cust-stat-value">
-            {activeSubscriptions[0]?.next_service_date
-              ? formatDate(activeSubscriptions[0].next_service_date)
-              : "N/A"}
-          </p>
-          <p className="cust-stat-note">
-            {activeSubscriptions[0] ? activeSubscriptions[0].plan_name : "No upcoming service"}
-          </p>
+          <p className="cust-stat-label">Services covered</p>
+          <p className="cust-stat-value">{coveredServiceCount}</p>
+          <p className="cust-stat-note">Unique services across your plans</p>
         </article>
 
         <article className="cust-stat cust-stat-warning">
           <div className="cust-stat-icon">
             <Icon name="receipt" size={17} />
           </div>
-          <p className="cust-stat-label">Next payment</p>
-          <p className="cust-stat-value">
-            {activeSubscriptions[0]
-              ? formatMoney(activeSubscriptions[0].price)
-              : formatMoney(0)}
-          </p>
-          <p className="cust-stat-note">
-            {activeSubscriptions[0]?.next_billing_date
-              ? `Due ${formatDate(activeSubscriptions[0].next_billing_date)}`
-              : "No upcoming billing"}
-          </p>
+          <p className="cust-stat-label">Total plan value</p>
+          <p className="cust-stat-value">{formatMoney(totalPlanValue)}</p>
+          <p className="cust-stat-note">One-time package payments</p>
         </article>
       </section>
 
@@ -195,7 +154,7 @@ const CustomerSubscriptions = () => {
             <div className="cust-panel-head" style={{ alignItems: "center" }}>
               <div>
                 <h2>Your Plan Details</h2>
-                <p>Manage subscription renewal, services, and billing cycle</p>
+                <p>What each package covers and what you paid</p>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <button
@@ -223,7 +182,7 @@ const CustomerSubscriptions = () => {
                   style={{ padding: "4px 12px", fontSize: 12 }}
                   onClick={() => setActiveTab("inactive")}
                 >
-                  Paused/Ended
+                  Ended
                 </button>
               </div>
             </div>
@@ -232,7 +191,7 @@ const CustomerSubscriptions = () => {
               <div style={{ display: "flex", flexDirection: "column", gap: 18, marginTop: 12 }}>
                 {filteredSubscriptions.map((sub) => (
                   <div
-                    key={sub.subscription_id}
+                    key={sub.package_id}
                     style={{
                       border: "1px solid var(--border-color, #e2e8f0)",
                       borderRadius: 12,
@@ -259,7 +218,7 @@ const CustomerSubscriptions = () => {
                           <i /> {sub.status}
                         </span>
                         <h3 style={{ margin: "4px 0 2px", fontSize: 16, fontWeight: 600 }}>
-                          {sub.plan_name}
+                          {sub.package_name}
                         </h3>
                         <p
                           style={{
@@ -268,7 +227,8 @@ const CustomerSubscriptions = () => {
                             color: "var(--text-secondary, #64748b)",
                           }}
                         >
-                          Plan ID: {sub.subscription_id} · Covers {sub.coverage_units} Unit(s)
+                          Plan ID: PKG-{sub.package_id} · Includes{" "}
+                          {(sub.services_included || []).length} service(s)
                         </p>
                       </div>
                       <div style={{ textAlign: "right" }}>
@@ -282,38 +242,26 @@ const CustomerSubscriptions = () => {
                             color: "var(--text-secondary, #64748b)",
                           }}
                         >
-                          / {sub.billing_cycle.toLowerCase()}
+                          one-time
                         </p>
                       </div>
                     </div>
 
-                    {/* Metadata Grid */}
-                    <div className="cust-meta-grid" style={{ margin: "16px 0", gap: 12 }}>
-                      <div className="cust-meta">
-                        <Icon name="calendar" size={16} />
-                        <div>
-                          <p className="cust-meta-label">Next Service</p>
-                          <p className="cust-meta-value">
-                            {sub.next_service_date
-                              ? formatLongDate(sub.next_service_date)
-                              : "Not scheduled"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="cust-meta">
-                        <Icon name="receipt" size={16} />
-                        <div>
-                          <p className="cust-meta-label">Next Renewal</p>
-                          <p className="cust-meta-value">
-                            {sub.next_billing_date
-                              ? formatDate(sub.next_billing_date)
-                              : "N/A"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                    {/* Package description */}
+                    {sub.description && (
+                      <p
+                        style={{
+                          margin: "12px 0",
+                          fontSize: 13,
+                          lineHeight: 1.6,
+                          color: "var(--text-main)",
+                        }}
+                      >
+                        {sub.description}
+                      </p>
+                    )}
 
-                    {/* Plan Features / Coverage */}
+                    {/* Services covered */}
                     <div
                       style={{
                         padding: 12,
@@ -332,21 +280,33 @@ const CustomerSubscriptions = () => {
                           color: "var(--text-secondary, #64748b)",
                         }}
                       >
-                        Plan Coverage Includes
+                        Services Covered
                       </p>
-                      <ul
-                        style={{
-                          margin: 0,
-                          paddingLeft: 18,
-                          fontSize: 13,
-                          color: "var(--text-main)",
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        {sub.included_services.map((service, idx) => (
-                          <li key={idx}>{service}</li>
-                        ))}
-                      </ul>
+                      {(sub.services_included || []).length > 0 ? (
+                        <ul
+                          style={{
+                            margin: 0,
+                            paddingLeft: 18,
+                            fontSize: 13,
+                            color: "var(--text-main)",
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          {sub.services_included.map((service, idx) => (
+                            <li key={idx}>{service}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: 13,
+                            color: "var(--text-secondary, #64748b)",
+                          }}
+                        >
+                          Contact us for the full list of covered services.
+                        </p>
+                      )}
                     </div>
 
                     {/* Action Row */}
@@ -368,8 +328,8 @@ const CustomerSubscriptions = () => {
                           gap: 6,
                         }}
                       >
-                        <Icon name="clock" size={14} />
-                        Auto-renew: {sub.auto_renew ? "On" : "Off"}
+                        <Icon name="checkCircle" size={14} />
+                        One-time purchase
                       </span>
                       <div style={{ display: "flex", gap: 8 }}>
                         <button
@@ -380,9 +340,9 @@ const CustomerSubscriptions = () => {
                         </button>
                         <button
                           className="dash-btn dash-btn-ghost"
-                          onClick={() => alert(`Manage options for ${sub.subscription_id}`)}
+                          onClick={() => navigate("/customer/service-catalog")}
                         >
-                          Manage plan
+                          Browse more plans
                         </button>
                       </div>
                     </div>
@@ -454,8 +414,8 @@ const CustomerSubscriptions = () => {
                 lineHeight: 1.6,
               }}
             >
-              Have questions about pausing, upgrading, or changing your billing method? Contact our
-              support team.
+              Have questions about your package coverage or what's included? Contact our support
+              team.
             </p>
             <div className="cust-meta" style={{ marginBottom: 12 }}>
               <Icon name="phone" size={16} />

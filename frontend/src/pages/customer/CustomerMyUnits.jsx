@@ -1,11 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AirconUnitArt,
   HealthRing,
   Icon,
 } from "../../components/customer/CustomerIcons";
-import { MY_BOOKINGS, MY_UNITS } from "../../data/customer/customerMockData";
+import { getMyBookings, getMyUnits } from "../../api/customerApi";
 import {
   formatDate,
   getUnitsDueSoon,
@@ -20,15 +20,54 @@ const ART_TONE_BY_HEALTH = { success: "cool", warning: "warn", danger: "alert" }
 
 const CustomerMyUnits = () => {
   const navigate = useNavigate();
+  const [units, setUnits] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [historyUnit, setHistoryUnit] = useState(null);
 
-  const dueSoon = useMemo(() => getUnitsDueSoon(), []);
+  useEffect(() => {
+    let alive = true;
+    Promise.all([getMyUnits(), getMyBookings()])
+      .then(([unitRes, bookingRes]) => {
+        if (!alive) return;
+        setUnits(unitRes.units || []);
+        setBookings(bookingRes.bookings || []);
+      })
+      .catch((err) => alive && setError(err.message))
+      .finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+  }, []);
 
-  // Visits that touched a given unit, newest first.
+  const dueSoon = useMemo(() => getUnitsDueSoon(units), [units]);
+
+  // NOTE: the DB has no booking-to-unit link column, so a unit's history
+  // lists the account's visits (newest first), matching the Bookings page.
   const historyFor = (unit) =>
-    MY_BOOKINGS.filter((booking) => booking.unit_ids.includes(unit.installed_ID)).sort((a, b) =>
-      b.date.localeCompare(a.date)
+    bookings
+      .filter((booking) => (booking.unit_ids || []).includes(unit.installed_ID))
+      .slice()
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+  if (loading) {
+    return (
+      <section className="cust-panel" style={{ padding: 48, textAlign: "center" }}>
+        <p style={{ color: "var(--text-secondary)" }}>Loading your units…</p>
+      </section>
     );
+  }
+
+  if (error) {
+    return (
+      <section className="cust-panel" style={{ padding: 48, textAlign: "center" }}>
+        <h2>Couldn't load your units</h2>
+        <p style={{ color: "var(--text-secondary)", margin: "8px 0 16px" }}>{error}</p>
+        <button className="dash-btn dash-btn-primary" onClick={() => window.location.reload()}>
+          Try again
+        </button>
+      </section>
+    );
+  }
 
   return (
     <>
@@ -38,10 +77,7 @@ const CustomerMyUnits = () => {
           <p>Every unit registered to your account, with its servicing history.</p>
         </div>
         <div className="cust-head-actions">
-          <button className="dash-btn dash-btn-outline">
-            <Icon name="plus" size={13} /> Register a unit
-          </button>
-          <button className="dash-btn dash-btn-primary" onClick={() => navigate("/customer/book")}>
+          <button className="dash-btn dash-btn-primary" onClick={() => navigate("/customer/book-service")}>
             Book servicing
           </button>
         </div>
@@ -62,7 +98,7 @@ const CustomerMyUnits = () => {
       )}
 
       <div className="cust-unit-grid">
-        {MY_UNITS.map((unit) => {
+        {units.map((unit) => {
           const overdue = isUnitOverdue(unit);
           const tone = healthTone(unit.health);
 
@@ -91,19 +127,15 @@ const CustomerMyUnits = () => {
                 <div className="cust-unit-rows">
                   <div className="cust-unit-row">
                     <span className="cust-unit-row-label">Type</span>
-                    <span className="cust-unit-row-value">{unit.type}</span>
+                    <span className="cust-unit-row-value">{unit.type || "—"}</span>
                   </div>
                   <div className="cust-unit-row">
-                    <span className="cust-unit-row-label">Capacity</span>
-                    <span className="cust-unit-row-value">{unit.capacity}</span>
-                  </div>
-                  <div className="cust-unit-row">
-                    <span className="cust-unit-row-label">Installed</span>
-                    <span className="cust-unit-row-value">{formatDate(unit.installed_on)}</span>
+                    <span className="cust-unit-row-label">Serial number</span>
+                    <span className="cust-unit-row-value">{unit.serial_number || "—"}</span>
                   </div>
                   <div className="cust-unit-row">
                     <span className="cust-unit-row-label">Last serviced</span>
-                    <span className="cust-unit-row-value">{formatDate(unit.last_serviced)}</span>
+                    <span className="cust-unit-row-value">{formatDate(unit.last_service)}</span>
                   </div>
                   <div className="cust-unit-row">
                     <span className="cust-unit-row-label">Next due</span>
@@ -112,12 +144,6 @@ const CustomerMyUnits = () => {
                       style={overdue ? { color: "var(--warning)" } : undefined}
                     >
                       {formatDate(unit.next_due)}
-                    </span>
-                  </div>
-                  <div className="cust-unit-row">
-                    <span className="cust-unit-row-label">Warranty</span>
-                    <span className="cust-unit-row-value">
-                      {unit.warranty_until ? `Until ${formatDate(unit.warranty_until)}` : "Expired"}
                     </span>
                   </div>
                   <div className="cust-unit-row">
@@ -136,7 +162,7 @@ const CustomerMyUnits = () => {
                 </button>
                 <button
                   className="dash-btn dash-btn-primary"
-                  onClick={() => navigate(`/customer/book?unit=${unit.installed_ID}`)}
+                  onClick={() => navigate("/customer/book-service")}
                 >
                   Book service
                 </button>
@@ -154,17 +180,23 @@ const CustomerMyUnits = () => {
                     Service history
                   </p>
                   <div className="cust-timeline">
-                    {historyFor(unit).map((booking) => (
-                      <div className="cust-timeline-item tone-success" key={booking.booking_ID}>
-                        <p className="cust-timeline-date">{formatDate(booking.date)}</p>
-                        <p className="cust-timeline-title">{booking.service_name}</p>
-                        <p className="cust-timeline-note">
-                          {booking.technician
-                            ? `${booking.technician.name} · ${booking.status}`
-                            : booking.status}
-                        </p>
-                      </div>
-                    ))}
+                    {historyFor(unit).length > 0 ? (
+                      historyFor(unit).map((booking) => (
+                        <div className="cust-timeline-item tone-success" key={booking.booking_ID}>
+                          <p className="cust-timeline-date">{formatDate(booking.date)}</p>
+                          <p className="cust-timeline-title">{booking.service_name}</p>
+                          <p className="cust-timeline-note">
+                            {booking.technician
+                              ? `${booking.technician.name} · ${booking.status}`
+                              : booking.status}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
+                        No visits recorded yet.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

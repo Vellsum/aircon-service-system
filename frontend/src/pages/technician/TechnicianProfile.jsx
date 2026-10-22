@@ -1,13 +1,8 @@
 // =============================================================================
 // TechnicianProfile.jsx
-// Updated: 6 Oct 2026
-//   • Rating now comes from /api/technician/profile (was hardcoded "5.0 ★").
-//     0 or unrated displays "Not rated yet" — ratings only exist once a
-//     customer rates a completed booking.
-//   • ⚠️ Hooks moved ABOVE the `if (!user)` early return — placing them after
-//     it violates the Rules of Hooks and crashes React when auth loads.
+// Read-only account information and identity-matched technician profile.
 // =============================================================================
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext';
 
@@ -57,36 +52,204 @@ function InformationRow({ label, value, unavailable = false }) {
   );
 }
 
-// 6 Oct 2026 — shared display rule: 0 / null / unrated → "Not rated yet"
-const ratingDisplay = (rating) =>
-  rating != null && Number(rating) > 0 ? `${Number(rating).toFixed(1)} ★` : 'Not rated yet';
+const validTechnicianID = (value) => {
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+};
+
+const profileText = (value) =>
+  typeof value === 'string' && value.trim() ? value.trim() : 'Not available';
+
+// The API returns a numeric rating; only an explicit zero means unrated.
+const ratingDisplay = (rating) => {
+  if (typeof rating !== 'number' || !Number.isFinite(rating) || rating < 0 || rating > 5) {
+    return 'Unavailable';
+  }
+  return rating === 0 ? 'Not rated yet' : `${rating.toFixed(1)} ★`;
+};
+
+const assignmentCount = (value, available) =>
+  available && Number.isSafeInteger(value) && value >= 0 ? value : '—';
+
+// UI preparation only: drafts are never persisted and neither form can submit.
+function ProfilePreparation({ session, profile, ready, identityReady }) {
+  const scope = useMemo(() => ({ session, profile, ready, identityReady }), [session, profile, ready, identityReady]);
+  const [draft, setDraft] = useState(null);
+  const formRef = useRef(null);
+  const profileTrigger = useRef(null);
+  const passwordTrigger = useRef(null);
+  // Mask old drafts during render, before the cleanup effect can run.
+  const activeDraft = draft?.scope === scope
+    && (draft.kind === 'profile' ? ready : identityReady) ? draft : null;
+
+  useEffect(() => { setDraft(null); }, [scope]);
+  useEffect(() => {
+    if (activeDraft) formRef.current?.querySelector('input')?.focus();
+  }, [activeDraft?.kind]);
+  // Unmount discards this component's state; no storage or external draft cache exists.
+
+  const cancel = (kind) => {
+    setDraft(null);
+    (kind === 'profile' ? profileTrigger : passwordTrigger).current?.focus();
+  };
+  const open = (kind) => {
+    if (!(kind === 'profile' ? ready : identityReady)) return;
+    if (activeDraft?.kind === kind) {
+      cancel(kind);
+      return;
+    }
+    setDraft({
+      scope,
+      kind,
+      values: kind === 'profile'
+        ? { name: typeof profile?.technicianName === 'string' ? profile.technicianName.trim() : '', phone: '', email: '' }
+        : { currentPassword: '', newPassword: '', confirmation: '' },
+    });
+  };
+  const updateField = (field, value) => {
+    setDraft((current) => current?.scope === scope
+      ? { ...current, values: { ...current.values, [field]: value } } : current);
+  };
+  const preventSubmission = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const sections = [
+    {
+      kind: 'profile', title: 'Edit Profile', Icon: IdentityIcon, trigger: profileTrigger,
+      notice: 'Profile updates are not available yet.', action: 'Save Changes',
+      fields: [
+        { key: 'name', label: 'Technician name', type: 'text', autoComplete: 'name' },
+        { key: 'phone', label: 'Phone', type: 'tel', autoComplete: 'tel' },
+        { key: 'email', label: 'Email', type: 'email', autoComplete: 'email' },
+      ],
+    },
+    {
+      kind: 'password', title: 'Change Password', Icon: AccountIcon, trigger: passwordTrigger,
+      notice: 'Password changes are not available yet.', action: 'Change Password',
+      fields: [
+        { key: 'currentPassword', label: 'Current password', type: 'password', autoComplete: 'current-password' },
+        { key: 'newPassword', label: 'New password', type: 'password', autoComplete: 'new-password' },
+        { key: 'confirmation', label: 'Confirm new password', type: 'password', autoComplete: 'new-password' },
+      ],
+    },
+  ];
+
+  return (
+    <div className="tech-profile-record-grid">
+      {sections.map(({ kind, title, Icon, trigger, notice, action, fields }) => {
+        const isOpen = activeDraft?.kind === kind;
+        const prefix = `profile-preparation-${kind}`;
+        return (
+          <section key={kind} className="tech-profile-record-card align-self-start" aria-labelledby={`${prefix}-title`}>
+            <header>
+              <span className="tech-profile-section-icon" aria-hidden="true"><Icon /></span>
+              <div className="flex-grow-1">
+                <h2 id={`${prefix}-title`}>{title}</h2>
+              </div>
+            </header>
+            <div className="p-3">
+              <p className="small mb-3" id={`${prefix}-notice`}>{notice}</p>
+              <button
+                ref={trigger} type="button" className="cf-button cf-button-secondary"
+                disabled={!(kind === 'profile' ? ready : identityReady)} aria-expanded={isOpen} aria-controls={`${prefix}-form`}
+                aria-describedby={`${prefix}-notice`} onClick={() => open(kind)}
+              >{title}</button>
+              <div id={`${prefix}-form`} hidden={!isOpen}>
+                {isOpen && (
+                  <form ref={formRef} className="mt-3" noValidate onSubmit={preventSubmission} aria-labelledby={`${prefix}-title`} aria-describedby={`${prefix}-notice`}>
+                    {kind === 'profile' && (
+                      <p className="small" id={`${prefix}-contact`}>Current phone and email are unavailable.</p>
+                    )}
+                    {fields.map(({ key, label, type, autoComplete }) => (
+                      <div className="mb-3" key={key}>
+                        <label className="form-label" htmlFor={`${prefix}-${key}`}>{label}</label>
+                        <input
+                          className="form-control" id={`${prefix}-${key}`} type={type} autoComplete={autoComplete}
+                          value={activeDraft.values[key]} onChange={(event) => updateField(key, event.target.value)}
+                          aria-describedby={kind === 'profile' && key !== 'name' ? `${prefix}-contact` : `${prefix}-notice`}
+                        />
+                      </div>
+                    ))}
+                    <div className="d-flex flex-wrap gap-2">
+                      <button type="button" className="cf-button cf-button-quiet" onClick={() => cancel(kind)}>Cancel</button>
+                      <button type="submit" className="cf-button cf-button-primary opacity-50" disabled aria-describedby={`${prefix}-notice`}>{action}</button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
 
 function TechnicianProfile() {
-  const { user } = useAuth();
-  const { workload } = useTechnicianWorkflow();
-
-  // ─────────────────────────────────────────────────────────────
-  // 6 Oct 2026 — real rating from the technician record.
-  // ⚠️ Hooks MUST run before any early return (Rules of Hooks).
-  // ─────────────────────────────────────────────────────────────
-  const [profileRating, setProfileRating] = useState(null);
+  const { user, token, initializing } = useAuth();
+  const { technicianID: resolvedID, identitySource, workload, loading, error, dataAvailable } = useTechnicianWorkflow();
+  const sessionID = validTechnicianID(user?.technician_ID);
+  // Do not use the context's anonymous development fallback for this account page.
+  const technicianID = !initializing && identitySource === 'authenticated'
+    && sessionID === validTechnicianID(resolvedID) ? sessionID : null;
+  const preparationSession = useMemo(
+    () => ({}), [technicianID, identitySource, token, initializing, user?.user_ID]
+  );
+  const [profileState, setProfileState] = useState({});
   useEffect(() => {
-    let alive = true;
+    if (!technicianID || !token) return;
+    const controller = new AbortController();
+    const update = (status, profile = null) => {
+      if (!controller.signal.aborted) {
+        setProfileState({ technicianID, token, status, profile });
+      }
+    };
+    update('loading');
     (async () => {
       try {
-        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-        const techId = storedUser.technician_ID || storedUser.id || storedUser.user_ID || 1;
-        const token = localStorage.getItem('token') || '';
-        const res = await fetch(`http://localhost:5000/api/technician/profile?techId=${techId}`,
-          { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
-        const data = await res.json();
-        if (alive && res.ok && data.success && data.profile) {
-          setProfileRating(data.profile.technicianRating);
+        const res = await fetch(`http://localhost:5000/api/technician/profile?techId=${technicianID}`, {
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          update('error');
+          return;
         }
-      } catch { /* non-critical */ }
+        const data = await res.json();
+        if (data?.success !== true) {
+          update('error');
+        } else if (!data.profile || validTechnicianID(data.profile.technicianID) !== technicianID) {
+          update('unavailable');
+        } else {
+          update('success', data.profile);
+        }
+      } catch {
+        update('error');
+      }
     })();
-    return () => { alive = false; };
-  }, []);
+    return () => controller.abort();
+  }, [technicianID, token]);
+
+  // Mask the previous response immediately when the session changes, before effects run.
+  const status = initializing ? 'loading'
+    : !technicianID || !token ? 'identity'
+    : profileState.technicianID === technicianID && profileState.token === token
+      ? profileState.status : 'loading';
+  const profile = status === 'success' ? profileState.profile : null;
+  const missingValue = status === 'loading' ? 'Loading…'
+    : status === 'error' ? 'Request failed' : 'Unavailable';
+  const technicianName = profile ? profileText(profile.technicianName) : missingValue;
+  const specialty = profile ? profileText(profile.specialty) : missingValue;
+  const rating = profile ? ratingDisplay(profile.technicianRating) : missingValue;
+  const assignmentsAvailable = Boolean(technicianID && token && !loading && !error && dataAvailable);
+  const profileMessage = status === 'loading' ? 'Loading technician profile…'
+    : status === 'identity' ? 'Technician identity is unavailable. No profile has been requested.'
+    : status === 'error' ? 'Technician profile could not be loaded. Profile details are unavailable.'
+    : status === 'unavailable' ? 'A matching technician profile is unavailable.'
+    : 'Technician details are from the matching profile response; account details are from the current session.';
 
   // Early return — only AFTER all hooks have run
   if (!user) {
@@ -94,16 +257,15 @@ function TechnicianProfile() {
       <div className="technician-profile-page">
         <section className="tech-profile-empty" role="status">
           <h1>Profile</h1>
-          <p>Technician profile information is not available.</p>
+          <p>{profileMessage}</p>
         </section>
       </div>
     );
   }
 
-  const technicianName = user.username || 'Technician';
-  const initials = technicianName.charAt(0).toUpperCase();
-  const technicianID = user.technician_ID || user.id || 'N/A';
-  const userID = user.user_ID || user.id || 'N/A';
+  const initials = profile && profileText(profile.technicianName) !== 'Not available'
+    ? technicianName.charAt(0).toUpperCase() : '—';
+  const userID = user.user_ID ?? 'Unavailable';
 
   return (
     <div className="technician-profile-page">
@@ -132,14 +294,10 @@ function TechnicianProfile() {
             <p>Field Technician</p>
           </div>
           <div className="tech-profile-identity-meta">
-            <span>Technician ID {technicianID}</span>
-            <span className="tech-profile-account-status">
-              <i aria-hidden="true" />
-              Active
-            </span>
+            <span>Technician ID {technicianID ?? 'Unavailable'}</span>
           </div>
-          <p className="tech-profile-identity-note">
-            Identity details are shown from the current user and technician records.
+          <p className="tech-profile-identity-note" role="status">
+            {profileMessage}
           </p>
         </aside>
 
@@ -154,10 +312,10 @@ function TechnicianProfile() {
                 </div>
               </header>
               <dl className="tech-profile-information-list">
-                <InformationRow label="Username" value={user.username || 'N/A'} />
+                <InformationRow label="Username" value={profileText(user.username)} />
                 <InformationRow label="User ID" value={userID} />
-                <InformationRow label="Account Type" value={user.accountType || user.role || 'Technician'} />
-                <InformationRow label="Account Status" value="Active" />
+                <InformationRow label="Account Type" value={profileText(user.accountType || user.role)} />
+                <InformationRow label="Account Status" value="Unavailable" unavailable />
               </dl>
             </section>
 
@@ -171,10 +329,9 @@ function TechnicianProfile() {
               </header>
               <dl className="tech-profile-information-list">
                 <InformationRow label="Technician Name" value={technicianName} />
-                <InformationRow label="Technician ID" value={technicianID} />
-                {/* 6 Oct 2026: live rating — 0/unrated shows "Not rated yet" */}
-                <InformationRow label="Rating" value={ratingDisplay(profileRating)} />
-                <InformationRow label="Specialty" value="Aircon Servicing" />
+                <InformationRow label="Technician ID" value={technicianID ?? 'Unavailable'} />
+                <InformationRow label="Rating" value={rating} />
+                <InformationRow label="Specialty" value={specialty} />
               </dl>
             </section>
           </div>
@@ -191,13 +348,13 @@ function TechnicianProfile() {
               <dl>
                 <div>
                   <dt>Assigned Jobs</dt>
-                  <dd>{workload?.assignedJobs || 0}</dd>
-                  <small>Current booking and job relationships</small>
+                  <dd>{assignmentCount(workload?.assignedJobs, assignmentsAvailable)}</dd>
+                  <small>{loading ? 'Loading current assignments…' : !assignmentsAvailable ? 'Current assignments unavailable' : 'Current returned assignments'}</small>
                 </div>
                 <div>
-                  <dt>Completed Jobs</dt>
-                  <dd>{workload?.byStatus?.completed || 0}</dd>
-                  <small>Recorded in technician job history</small>
+                  <dt>Completed Assignments</dt>
+                  <dd>{assignmentCount(workload?.byStatus?.completed, assignmentsAvailable)}</dd>
+                  <small>{loading ? 'Loading current assignments…' : !assignmentsAvailable ? 'Current assignments unavailable' : 'Completed within current assignments; not a history total'}</small>
                 </div>
               </dl>
             </section>
@@ -221,6 +378,11 @@ function TechnicianProfile() {
               </dl>
             </aside>
           </div>
+          <ProfilePreparation
+            session={preparationSession} profile={profile}
+            ready={Boolean(technicianID && token && profile)}
+            identityReady={Boolean(technicianID && token)}
+          />
         </div>
       </div>
     </div>

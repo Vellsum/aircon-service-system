@@ -24,49 +24,82 @@
 //      service report is blocked server-side — see technicianController).
 // =============================================================================
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import JobDetailsModal from '../../components/technician/JobDetailsModal'
 import "../../styles/technician.css";
 import { useAuth } from '../../context/AuthContext'
+import { evaluateJobStart } from '../../utils/jobSchedule'
 
 /* ---------------------------------------------------------------------------
  * Helpers — added/updated 6 Oct 2026
  * ------------------------------------------------------------------------- */
 
-// Local date as YYYY-MM-DD (en-CA). 6 Oct 2026: replaced toISOString()
-// which was UTC-based and wrong before 8am SGT.
-const getTodayStr = () => new Date().toLocaleDateString('en-CA')
+function getLocalDateKey(date = new Date()) {
+  return `${String(date.getFullYear()).padStart(4, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 
-// 6 Oct 2026: bulletproof time formatter — fixes the "undefined AM" bug.
-// Handles: null, "14:00:00", "14:00", ISO "....T14:00:00", Date objects,
-// "2:00 PM", and garbage. Never returns a string containing "undefined".
-function formatTimeDisplay(raw, fallback = '09:00 AM') {
-  if (raw === null || raw === undefined) return fallback
-  let s = String(raw).trim()
-  if (!s || s.toLowerCase().includes('undefined') || s.toLowerCase().includes('null')) return fallback
+function getAppointmentDateKey(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const [year, month, day] = value.split('-').map(Number)
+  if (year < 1) return null
+  const date = new Date(2000, 0, 1, 12)
+  date.setFullYear(year, month - 1, day)
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? value : null
+}
 
-  // Long-form Date string (no "T", no leading "HH:") — parse as a Date
-  if (!s.includes(':') && !s.includes('T')) {
-    const d = new Date(s)
-    if (isNaN(d.getTime())) return fallback
-    const h = d.getHours(), m = d.getMinutes()
-    return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
+function useCalendarDay() {
+  const [today, setToday] = useState(() => getLocalDateKey())
+  useEffect(() => {
+    let timer
+    let active = true
+    const syncDay = () => {
+      if (!active) return
+      window.clearTimeout(timer)
+      const now = new Date()
+      setToday(getLocalDateKey(now))
+      const midnight = new Date(now)
+      midnight.setHours(24, 0, 0, 0)
+      timer = window.setTimeout(syncDay, Math.max(1, midnight.getTime() - now.getTime()))
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') syncDay() }
+    window.addEventListener('focus', syncDay)
+    document.addEventListener('visibilitychange', onVisible)
+    syncDay()
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+      window.removeEventListener('focus', syncDay)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
+  return today
+}
+
+// Presentation only: missing/invalid times are unavailable, never invented.
+function formatTimeDisplay(raw) {
+  const unavailable = 'Time unavailable'
+  if (raw instanceof Date) {
+    if (!Number.isFinite(raw.getTime())) return unavailable
+    const h = raw.getHours()
+    return `${h % 12 || 12}:${String(raw.getMinutes()).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
   }
+  if (typeof raw !== 'string' || !raw.trim()) return unavailable
+  let s = raw.trim()
 
-  // ISO datetime — keep just the clock part
-  if (s.includes('T')) s = s.split('T')[1].slice(0, 5)
-
-  // 24-hour clock → 12-hour display
-  if (/^\d{1,2}:\d{2}/.test(s) && !/AM|PM/i.test(s)) {
-    const [h, m] = s.split(':').map(Number)
-    if (isNaN(h) || isNaN(m)) return fallback
-    return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
+  // Preserve the returned clock for ISO strings, as before; do not shift timezone.
+  if (s.includes('T')) {
+    const iso = s.match(/^\d{4}-\d{2}-\d{2}T(\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)(?:Z|[+-]\d{2}:\d{2})?$/)
+    if (!iso || !getAppointmentDateKey(s.slice(0, 10)) || !Number.isFinite(Date.parse(s))) return unavailable
+    s = iso[1]
   }
-
-  return s // already human-formatted
+  const clock = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?\s*(AM|PM)?$/i)
+  if (!clock) return unavailable
+  const h = Number(clock[1]), m = Number(clock[2]), seconds = Number(clock[3] || 0)
+  if (m > 59 || seconds > 59 || (clock[4] ? h < 1 || h > 12 : h > 23)) return unavailable
+  return clock[4] ? s : `${h % 12 || 12}:${clock[2]} ${h >= 12 ? 'PM' : 'AM'}`
 }
 
 // Short date for badges: "7 Oct"
@@ -82,138 +115,166 @@ const getFormattedLiveDate = () => {
   return new Date().toLocaleDateString('en-GB', options);
 };
 
-function TechnicianDashboard() {
-  const { user } = useAuth()
-  const [selectedJob, setSelectedJob] = useState(null)
-  const [showJobDetails, setShowJobDetails] = useState(false)
-  const [technicianJobs, setTechnicianJobs] = useState([])
-  const [techName, setTechName] = useState('Technician')
-  const [rating, setRating] = useState(null)          // 6 Oct 2026: real rating
-  const [dashboardError, setDashboardError] = useState('') // 6 Oct 2026: surface backend rules
-  useEffect(() => {
-    if (user?.username) setTechName(user.username)
-  }, [user])
-  const [loading, setLoading] = useState(true)
-  const jobDetailsTriggerRef = useRef(null)
-  const { startService, completeService } = useTechnicianWorkflow()
+function storedRatingDisplay(status, value) {
+  if (status === 'loading') return { value: 'Loading…', note: 'Loading stored profile rating' }
+  if (status === 'error') return { value: 'Request failed', note: 'Stored profile rating could not be loaded' }
+  if (status !== 'success' || typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 5) {
+    return { value: 'Unavailable', note: 'Stored profile rating unavailable' }
+  }
+  return { value: value === 0 ? 'Not rated yet' : `${value.toFixed(1)} ★`, note: 'Stored profile rating' }
+}
 
-  const todayStr = getTodayStr()
+function TechnicianDashboard() {
+  const { user, token } = useAuth()
+  const { assignedJobs: technicianJobs, technicianID, startService, completeService,
+    refreshJobs, loading, error: jobsError, dataAvailable, isTransitionPending,
+    canMutateTechnicianData, identitySource } = useTechnicianWorkflow()
+  const [selectedJobID, setSelectedJobID] = useState(null)
+  const [showJobDetails, setShowJobDetails] = useState(false)
+  const [ratingState, setRatingState] = useState({})
+  const [dashboardError, setDashboardError] = useState('') // 6 Oct 2026: surface backend rules
+  const [statusSaved, setStatusSaved] = useState(false)
+  const [refreshError, setRefreshError] = useState(null)
+  const jobDetailsTriggerRef = useRef(null)
+  const actionJobIDsRef = useRef(new Set())
+  const jobsAvailable = !loading && !jobsError && dataAvailable
+  const jobsUnavailable = !loading && !jobsAvailable
+  const canRetryJobs = Boolean(technicianID)
+  const savedRefreshMessage = 'The booking status was saved, but assignments could not be refreshed. Retry reloads the list; do not repeat the status change.'
+  const refreshWarning = refreshError || (statusSaved && jobsUnavailable ? savedRefreshMessage : null)
+  const selectedJob = useMemo(
+    () => technicianJobs.find((job) => job.job_ID === selectedJobID) || null,
+    [technicianJobs, selectedJobID],
+  )
+
+  useEffect(() => {
+    if (jobsAvailable) {
+      setStatusSaved(false)
+      setRefreshError(null)
+    }
+  }, [jobsAvailable])
+
+  const todayStr = useCalendarDay()
 
   // 6 Oct 2026 — date rules
   const isJobFuture = (job) => Boolean(job?.date) && String(job.date).slice(0, 10) > todayStr
-  const isJobToday  = (job) => Boolean(job?.date) && String(job.date).slice(0, 10) === todayStr
 
   /* -------------------------------------------------------------------------
-   * 1. HTTP GET — jobs + technician profile (for the real rating)
+   * Profile rating is independent; all jobs come from the layout provider.
    * ---------------------------------------------------------------------- */
-  const fetchDashboardJobs = useCallback(async () => {
-    setLoading(true)
-    try {
-      const token = localStorage.getItem('token') || ''
-      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-      const storedUser = JSON.parse(localStorage.getItem('user') || '{}')
-
-      // 6 Oct 2026 [BUG FIX]: technician_ID must WIN. Bookings in the DB link
-      // to user3.technician(technician_ID), NOT topUser(user_ID). Sending
-      // user_ID here was why the schedule was empty for admin-created techs.
-      const currentTechId =
-        storedUser.technician_ID || storedUser.techId || storedUser.id || storedUser.user_ID || 1
-
-      const res = await fetch(`http://localhost:5000/api/technician/jobs?techId=${currentTechId}`, { headers })
-      const data = await res.json()
-
-      if (res.ok && data.success) {
-        if (Array.isArray(data.jobs)) setTechnicianJobs(data.jobs)
-        if (data.technicianName) setTechName(data.technicianName)
-      }
-
-      // 6 Oct 2026 [DATA]: real rating from the profile endpoint
-      try {
-        const pRes = await fetch(`http://localhost:5000/api/technician/profile?techId=${currentTechId}`, { headers })
-        const pData = await pRes.json()
-        if (pRes.ok && pData.success && pData.profile) {
-          setRating(pData.profile.technicianRating ?? null)
-        }
-      } catch { /* rating is non-critical */ }
-    } catch (err) {
-      console.error('Error fetching dashboard jobs:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
   useEffect(() => {
-    fetchDashboardJobs()
-  }, [fetchDashboardJobs])
+    if (!Number.isSafeInteger(technicianID) || technicianID <= 0) return
+    const controller = new AbortController()
+    const update = (status, value = null) => {
+      if (!controller.signal.aborted) setRatingState({ technicianID, token, identitySource, status, value })
+    }
+    update('loading')
+    ;(async () => {
+      try {
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        const pRes = await fetch(`http://localhost:5000/api/technician/profile?techId=${technicianID}`, { headers, signal: controller.signal })
+        if (!pRes.ok) {
+          update('error')
+          return
+        }
+        const pData = await pRes.json()
+        if (pData?.success !== true) {
+          update('error')
+        } else if (!pData.profile || pData.profile.technicianID !== technicianID) {
+          update('unavailable')
+        } else {
+          update('success', pData.profile.technicianRating)
+        }
+      } catch {
+        update('error')
+      }
+    })()
+    return () => controller.abort()
+  }, [technicianID, token, identitySource])
+
+  // Hide the previous session's rating immediately, before the new effect runs.
+  const ratingStatus = identitySource === 'initializing' ? 'loading'
+    : !Number.isSafeInteger(technicianID) || technicianID <= 0 ? 'unavailable'
+    : ratingState.technicianID === technicianID && ratingState.token === token && ratingState.identitySource === identitySource
+      ? ratingState.status : 'loading'
+  const rating = storedRatingDisplay(ratingStatus, ratingState.value)
 
   const openJobDetails = (job) => {
     jobDetailsTriggerRef.current = document.activeElement
-    setSelectedJob(job)
+    setSelectedJobID(job.job_ID)
     setShowJobDetails(true)
+    setDashboardError('')
   }
-  const closeJobDetails = () => setShowJobDetails(false)
+  const closeJobDetails = () => {
+    setShowJobDetails(false)
+    setDashboardError('')
+  }
 
   /* -------------------------------------------------------------------------
-   * Shared PUT helper — 6 Oct 2026: surfaces backend rule violations
-   * (e.g. completing without a service report is rejected by the backend)
+   * One context transition; a subsequent refresh failure is not a failed save.
    * ---------------------------------------------------------------------- */
-  const putJobStatus = async (bookingId, status) => {
-    const token = localStorage.getItem('token') || ''
-    const res = await fetch(`http://localhost:5000/api/technician/jobs/${bookingId}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ status }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok || !data.success) throw new Error(data.message || 'Could not update the job status.')
+  const persistJobTransition = async (job, transition, failureMessage) => {
+    const jobID = job.job_ID
+    if (actionJobIDsRef.current.has(jobID) || isTransitionPending(jobID)) return
+    if (!canMutateTechnicianData || !jobsAvailable) {
+      setDashboardError('Status updates require an authenticated Technician session and available assignments.')
+      return
+    }
+    actionJobIDsRef.current.add(jobID)
+    setDashboardError('')
+    setStatusSaved(false)
+    setRefreshError(null)
+    try {
+      if (typeof transition !== 'function') throw new Error('Status transition unavailable')
+      const result = await transition(jobID)
+      if (result?.success !== true) throw new Error('Status transition was not confirmed')
+      setStatusSaved(true)
+      if (selectedJobID === jobID) closeJobDetails()
+    } catch (err) {
+      console.error('Error updating booking status:', err)
+      setDashboardError(failureMessage)
+      return
+    } finally {
+      actionJobIDsRef.current.delete(jobID)
+    }
+    try {
+      await refreshJobs()
+    } catch (err) {
+      console.error('Error refreshing assignments after saved status:', err)
+      setRefreshError(savedRefreshMessage)
+    }
   }
 
   /* -------------------------------------------------------------------------
-   * 2. Start service — 6 Oct 2026: blocked for future-dated jobs
+   * Start only from context-approved statuses and after the existing schedule gate.
    * ---------------------------------------------------------------------- */
   const handleStartService = async (jobToStart) => {
-    if (isJobFuture(jobToStart)) {
-      setDashboardError(`"${jobToStart.id}" is scheduled for ${formatDateShort(jobToStart.date)} — it can only be started on its booking date.`)
-      closeJobDetails()
+    const normalizedStatus = String(jobToStart.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
+    const canStart = ['upcoming', 'assigned', 'pending'].includes(normalizedStatus)
+    if (!canStart) {
+      setDashboardError('This job cannot be started from its current status.')
+      return
+    }
+    const gate = evaluateJobStart(jobToStart)
+    if (!gate.allowed) {
+      setDashboardError(`"${jobToStart.id}" is ${gate.reason} — Start unlocks then.`)
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
-    setDashboardError('')
-    try {
-      const targetId = jobToStart.job_ID || jobToStart.id.replace('#BK', '')
-      await putJobStatus(targetId, 'In Progress')
-      if (startService) startService(jobToStart.job_ID)
-      closeJobDetails()
-      fetchDashboardJobs()
-    } catch (err) {
-      setDashboardError(err.message)   // 6 Oct 2026: show why, don't fail silently
-      closeJobDetails()
-    }
+    await persistJobTransition(jobToStart, startService, 'Service could not be started. Please try again.')
   }
 
   /* -------------------------------------------------------------------------
    * 3. Complete service — 6 Oct 2026: backend requires a service report FIRST
    * ---------------------------------------------------------------------- */
   const handleCompleteService = async (jobToComplete) => {
-    setDashboardError('')
-    try {
-      const targetId = jobToComplete.job_ID || jobToComplete.id.replace('#BK', '')
-      await putJobStatus(targetId, 'Completed')
-      if (completeService) completeService(jobToComplete.job_ID)
-      closeJobDetails()
-      fetchDashboardJobs()
-    } catch (err) {
-      // Backend rejects with e.g. "A service report must be submitted BEFORE
-      // completing this job..." — show it instead of a silent failure.
-      setDashboardError(err.message)
-      closeJobDetails()
-    }
+    await persistJobTransition(jobToComplete, completeService, 'Service could not be completed. Please try again.')
   }
 
   /* -------------------------------------------------------------------------
    * Derived data — 6 Oct 2026: rewritten
    *   • Active = not Completed/Cancelled (fixes "Scheduled" jobs disappearing)
-   *   • Schedule list = today's jobs first, then upcoming, sorted by date
+   *   • Schedule retains overdue unfinished appointments and its existing order.
    * ---------------------------------------------------------------------- */
   const scheduleJobs = useMemo(() => {
     return technicianJobs
@@ -222,24 +283,33 @@ function TechnicianDashboard() {
       .sort((a, b) => {
         const aFuture = isJobFuture(a) ? 1 : 0
         const bFuture = isJobFuture(b) ? 1 : 0
-        if (aFuture !== bFuture) return aFuture - bFuture // today first
+        if (aFuture !== bFuture) return aFuture - bFuture // non-future dates before future dates
         return String(a.date || '9999-99-99').localeCompare(String(b.date || '9999-99-99'))
       })
   }, [technicianJobs, todayStr])
 
-  const todaysCount = scheduleJobs.filter((job) => !isJobFuture(job)).length
+  const todaysJobs = useMemo(
+    () => technicianJobs.filter((job) => getAppointmentDateKey(job.date) === todayStr),
+    [technicianJobs, todayStr],
+  )
+  const todaysCount = todaysJobs.length
+  const todaysInProgressCount = todaysJobs.filter((job) => job.status === 'In Progress').length
   const inProgressCount = scheduleJobs.filter((job) => job.status === 'In Progress').length
   const completedJobsCount = technicianJobs.filter((job) => job.status === 'Completed').length
 
-  // 6 Oct 2026 [DATA]: real completion rate (replaces fake "On-time 100%")
+  // Current returned-assignment proportion, not a historical performance metric.
   const totalJobCount = technicianJobs.length
-  const completionRate = totalJobCount > 0 ? Math.round((completedJobsCount / totalJobCount) * 100) : 0
+  const completionRate = totalJobCount > 0 ? Math.round((completedJobsCount / totalJobCount) * 100) : null
+  const completionAvailable = jobsAvailable && completionRate !== null
+  const completionRingBackground = completionAvailable
+    ? `conic-gradient(var(--cf-primary) 0 ${completionRate}%, #e7eeeb ${completionRate}% 100%)`
+    : '#e7eeeb'
 
   const summaryItems = [
     {
-      label: "Today's Jobs",
-      value: todaysCount,
-      context: `${inProgressCount} in progress`,
+      label: "Today’s Appointments",
+      value: jobsAvailable ? todaysCount : '—',
+      context: jobsAvailable ? `${todaysInProgressCount} today in progress` : (loading ? 'Loading assignments…' : 'Assignment data unavailable'),
       tone: 'mint',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true">
@@ -251,9 +321,9 @@ function TechnicianDashboard() {
       ),
     },
     {
-      label: 'Historical Completed',
-      value: completedJobsCount,
-      context: 'Recorded in database',
+      label: 'Completed Assignments',
+      value: jobsAvailable ? completedJobsCount : '—',
+      context: 'Completed within returned assignments',
       tone: 'green',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true">
@@ -263,9 +333,9 @@ function TechnicianDashboard() {
       ),
     },
     {
-      label: 'Report-ready Jobs',
-      value: completedJobsCount,
-      context: 'Completed assignments eligible for report',
+      label: 'In Progress Jobs',
+      value: jobsAvailable ? inProgressCount : '—',
+      context: 'Report entry requires In Progress status',
       tone: 'amber',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true">
@@ -277,11 +347,9 @@ function TechnicianDashboard() {
       ),
     },
     {
-      // 6 Oct 2026 [DATA]: real rating (was hardcoded "5.0 ★")
       label: 'Rating',
-      // 6 Oct 2026: 0 = no customer ratings yet → show "Not rated yet"
-      value: rating != null && Number(rating) > 0 ? `${Number(rating).toFixed(1)} ★` : 'Not rated yet',
-      context: 'Average of customer ratings',
+      value: rating.value,
+      context: rating.note,
       tone: 'violet',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true">
@@ -313,12 +381,15 @@ function TechnicianDashboard() {
       </header>
 
       {/* 6 Oct 2026: backend rule violations are shown here instead of failing silently */}
-      {dashboardError && (
-        <div style={{
+      {(dashboardError || refreshWarning) && (
+        <div role="alert" style={{
           padding: '12px 18px', marginBottom: 16, borderRadius: 8,
           background: '#fff8e1', border: '1px solid #f0d060', color: '#8a6d00', fontSize: 13.5,
         }}>
-          ⚠️ {dashboardError}
+          ⚠️ {dashboardError || refreshWarning}
+          {refreshWarning && jobsAvailable && canRetryJobs && (
+            <button type="button" className="cf-button cf-button-secondary" onClick={() => refreshJobs()}>Retry</button>
+          )}
         </div>
       )}
 
@@ -342,11 +413,10 @@ function TechnicianDashboard() {
             <div>
               <span className="cf-widget-kicker">Field schedule</span>
               <div className="cf-widget-title-row">
-                {/* 6 Oct 2026: renamed — the list now shows today + upcoming */}
-                <h2 id="today-schedule-title">Today &amp; Upcoming</h2>
-                <span className="cf-count-pill">{scheduleJobs.length} active</span>
+                <h2 id="today-schedule-title">Active Schedule</h2>
+                <span className="cf-count-pill">{jobsAvailable ? scheduleJobs.length : '—'} active</span>
               </div>
-              <p>{getFormattedLiveDate()} · Today&apos;s visits first, then upcoming. Future jobs unlock on their date.</p>
+              <p>{getFormattedLiveDate()} · Includes overdue unfinished appointments. Completed and Cancelled bookings are excluded.</p>
             </div>
             <Link to="/technician/assigned-jobs" className="cf-text-link">
               View all jobs
@@ -359,10 +429,26 @@ function TechnicianDashboard() {
 
           <div className="cf-schedule-list">
             {loading ? (
-              <p style={{ padding: '24px', textAlign: 'center' }}>Loading today's schedule from database...</p>
+              <p style={{ padding: '24px', textAlign: 'center' }}>Loading active schedule from database...</p>
+            ) : jobsUnavailable ? (
+              <div className="cf-empty-state" role="alert">
+                <h3>Schedule data unavailable</h3>
+                <p>{technicianID ? 'Assignments could not be loaded. Retry reloads the list only.' : 'Technician identity is unavailable. Sign in with a Technician account.'}</p>
+                {canRetryJobs && (
+                  <button type="button" className="cf-button cf-button-secondary" onClick={() => refreshJobs()}>Retry</button>
+                )}
+              </div>
             ) : scheduleJobs.length > 0 ? (
               scheduleJobs.map((job, index) => {
                 const future = isJobFuture(job)   // 6 Oct 2026: date rule
+                const normalizedStatus = String(job.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
+                const canStart = ['upcoming', 'assigned', 'pending'].includes(normalizedStatus)
+                const gate = evaluateJobStart(job)
+                const startDisabledReason = isTransitionPending(job.job_ID)
+                  ? 'A status update for this booking is already in progress.'
+                  : !canMutateTechnicianData
+                    ? 'Status updates require an authenticated Technician session.'
+                    : !gate.allowed ? `This job is ${gate.reason} — Start unlocks then.` : undefined
 
                 return (
                   <article className="cf-schedule-row" key={job.id || job.job_ID}>
@@ -411,23 +497,27 @@ function TechnicianDashboard() {
                     <div className="cf-schedule-actions">
                       {job.status === 'In Progress' && (
                         <button type="button" className="cf-button cf-button-primary cf-button-progress"
-                          onClick={() => openJobDetails(job)}>
+                          onClick={() => openJobDetails(job)}
+                          disabled={isTransitionPending(job.job_ID) || !canMutateTechnicianData}
+                          aria-busy={isTransitionPending(job.job_ID)}>
                           Continue Service
                         </button>
                       )}
-                      {/* 6 Oct 2026 [RULE]: Start is locked until the booking date */}
-                      {!future && job.status !== 'Completed' && job.status !== 'In Progress' && (
+                      {canStart && gate.allowed && (
                         <button type="button" className="cf-button cf-button-primary"
-                          onClick={() => handleStartService(job)}>
-                          Start Service
+                          onClick={() => handleStartService(job)}
+                          disabled={isTransitionPending(job.job_ID) || !canMutateTechnicianData}
+                          aria-busy={isTransitionPending(job.job_ID)}
+                          title={startDisabledReason}>
+                          {isTransitionPending(job.job_ID) ? 'Starting…' : 'Start Service'}
                         </button>
                       )}
-                      {future && job.status !== 'In Progress' && (
+                      {canStart && !gate.allowed && (
                         <button type="button" className="cf-button cf-button-quiet"
                           disabled
                           style={{ opacity: 0.55, cursor: 'not-allowed' }}
-                          title={`Available on ${formatDateShort(job.date)}`}>
-                          🔒 Starts {formatDateShort(job.date)}
+                          title={startDisabledReason}>
+                          🔒 Starts {gate.reason.replace('scheduled for ', '')}
                         </button>
                       )}
                       <button type="button" className="cf-button cf-button-quiet" onClick={() => openJobDetails(job)}>
@@ -460,7 +550,7 @@ function TechnicianDashboard() {
                   </svg>
                 </span>
                 {/* 6 Oct 2026: clarified the report-first rule in the UI */}
-                <span><strong>Submit Service Report</strong><small>Required before completing a job</small></span>
+                <span><strong>Open Report Form</strong><small>Select an In Progress assignment</small></span>
                 <span aria-hidden="true">→</span>
               </Link>
               <Link to="/technician/parts-log" className="cf-action-tile">
@@ -469,7 +559,7 @@ function TechnicianDashboard() {
                     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                   </svg>
                 </span>
-                <span><strong>Log Parts &amp; Materials</strong><small>Update inventory usage</small></span>
+                <span><strong>View Parts Log</strong><small>View recorded parts and materials</small></span>
                 <span aria-hidden="true">→</span>
               </Link>
               <Link to="/technician/follow-up" className="cf-action-tile">
@@ -481,7 +571,7 @@ function TechnicianDashboard() {
                     <line x1="3" y1="11" x2="21" y2="11" />
                   </svg>
                 </span>
-                <span><strong>Book Follow-Up Service</strong><small>Plan another technician visit</small></span>
+                <span><strong>View Follow-Up Visits</strong><small>View assigned return visits</small></span>
                 <span aria-hidden="true">→</span>
               </Link>
             </div>
@@ -491,19 +581,22 @@ function TechnicianDashboard() {
             <header className="cf-widget-header cf-widget-header-compact">
               <div><span className="cf-widget-kicker">Service quality</span><h2 id="readiness-title">Performance &amp; Readiness</h2></div>
             </header>
-            {/* 6 Oct 2026 [DATA]: real completion rate (was hardcoded "On-time arrival 100%") */}
+            {/* Inline background overrides the legacy fixed 97% ring for this metric only. */}
             <div className="cf-performance-hero">
-              <div className="cf-progress-ring"><span>{completionRate}%</span></div>
-              <div><strong>Completion rate</strong><span>Completed vs total assigned jobs</span></div>
+              <div className="cf-progress-ring" style={{ background: completionRingBackground }}
+                role="img" aria-label={completionAvailable ? `${completionRate}% of returned assignments completed` : 'Completion proportion unavailable'}>
+                <span>{completionAvailable ? `${completionRate}%` : '—'}</span>
+              </div>
+              <div><strong>Assignment completion proportion</strong><span>Completed / all returned assignments</span></div>
             </div>
             <dl className="cf-performance-list">
               <div>
-                <dt>Customer rating</dt>
-                <dd>{rating != null && Number(rating) > 0 ? `${Number(rating).toFixed(1)} ★` : 'Not rated yet'}<small>Average of customer ratings</small></dd>
+                <dt>Profile rating</dt>
+                <dd>{rating.value}<small>{rating.note}</small></dd>
               </div>
               <div>
-                <dt>Historical completed</dt>
-                <dd>{completedJobsCount} Jobs<small>Recorded in database</small></dd>
+                <dt>Completed assignments</dt>
+                <dd>{jobsAvailable ? completedJobsCount : '—'}<small>Within returned assignments; not a history total</small></dd>
               </div>
             </dl>
           </section>
@@ -517,6 +610,9 @@ function TechnicianDashboard() {
         onStartService={handleStartService}
         onCompleteService={handleCompleteService}
         returnFocusRef={jobDetailsTriggerRef}
+        actionPending={selectedJob ? isTransitionPending(selectedJob.job_ID) : false}
+        actionReadOnly={!canMutateTechnicianData || !jobsAvailable}
+        actionError={dashboardError}
       />
     </div>
   )

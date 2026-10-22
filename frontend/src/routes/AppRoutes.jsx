@@ -15,7 +15,11 @@ import CustomerBookService from "../pages/customer/CustomerBookService";
 import CustomerMyUnits from "../pages/customer/CustomerMyUnits";
 import CustomerProfile from "../pages/customer/CustomerProfile";
 import CustomerServiceCatalog from "../pages/customer/CustomerServiceCatalog";
+<<<<<<< HEAD
 import CustomerSubscriptions from "../pages/customer/CustomerSubscriptions"; //newly added, customer view n add subscriptions
+=======
+import CustomerSubscription from "../pages/customer/CustomerSubscriptions";
+>>>>>>> origin/main
 
 // 1. Admin Module Pages (src/pages/admin/)
 import AdminDashboard from '../pages/admin/AdminDashboard';
@@ -86,7 +90,11 @@ export default function AppRoutes() {
           <Route path="my-units" element={<CustomerMyUnits />} />
           <Route path="profile" element={<CustomerProfile />} />
           <Route path="service-catalog" element={<CustomerServiceCatalog />} />
+<<<<<<< HEAD
           <Route path="subscriptions" element={<CustomerSubscriptions/>}/>
+=======
+          <Route path="subscriptions" element={<CustomerSubscription />} />
+>>>>>>> origin/main
           {/* Aliases for old links */}
           <Route path="book" element={<Navigate to="/customer/book-service" replace />} />
           <Route path="services" element={<Navigate to="/customer/service-catalog" replace />} />

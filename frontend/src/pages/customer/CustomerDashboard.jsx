@@ -8,7 +8,7 @@ import {
   Icon,
   SnowfieldBackdrop,
 } from "../../components/customer/CustomerIcons";
-import { getDashboard } from "../../api/customerApi";
+import { getDashboard, getMySubscriptions } from "../../api/customerApi";
 import {
   describeBookingUnits,
   describeCountdown,
@@ -31,8 +31,13 @@ const isUnitDueSoon = (unit) =>
 const quickActions = [
   { label: "Book a service", icon: "plus", path: "/customer/book-service" },
   { label: "View my bookings", icon: "calendar", path: "/customer/bookings" },
+<<<<<<< HEAD
   { label: "Browse services", icon: "grid", path: "/customer/service-catalog" },
  
+=======
+  { label: "Browse subscriptions", icon: "grid", path: "/customer/service-catalog" },
+
+>>>>>>> origin/main
 ];
 
 const CustomerDashboard = () => {
@@ -44,12 +49,36 @@ const CustomerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // ✅ NEW: subscriptions panel state (moved INSIDE the component)
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [subsLoading, setSubsLoading] = useState(true);
+  const [subsError, setSubsError] = useState("");
+
   useEffect(() => {
     let alive = true;
     getDashboard()
       .then((res) => alive && setData(res))
       .catch((err) => alive && setError(err.message))
       .finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+  }, []);
+
+  // ✅ NEW: load subscriptions the same way the dashboard loads
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await getMySubscriptions();
+        if (!alive) return;
+        if (res && res.success) setSubscriptions(res.subscriptions || []);
+        else setSubsError((res && res.message) || "Could not load subscriptions");
+      } catch (err) {
+        if (alive) setSubsError(err.message || "Server error");
+      } finally {
+        if (alive) setSubsLoading(false);
+      }
+    };
+    load();
     return () => { alive = false; };
   }, []);
 
@@ -112,6 +141,7 @@ const CustomerDashboard = () => {
         </div>
       </section>
 
+<<<<<<< HEAD
       {/* APPROVE PROCESSED BOOKING------------------------------------------------------------------------------------------------ */}
 <section className="cust-panel" style={{ borderLeft: "4px solid var(--primary, #1b8a5a)" }}>
   <div className="cust-panel-head">
@@ -211,6 +241,99 @@ const CustomerDashboard = () => {
   </div>
 </section>
 
+=======
+            {/* Current subscriptions */}
+      <section className="cust-panel">
+        <div className="cust-panel-head">
+          <div>
+            <h2>Your current subscriptions</h2>
+            <p>Active care plans keeping your units on schedule</p>
+          </div>
+          <button
+            className="dash-btn dash-btn-ghost"
+            onClick={() => navigate("/customer/subscriptions")}
+          >
+            Manage →
+          </button>
+        </div>
+
+        {subsLoading && (
+          <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Loading your subscriptions…</p>
+        )}
+        {!subsLoading && subsError && (
+          <p style={{ fontSize: 13, color: "var(--danger, #c0392b)" }}>{subsError}</p>
+        )}
+
+        {!subsLoading && !subsError && subscriptions.length === 0 && (
+          <div className="cust-empty" style={{ padding: "24px 0" }}>
+            <h3>No package subscriptions yet</h3>
+            <p>Prepay for a servicing cycle and save with every visit.</p>
+            <button
+              className="dash-btn dash-btn-primary"
+              onClick={() => navigate("/customer/service-catalog")}
+            >
+              Browse care plans
+            </button>
+          </div>
+        )}
+
+        {!subsLoading && !subsError && subscriptions.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {subscriptions.map((sub) => (
+              <div
+                key={sub.package_id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 16,
+                  border: "1px solid var(--border-color, #e2e8f0)",
+                  borderRadius: 12,
+                  padding: "14px 18px",
+                  backgroundColor: "var(--bg-surface, #fff)",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <strong style={{ fontSize: 14 }}>{sub.package_name}</strong>
+                    <span
+                      className={`cust-badge tone-${sub.status === "Active" ? "success" : "warning"}`}
+                    >
+                      <i /> {sub.status}
+                    </span>
+                  </div>
+                  <p
+                    style={{
+                      margin: "4px 0 0",
+                      fontSize: 12.5,
+                      color: "var(--text-secondary, #64748b)",
+                    }}
+                  >
+                    {sub.description}
+                  </p>
+                  <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text-secondary, #64748b)" }}>
+                    Includes: {sub.services_included?.length ? sub.services_included.join(", ") : "—"}
+                    {Number(sub.remaining_bookings) > 0 &&
+                      ` · ${sub.remaining_bookings} of ${sub.visits_included} visits left`}
+                    {sub.next_booking_date && ` · Next visit ${formatDate(sub.next_booking_date)}`}
+                  </p>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text-main)" }}>
+                    {formatMoney(sub.price)}
+                  </p>
+                  {sub.price_per_visit ? (
+                    <p style={{ margin: 0, fontSize: 11.5, color: "var(--text-secondary, #64748b)" }}>
+                      {formatMoney(sub.price_per_visit)}/visit
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+>>>>>>> origin/main
 
       {/* Service-due nudge */}
       {dueSoon.length > 0 && (
