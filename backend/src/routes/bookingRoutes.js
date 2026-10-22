@@ -1,7 +1,17 @@
+/**in this script, it calls methods in controller
+ * 
+ * this script does not deal with data themselves
+ */
+
+
 // backend/src/routes/bookingRoutes.js
-const express = require('express');
+
+/**
+ * 
+ * const express = require('express');
 const router = express.Router();
 const bookingController = require('../controllers/bookingController');
+
 
 // GET /api/bookings/services
 router.get('/services', bookingController.getServices);
@@ -11,3 +21,4 @@ router.post('/', bookingController.createBooking);
 
 // MUST HAVE THIS AT THE BOTTOM:
 module.exports = router;
+ */

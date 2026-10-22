@@ -263,7 +263,7 @@ INSERT INTO new_jobBooking.Booking (booking_ID, customer_ID, technician_ID, [dat
 (1001,201,101,'2026-09-20','09:30:00',0,'Blk 123 Ang Mo Kio Ave 3 #08-45','Completed','Master bedroom aircon not cold'),
 (1002,202,102,'2026-09-22','14:00:00',0,'Blk 456 Jurong West St 42 #12-101','Completed','Water leaking from living room unit'),
 (1003,203,101,'2026-09-25','11:00:00',0,'15 Orchard Road #04-12','Completed','Yearly maintenance and gas check'),
-(1004,204,103,DATEADD(DAY,5,GETDATE()),'15:30:00',0,'Blk 789 Tampines Ave 5 #02-18','Scheduled','Squeaking noise when fan operates'),
+(1004,204,103,DATEADD(DAY,5,GETDATE()),'15:30:00',0,'Blk 789 Tampines Ave 5 #02-18','Confirmed','Squeaking noise when fan operates'),  --used to be scheduled, thats technically wrong we use the word confirmed instead
 (1005,205,101,DATEADD(DAY,-40,GETDATE()),'09:00:00',0,'123 Bukit Timah Road','Completed','Regular servicing.'),
 (1006,205,NULL,DATEADD(DAY,7,GETDATE()),'11:00:00',0,'123 Bukit Timah Road','Pending','Unit not cold at night.'),
 (1007,205,102,DATEADD(DAY,2,GETDATE()),'14:00:00',0,'123 Bukit Timah Road','Assigned','Chemical wash for second unit.');

@@ -404,7 +404,119 @@ const getAddresses = async (req, res) => {
 
 /* POST /api/customer/bookings?customerId=# */
 const createBooking = async (req, res) => {
-  try {
+//i love coding, im having alot of fun doing this. im gonna love my job as a full stack developer / programmer in the future
+
+
+    try {
+  console.log("Booking request body:", req.body);
+//console.log("Estimated cost:", req.body.estimatedTotalCost);
+//console.log("Estimated time:", req.body.estimatedTotalTime);
+/**
+ * console.log("Booking values:", {
+    numberOfUnits,
+    time,
+    comments,
+    estimatedtotalcost,
+    estimatedtotaltime
+});
+ */
+
+
+        //Extract data from the request
+        const { customer_ID, //always have this
+            //service id? nah we need junction table
+            numberOfUnits,
+                date, 
+                time, 
+                location ,
+                comments,
+                //promocode cannot really, its a frontend calculation thing
+                estimatedtotalcost, 
+                estimatedtotaltime} = req.body; //these things take name from frontend 
+                /**
+                 * console.log("Required booking fields:", {
+    customer_ID,
+    date,
+    time,
+    location
+});
+        if (!customer_ID || !date || !time || !location) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Please provide customer_ID, date, time, and location.' 
+            });
+        }
+
+                 */
+
+        const pool = await poolPromise;
+
+        // technician_ID is set to NULL until assigned by Admin
+        const result = await pool.request() //prepare the inputs
+            .input('customer_ID', sql.Int, customer_ID)
+            //no service id here
+            .input('numberOfUnits', sql.Int,numberOfUnits) //number of units column
+            .input('date', sql.Date, date)
+            .input('timing', sql.VarChar(50), time)   //changed to timing table
+             .input('location', sql.VarChar(100), location)
+             .input('comments',sql.VarChar(500),comments) //new line
+             .input('estimateTotalTime_minutes',sql.Int ,estimatedtotaltime) //new cpde
+             .input('estimateTotalCost',sql.Float,estimatedtotalcost) //new code
+            .input('technician_ID', sql.Int, null) 
+            .input('isFollowup', sql.Bit, 0)
+            .input('status', sql.VarChar(100), 'Pending')
+            .input('time',sql.VarChar(8), '12:00:00')
+
+            //the sql code, these got sorted
+            .query(`
+                INSERT INTO [new_jobBooking].[Booking] (customer_ID,     
+                                                         numberOfUnits,
+                                                         date,
+                                                          timing,
+                                                           location,
+                                                           comments,
+                                                           estimateTotalTime_minutes,
+                                                           estimateTotalCost,
+                                                        technician_ID,      
+                                                           isFollowup, 
+                                                            status,
+                                                            time)
+               
+                OUTPUT INSERTED.booking_ID
+                VALUES (@customer_ID,
+                @numberOfUnits,
+                  @date,
+                  @timing, 
+                    @location,
+                    @comments,
+                       @estimateTotalTime_minutes,
+                    @estimateTotalCost,
+                 @technician_ID, 
+                  @isFollowup,
+                    @status,
+                    @time)
+            `); //these @ ones refer to the input method on top
+
+        const newBookingId = result.recordset[0].booking_ID;
+
+        res.status(201).json({
+            success: true,
+            message: 'Booking created successfully!',
+            booking_ID: newBookingId
+        });
+
+    } catch (err) {
+        console.error('Error creating booking:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+
+
+
+  /**the ai slop original
+   * 
+   * 
+   * 
+   * try {
     const pool = await poolPromise;
     if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
     const customer = await resolveCustomer(pool, parseInt(req.query.customerId, 10) || 1);
@@ -478,7 +590,7 @@ const createBooking = async (req, res) => {
       }
       return null;
     };
-
+// this is customer controller, this goes to db instead of booking controller
     const cleanDate = normalizeDate(date);
     const cleanTime = normalizeTime(time);
     if (!cleanDate)
@@ -543,6 +655,10 @@ const createBooking = async (req, res) => {
       '| received date =', req.body && req.body.date, '| received time =', req.body && req.body.time);
     res.status(500).json({ success: false, message: err.message });
   }
+   * 
+   * 
+   */
+  
 };
 
 /* ---------- PUT /api/customer/bookings/:bookingId/cancel?customerId=# ---------- */

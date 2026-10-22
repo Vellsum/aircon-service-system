@@ -41,6 +41,7 @@ const formatLocalDateString = (dateInput) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+//component itself =====================================================================================
 const AdminDashboard = () => {
   const navigate = useNavigate();
 
@@ -157,6 +158,8 @@ const AdminDashboard = () => {
     { label: "Pending Bookings", value: stats.pendingBookings, delta: "Requires Action", tone: "warning", icon: "⏳" },
   ];
 
+
+  //html of dashboard =================================================================================================================================
   return (
     <div className="dash">
       <Sidebar active="Dashboard" />

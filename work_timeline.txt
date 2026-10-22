@@ -1,0 +1,165 @@
+221026 - weijie n sum will handle the remaining of the project
+
+221026 - weijie pull the main properly so that his branch is in sync with main, which sum pushed to
+but not since weijie trying to do the full cycle his branch will be well ahead of main
+we plan to show sponsor on 241026 the full cycle where customer has to approve timing from admin
+    new db tables were made for this, but backend not done yet
+
+    7.30pm .... weijie doing it
+    WEIJIE IS LEARNING TO DO ACTUAL BACKEND
+
+workflow;
+customer book service -> send data to db
+admin process booking -> set the technician n timing of booking, in db also
+customer process booking -> booking becomes confirmed
+technician receive notification
+techncian start job
+technician progress job
+technician submit service report
+
+9pm - weijie understands how the ai code works, looking at backlog Items
+- i now know how to backend fullstack
+
+omg, i have reached the point where ai couldnt do it, below data needed to send to backend;
+[services] there is the booked services table, which allows a booking to have multiple services. this table must also be called to set the service to bokking
+numberOfUnits -> nnumberof units cilumn
+slotId ->timing colunn
+  cost [estimatedtotaltime, setestimatedtotatltime]=useState("");  -- pricing  //memo method
+    cost [estimatedtotalcost, setestimatedtotatlcost]=useState("");  --totalEstimatedTime
+
+
+10.45pm  - database columns not updating, only the new columns wont update, alr doing frontend n controller for this
+11pm - fucking customer controller doing the shit??
+
+ai advice:
+    There's a career lesson here, too
+    Since you're working toward becoming a capable software engineer, this is actually a valuable exercise. Real engineering isn't just writing new code. It's understanding an unfamiliar system, identifying the actual failure point, and making a controlled change without breaking unrelated functionality.
+
+    Anyone can generate a controller. Being able to prove that the application invokes the right controller, passes the correct data, and persists it correctly is a different level of competence.
+
+    One thing I'd recommend: don't silently take responsibility for the entire group's technical debt. Make the system work, but keep track of what you changed and what remains broken.
+
+    Let's get practical: do you have access to the whole project repository, including the frontend, backend routes, controllers and database configuration? If you do, we can trace the real booking flow instead of continuing to guess which file is active.
+
+11.15pm - look at this horrendous code, fuck me broken 
+- actually i love programming, n to be having to solve this ai trash is actually alot of fun
+
+
+
+1130pm - after moving code over, some issue in frontend code, numberofunits var not going in 
+now im having error 400 bad request from customer api, maybe customer id or something is missing
+customer id was undefined. i bet i cant live not-null values null as well. the time column is gonna get it
+
+
+12am - now just the time column
+IT WORKED!
+now when customer book, proper data aspecially timing, number of units, total time ,total cost, comments
+
+now i think still need that junction table, state the services when customer book (bookedservices table, where booking id can have multiple service id)
+
+weijie tasklist;====================================================
+-> edit customerbookservice jsx n booking controller for the new data
+//once customer frontend can send the correct data wat does admin do?
+- admin frontend for assign booking to include time, for bookings in pending status
+
+//when booking is processed, the status is wat? [assigned]
+-> customer approve or reject
+--reject -> status request reschedule, admin have to set time again
+-- approve -> status confirmed, technician notified
+
+## booking status
+tentative (for subscription services) -> pending (waiting for admin to put time n technician) -> assigned (waiting for customer approve time) -> confirmed (customer approve time, tehcnician notified) -> progressing -> completed
+
+rejecting timing: assigned -> request reschedule (like pending but must pick another time with whoever is available)
+
+PROJECT BACKLOG; ========================================================================
+admin dashboard - revenue trend section
+admin profile page (follow customer ui)
+technician profile page (follow customer ui)
+
+promocode functionality, made code, customer use code, code give discount to final total cost
+
+logic that decide technician availability
+logic to allow cancellation
+
+parts usage by techncian
+booking confirmed page - show number of units
+
+
+HOW TO BACKEND;========================================================================
+frontend component import api - this script has methods to do post request to server
+
+frontend has the info, use it as arguments when calling the imported api methods.
+api method do a fetch request, to server
+
+our localhost 5000 is server. server gets this request
+server imports the diff routes subscriptions
+then links each route script to the url sent by the api
+
+when the routes get the url, it sees whch controller method to calling
+
+controller talks to database
+
+full link: frontend -> api -> server -> routes -> controller -> db
+
+the ONLY scripts that care about ur data is frontend  when calling api method AND controller
+
+
+
+
+//USER LOGINS===================================
+customer----------------------------------------
+
+scott
+customer123
+
+
+
+admin----------------------------------------
+
+admin_sarah
+admin123
+
+
+technician----------------------------------------
+
+tech_chen
+tech123
+
+tech_raj
+tech123
+
+tech_alex
+tech123
+
+
+
+
+
+
+//setting up===========================
+cd backend
+npm start
+do not close this 
+
+open new tab
+cd frontend
+npm run dev
+open in browser localhost n login with above passwords
+
+
+//pushing codes=======================
+save changes
+git add .
+git commit -m "Update recent changes"
+git push origin wei-jie-ang
+
+//customer scripts======================================================
+
+ur scripts;
+frontend/data/customer
+frontend/layout/customerlayout
+frontend/pages/customer/all the scripts
+frontend/pages/public/home jsx
+frontend/components/customer/ all the jsx
+
