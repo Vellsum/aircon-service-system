@@ -76,6 +76,10 @@ export async function getChatbotFaq() {
   if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`);
   return body;
 }
+// ---- Customer profile (real DB) ----
+export const getProfile = (customerId) =>
+  request(`/customer/profile?customerId=${customerId}`);
+
 
 // Update the logged-in customer's profile details
 export async function updateProfile(payload) {
