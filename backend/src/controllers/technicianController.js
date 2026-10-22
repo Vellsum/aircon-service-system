@@ -245,24 +245,17 @@ const updateJobStatus = async (req, res) => {
      * ---------------------------------------------------------------------- */
     if (newStatus.toLowerCase() === 'completed') {
       const check = await pool.request()
-        .input('bookingId', sql.Int, Number(bookingId))
-        .query(`
-          SELECT TOP 1 reportID
-          FROM [new_jobBooking].[serviceReport]
-          WHERE job_ID = @bookingId
-             OR job_ID IN (
-                  SELECT j.job_ID
-                  FROM [new_jobBooking].[work] w
-                  JOIN [new_jobBooking].[job] j ON j.job_ID = w.job_ID
-                  WHERE w.booking_ID = @bookingId
-                )
-             OR reportID IN (
-                  SELECT j.serviceReport
-                  FROM [new_jobBooking].[work] w
-                  JOIN [new_jobBooking].[job] j ON j.job_ID = w.job_ID
-                  WHERE w.booking_ID = @bookingId AND j.serviceReport IS NOT NULL
-                )
-        `);
+      .input('bookingId', sql.Int, Number(bookingId))
+      .query(`
+        SELECT TOP 1 reportID
+        FROM [new_jobBooking].[serviceReport]
+        WHERE reportID IN (
+          SELECT j.serviceReport
+          FROM [new_jobBooking].[work] w
+          JOIN [new_jobBooking].[job] j ON j.job_ID = w.job_ID
+          WHERE w.booking_ID = @bookingId AND j.serviceReport IS NOT NULL
+        )
+      `);                             
 
       if (check.recordset.length === 0) {
         console.error(`[Cool Fix] REPORT GATE rejected booking #${bookingId}: no report found.`);
@@ -270,6 +263,19 @@ const updateJobStatus = async (req, res) => {
           success: false,
           message: 'A service report must be submitted BEFORE completing this job. Submit the report first, then mark it completed.',
         });
+      }
+          // keep [new_jobBooking].[job] rows in sync with the booking lifecycle
+      if (newStatus.toLowerCase() === 'in progress') {
+        await pool.request().input('bid', sql.Int, Number(bookingId)).query(`
+          UPDATE j SET j.job_status = 'In Progress'
+          FROM [new_jobBooking].[job] j JOIN [new_jobBooking].[work] w ON w.job_ID = j.job_ID
+          WHERE w.booking_ID = @bid`);
+      }
+      if (newStatus.toLowerCase() === 'completed') {
+        await pool.request().input('bid', sql.Int, Number(bookingId)).query(`
+          UPDATE j SET j.job_status = 'Finished'
+          FROM [new_jobBooking].[job] j JOIN [new_jobBooking].[work] w ON w.job_ID = j.job_ID
+          WHERE w.booking_ID = @bid`);
       }
       console.log(`[Cool Fix] REPORT GATE passed for booking #${bookingId} (report #${check.recordset[0].reportID}).`);
     }
@@ -340,9 +346,149 @@ const getTechnicianProfile = async (req, res) => {
   }
 };
 
+/* ---------------------------------------------------------------------------
+ * POST /api/technician/reports
+ * Contract = TechnicianSubmitReport.jsx buildReportPayload():
+ *   { job_ID, findings[], findingsOther, actionsTaken[], actionsOther,
+ *     overallCondition, checklistItems[], materials[{itemID,...}], materialsTotal,
+ *     followUpRequired, followUpReasons[], followUpDate, followUpPriority,
+ *     completionDateTime, customerAcknowledged }
+ * Link style: job.serviceReport → serviceReport.reportID (only link in schema)
+ * ------------------------------------------------------------------------- */
+function parseBookingId(value) {
+  if (value === null || value === undefined) return NaN;
+  const m = String(value).match(/(\d+)/); // handles 1006, "1006", "#BK1006"
+  return m ? Number(m[1]) : NaN;
+}
+
+const submitReport = async (req, res) => {
+  try {
+    const body = req.body || {};
+    const bookingId = parseBookingId(body.job_ID);
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({ success: false, error: 'A valid job/booking reference is required.' });
+    }
+
+    const pool = await poolPromise;
+    if (!pool) return res.status(500).json({ success: false, error: 'Database offline' });
+
+    const b = await pool.request()
+      .input('bid', sql.Int, bookingId)
+      .query(`
+        SELECT booking_ID, customer_ID, technician_ID, location
+        FROM [new_jobBooking].[Booking] WHERE booking_ID = @bid
+      `);
+    const booking = b.recordset[0];
+    if (!booking) return res.status(404).json({ success: false, error: `Booking #${bookingId} not found.` });
+
+    const techId = Number(booking.technician_ID) || parseInt(req.query.techId, 10) || parseInt(body.technicianID, 10);
+    if (!techId) {
+      return res.status(400).json({ success: false, error: 'Cannot save report: no technician assigned to this booking yet.' });
+    }
+
+    // Flatten the frontend arrays into report columns
+    const arr = (v) => (Array.isArray(v) ? v.filter((x) => String(x || '').trim()) : []);
+    const join = (v) => arr(v).join('; ');
+    let findingsText = join(body.findings);
+    if (body.findingsOther) findingsText = (findingsText ? findingsText + '; ' : '') + String(body.findingsOther);
+    let actionsText = join(body.actionsTaken);
+    if (body.actionsOther) actionsText = (actionsText ? actionsText + '; ' : '') + String(body.actionsOther);
+    const checklistText = arr(body.checklistItems).join(', ');
+    const followUpRequired = body.followUpRequired === true || body.followUpRequired === 'true' || body.followUpRequired === 1;
+    let recommendationsText = '';
+    if (followUpRequired) {
+      const reasons = join(body.followUpReasons);
+      recommendationsText = `Follow-up required (${body.followUpPriority || 'Normal'} priority)` +
+        (reasons ? ` — ${reasons}` : '') +
+        (body.followUpDate ? ` — recommended date ${body.followUpDate}` : '');
+    }
+    const materialRows = arr(body.materials);
+    const notesText = [
+      materialRows.length ? `Materials: ${materialRows.length} line(s), total SGD ${Number(body.materialsTotal || 0).toFixed(2)}` : null,
+      body.customerAcknowledged ? 'Customer acknowledged the completed work.' : 'Customer acknowledgement not recorded.',
+    ].filter(Boolean).join('. ');
+    const descriptionText = `Service report for booking #${bookingId}` +
+      (booking.location ? ` — ${booking.location}` : '');
+    let completionVal = null;
+    if (typeof body.completionDateTime === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(body.completionDateTime)) {
+      completionVal = body.completionDateTime.slice(0, 19).replace('T', ' ');
+    }
+
+    const inserted = await pool.request()
+      .input('tech', sql.Int, techId)
+      .input('desc', sql.VarChar(500), descriptionText.slice(0, 500))
+      .input('followup', sql.Bit, followUpRequired ? 1 : 0)
+      .input('findings', sql.VarChar(300), findingsText || null)
+      .input('actions', sql.VarChar(300), actionsText || null)
+      .input('cond', sql.VarChar(200), body.overallCondition || null)
+      .input('reco', sql.VarChar(200), recommendationsText || null)
+      .input('notes', sql.VarChar(200), notesText || null)
+      .input('checklist', sql.VarChar(500), checklistText || null)
+      .input('completed', sql.DateTime2, completionVal || new Date())
+      .query(`
+        INSERT INTO [new_jobBooking].[serviceReport]
+          (description, technicianID, isFollowup, findings, actionsTaken,
+           AC_condition, recommendations, notes, serviceChecklist, completedDateTime)
+        OUTPUT INSERTED.reportID
+        VALUES (@desc, @tech, @followup, @findings, @actions, @cond, @reco, @notes, @checklist, @completed)
+      `);
+    const reportID = inserted.recordset[0].reportID;
+
+    // Link the report to this booking's job rows
+    await pool.request()
+      .input('rid', sql.Int, reportID)
+      .input('bid', sql.Int, bookingId)
+      .query(`
+        UPDATE j SET j.serviceReport = @rid
+        FROM [new_jobBooking].[job] j
+        JOIN [new_jobBooking].[work] w ON w.job_ID = j.job_ID
+        WHERE w.booking_ID = @bid
+      `);
+
+    // Log parts used (best effort, non-fatal)
+    const uniqueItemIds = [...new Set(materialRows.map((m) => parseInt(m.itemID, 10)).filter((n) => Number.isInteger(n) && n > 0))];
+    for (const itemId of uniqueItemIds) {
+      try {
+        await pool.request().input('rid', sql.Int, reportID).input('iid', sql.Int, itemId)
+          .query(`INSERT INTO [new_jobBooking].[partsUsed] (reportID, itemID) VALUES (@rid, @iid)`);
+      } catch (e) { console.error('[Cool Fix] partsUsed insert skipped:', e.message); }
+    }
+
+    // Follow-up → create a Pending follow-up booking so admin + customer see it
+    let followUpBookingId = null;
+    if (followUpRequired && typeof body.followUpDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.followUpDate)) {
+      try {
+        const fuReasons = join(body.followUpReasons) || body.followUpOtherReason || 'Follow-up visit';
+        const fu = await pool.request()
+          .input('cust', sql.Int, booking.customer_ID)
+          .input('tech', sql.Int, techId)
+          .input('date', sql.Date, body.followUpDate)
+          .input('loc', sql.VarChar(100), booking.location || 'Singapore')
+          .input('comments', sql.VarChar(500),
+            `Follow-up visit (${body.followUpPriority || 'Normal'} priority): ${fuReasons}`.slice(0, 500))
+          .query(`
+            INSERT INTO [new_jobBooking].[Booking]
+              (customer_ID, technician_ID, [date], [time], isFollowup, location, [status], comments)
+            OUTPUT INSERTED.booking_ID
+            VALUES (@cust, @tech, @date, '09:00:00', 1, @loc, 'Pending', @comments)
+          `);
+        followUpBookingId = fu.recordset[0].booking_ID;
+      } catch (e) { console.error('[Cool Fix] Follow-up booking creation skipped:', e.message); }
+    }
+
+    console.log(`[Cool Fix] Report #${reportID} saved for booking #${bookingId}` +
+      (followUpBookingId ? ` (follow-up booking #${followUpBookingId} created)` : '') + '.');
+    return res.status(201).json({ success: true, message: 'Service report submitted!', reportID, followUpBookingId });
+  } catch (err) {
+    console.error('[Cool Fix] Submit Report Error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 module.exports = {
   getAssignedJobs,
   getTechnicianStats,
   updateJobStatus,
   getTechnicianProfile,
+  submitReport,
 };

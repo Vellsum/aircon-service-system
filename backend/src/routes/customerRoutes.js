@@ -11,21 +11,30 @@ const customerController = require('../controllers/customerController');
 const getDashboard = customerController.getDashboard || ((req, res) => res.status(500).json({ error: 'getDashboard missing in controller' }));
 const getMyBookings = customerController.getMyBookings || ((req, res) => res.status(500).json({ error: 'getMyBookings missing in controller' }));
 const getMyUnits = customerController.getMyUnits || ((req, res) => res.status(500).json({ error: 'getMyUnits missing in controller' }));
+const getMySubscriptions = customerController.getMySubscriptions || ((req, res) => res.status(500).json({ error: 'getMySubscriptions missing in controller' }));
+const registerUnit = customerController.registerUnit || ((req, res) => res.status(500).json({ error: 'registerUnit missing in controller' }));
 const cancelBooking = customerController.cancelBooking || ((req, res) => res.status(500).json({ error: 'cancelBooking missing in controller' }));
 
 const getServices = customerController.getServices || ((req, res) => res.status(500).json({ error: 'getServices missing in controller' }));
 const getPromotions = customerController.getPromotions || ((req, res) => res.status(500).json({ error: 'getPromotions missing in controller' }));
 const getAddresses = customerController.getAddresses || ((req, res) => res.status(500).json({ error: 'getAddresses missing in controller' }));
 const createBooking = customerController.createBooking || ((req, res) => res.status(500).json({ error: 'createBooking missing in controller' }));
+const getPlans = customerController.getPlans || ((req, res) => res.status(500).json({ error: 'getPlans missing in customerController' }));
+router.get('/plans', getPlans);
 
+// ---- Customer profile (real DB) ----
+router.get('/profile', customerController.getProfile);
+router.put('/profile', customerController.updateProfile);
+
+router.get('/dashboard', getDashboard);
+router.get('/bookings', getMyBookings);
+router.get('/units', getMyUnits);
+router.post('/units', registerUnit);
+router.get('/subscriptions', getMySubscriptions);
 router.get('/services', getServices);
 router.get('/promotions', getPromotions);
 router.get('/addresses', getAddresses);
 router.post('/bookings', createBooking);
 router.put('/bookings/:bookingId/cancel', cancelBooking);
-
-router.get('/dashboard', getDashboard);
-router.get('/bookings', getMyBookings);
-router.get('/units', getMyUnits);
 
 module.exports = router;

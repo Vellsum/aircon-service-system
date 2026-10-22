@@ -32,6 +32,7 @@ const CustomerLayout = () => {
       />
 
       <div className="cust-main">
+        {/** 
         <header className="cust-topbar">
           <div className="cust-topbar-left">
             <button
@@ -59,7 +60,7 @@ const CustomerLayout = () => {
               <span className="cust-icon-btn-dot" />
             </button>
           </div>
-        </header>
+        </header>*/}
 
         <main className="cust-content">
           <Outlet />

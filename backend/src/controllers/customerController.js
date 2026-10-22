@@ -29,13 +29,16 @@ function formatTime(raw) {
 }
 
 async function resolveCustomer(pool, id) {
+  const base = `
+    SELECT nc.customer_ID, nc.customer_name, nc.loyaltyPoints, nc.customer_address, nc.totalSpent,
+           tu.email, tu.phoneNumber, tu.username, tu.joined
+      FROM [user3].[newCustomer] nc
+      LEFT JOIN [user3].[topUser] tu ON tu.user_ID = nc.user_ID`;
   const byCustomer = await pool.request().input('cid', sql.Int, Number(id)).query(
-    `SELECT customer_ID, customer_name, loyaltyPoints, customer_address, totalSpent
-       FROM [user3].[newCustomer] WHERE customer_ID = @cid`);
+    `${base} WHERE nc.customer_ID = @cid`);
   if (byCustomer.recordset.length) return byCustomer.recordset[0];
   const byUser = await pool.request().input('uid', sql.Int, Number(id)).query(
-    `SELECT customer_ID, customer_name, loyaltyPoints, customer_address, totalSpent
-       FROM [user3].[newCustomer] WHERE user_ID = @uid`);
+    `${base} WHERE nc.user_ID = @uid`);
   return byUser.recordset[0] || null;
 }
 
@@ -161,7 +164,9 @@ const getDashboard = async (req, res) => {
     return res.status(200).json({
       success: true,
       profile: { customer_ID: cid, customer_name: customer.customer_name,
-                 loyalty_points: Number(customer.loyaltyPoints || 0), address: customer.customer_address },
+            loyalty_points: Number(customer.loyaltyPoints || 0), address: customer.customer_address,
+            email: customer.email || null, phone: customer.phoneNumber || null,
+            username: customer.username || null, joined: customer.joined || null },
       stats: { upcoming: Number(s.upcoming) || 0, units: unitList.length,
                completed: Number(s.completed) || 0, totalSpend: Number(customer.totalSpent) || 0 },
       nextBooking: nextResult.recordset.length ? shapeBooking(nextResult.recordset[0], unitList) : null,
@@ -239,8 +244,10 @@ const getServices = async (req, res) => {
     const pool = await poolPromise;
     if (!pool) return res.status(200).json({ success: true, services: [] });
     const result = await pool.request().query(`
-      SELECT service_id, service_name, description, price, duration
-        FROM [payables].[service] WHERE isdeleted = 0 ORDER BY service_id`);
+      SELECT service_id, service_name, description, price, duration, service_type
+        FROM [payables].[service]
+        WHERE (isdeleted IS NULL OR LOWER(isdeleted) IN ('0','false','no'))
+        ORDER BY service_id`);
     const services = (result.recordset || []).map((row) => ({
       service_id: row.service_id,
       service_name: row.service_name,
@@ -248,6 +255,7 @@ const getServices = async (req, res) => {
       price: Number(row.price || 0),
       unit_label: 'per unit',
       duration_mins: parseInt(String(row.duration || '').replace(/[^0-9]/g, ''), 10) || 60,
+      category: row.service_type || 'Maintenance',
       icon: 'snowflake',
       includes: ['General inspection', 'Filter cleaning', 'Performance check', 'Service report'],
     }));
@@ -258,13 +266,102 @@ const getServices = async (req, res) => {
   }
 };
 
+/* ---------- GET /api/customer/subscriptions?customerId=# ---------- */
+const getMySubscriptions = async (req, res) => {
+  try {
+    const customerId = parseInt(req.query.customerId, 10) || 1;
+    const pool = await poolPromise;
+
+    const result = await pool.request()
+      .input('custId', sql.Int, customerId)
+      .query(`
+        SELECT
+          cs.subscriptionid                              AS package_id,
+          s.name                                         AS package_name,
+          ISNULL(s.description, '')                      AS description,
+          sv.service_name                                AS service_name,
+          ISNULL(sv.price, 0)                            AS visit_price,
+          ISNULL(s.numberOfBookings, 0)                  AS visits_included,
+          ISNULL(cs.remainingBookings, 0)                AS remaining_bookings,
+          CONVERT(VARCHAR(10), cs.nextBookingDate, 120)  AS next_booking_date,
+          CONVERT(VARCHAR(10), cs.dateStarted, 120)      AS date_started
+        FROM [payables].[currentSubscribers] cs
+        JOIN [payables].[subscription] s  ON cs.subscriptionid = s.subscriptionID
+        LEFT JOIN [payables].[service] sv ON s.recurringServiceID = sv.service_id
+        WHERE cs.customerID = @custId
+        ORDER BY cs.subscriptionid
+      `);
+
+    const subscriptions = (result.recordset || []).map((row) => ({
+      package_id: row.package_id,
+      package_name: row.package_name,
+      description: row.description,
+      // plan value = per-visit price of the recurring service × visits included
+      price: Number(row.visit_price || 0) * Number(row.visits_included || 0),
+      services_included: row.service_name ? [row.service_name] : [],
+      status: Number(row.remaining_bookings) > 0 ? 'Active' : 'Completed',
+      remaining_bookings: row.remaining_bookings,
+      visits_included: row.visits_included,
+      next_booking_date: row.next_booking_date,
+      date_started: row.date_started,
+    }));
+
+    return res.status(200).json({ success: true, subscriptions, count: subscriptions.length });
+  } catch (err) {
+    console.error('[Cool Fix] GET Customer Subscriptions Error:', err.message);
+    return res.status(500).json({ success: false, message: err.message, subscriptions: [] });
+  }
+};
+
+/* ---------- GET /api/customer/plans ---------- */
+const getPlans = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    if (!pool) return res.status(200).json({ success: true, plans: [] });
+    const result = await pool.request().query(`
+      SELECT
+        s.subscriptionID          AS plan_id,
+        s.name                    AS plan_name,
+        ISNULL(s.description, '') AS description,
+        s.recurringServiceID      AS recurring_service_id,
+        sv.service_name           AS service_name,
+        ISNULL(sv.price, 0)       AS visit_price,
+        ISNULL(s.timeTillNextService, 90) AS interval_days,
+        ISNULL(s.numberOfBookings, 0)     AS visits_included
+      FROM [payables].[subscription] s
+      LEFT JOIN [payables].[service] sv ON sv.service_id = s.recurringServiceID
+      ORDER BY s.subscriptionID`);
+    const plans = (result.recordset || []).map((row) => {
+      const visitPrice = Number(row.visit_price || 0);
+      const visits = Number(row.visits_included || 0);
+      const interval = Number(row.interval_days || 90);
+      return {
+        plan_id: row.plan_id,
+        plan_name: row.plan_name,
+        description: row.description,
+        service_name: row.service_name || 'Aircon Service',
+        price: visitPrice * visits,
+        price_per_visit: visitPrice,
+        visits_included: visits,
+        interval_days: interval,
+        interval_label: `Every ${interval} days`,
+      };
+    });
+    return res.status(200).json({ success: true, plans, count: plans.length });
+  } catch (err) {
+    console.error('[Cool Fix] GET Plans Error:', err.message);
+    return res.status(500).json({ success: false, message: err.message, plans: [] });
+  }
+};
 /* GET /api/customer/promotions */
 const getPromotions = async (req, res) => {
   try {
     const pool = await poolPromise;
     if (!pool) return res.status(200).json({ success: true, promotions: [] });
     const result = await pool.request().query(`
-      SELECT promo_id, promo_name, promo_end, description, promoCode, discount
+      SELECT promo_id, promo_name,
+             CONVERT(VARCHAR(10), promo_end, 120) AS promo_end,
+             description, promoCode, discount
         FROM [payables].[promotions]
        WHERE (isdeleted IS NULL OR LOWER(isdeleted) IN ('0','false','no'))
          AND (promo_end IS NULL OR promo_end >= CAST(GETDATE() AS DATE))`);
@@ -272,11 +369,13 @@ const getPromotions = async (req, res) => {
       const d = Number(row.discount || 0);
       const isPercent = d > 0 && d < 1; // 0.15 = 15% off, 10 = $10 off
       return {
+        promo_id: row.promo_id,
         code: String(row.promoCode || '').trim().toUpperCase(),
         title: row.promo_name,
         description: row.description || '',
         discount_type: isPercent ? 'percent' : 'fixed',
         discount_value: isPercent ? Math.round(d * 100) : d,
+        valid_until: row.promo_end || null,
       };
     });
     res.status(200).json({ success: true, promotions });
@@ -311,29 +410,114 @@ const createBooking = async (req, res) => {
     const customer = await resolveCustomer(pool, parseInt(req.query.customerId, 10) || 1);
     if (!customer) return res.status(404).json({ success: false, message: 'Customer profile not found' });
 
-    const { serviceId, date, time, location, comments, promoCode } = req.body || {};
-    if (!serviceId || !date || !time || !location)
-      return res.status(400).json({ success: false, message: 'serviceId, date, time and location are required' });
+    const { serviceIds, serviceId, numberOfUnits, date, time, location, comments, promoCode } = req.body || {};
+
+    // Accept an array of services OR a single id (backwards compatible)
+    const ids = Array.isArray(serviceIds)
+      ? serviceIds.map(Number).filter(Boolean)
+      : (serviceId ? [Number(serviceId)] : []);
+    const units = Math.min(Math.max(parseInt(numberOfUnits, 10) || 1, 1), 10);
+
+    if (ids.length === 0 || !date || !time || !location)
+      return res.status(400).json({ success: false, message: 'serviceIds, date, time and location are required' });
+
+    // ---- Normalize date to strict YYYY-MM-DD (SQL-safe for DATE/DATETIME columns) ----
+    const normalizeDate = (value) => {
+      const s = String(value || '').trim();
+      // Already ISO (e.g. "2026-10-25" or "2026-10-25T00:00:00.000Z"): take the date part
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+      // Singapore-style DD/MM/YYYY (e.g. "25/10/2026")
+      const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (dmy) {
+        const dd = parseInt(dmy[1], 10), mm = parseInt(dmy[2], 10);
+        if (dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12) {
+          return `${dmy[3]}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+        }
+        return null;
+      }
+      // Last resort: let JS parse ("Oct 25 2026", etc.)
+      const d = new Date(s);
+      if (!Number.isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+      return null;
+    };
+
+    // ---- Normalize time to 24h HH:MM:SS (SQL-safe for TIME columns) ----
+    const normalizeTime = (value) => {
+      const s = String(value || '').trim().toLowerCase();
+      // Some pickers send a period label ("Morning") instead of a clock time — map it
+      if (/\bmorning\b/.test(s)) return '09:00:00';
+      if (/\bnoon\b/.test(s)) return '12:00:00';
+      if (/\bafternoon\b/.test(s)) return '14:00:00';
+      if (/\bevening\b/.test(s)) return '18:00:00';
+      if (/\bnight\b/.test(s)) return '20:00:00';
+      // "9:00 am", "09:00 pm", "9:00:30 am"
+      let m = s.match(/^(\d{1,2})[:.](\d{2})(?::(\d{2}))?\s*(am|pm)\.?$/);
+      if (m) {
+        let h = parseInt(m[1], 10) % 12;
+        if (m[4] === 'pm') h += 12;
+        return `${String(h).padStart(2, '0')}:${m[2]}:${m[3] || '00'}`;
+      }
+      // "09:00", "9:00", "09:00:00"
+      m = s.match(/^(\d{1,2})[:.](\d{2})(?::(\d{2}))?$/);
+      if (m) {
+        const h = parseInt(m[1], 10);
+        if (h > 23) return null;
+        return `${String(h).padStart(2, '0')}:${m[2]}:${m[3] || '00'}`;
+      }
+      // "0900" or "090000"
+      m = s.match(/^(\d{2})(\d{2})(\d{2})?$/);
+      if (m) {
+        const h = parseInt(m[1], 10), mm = parseInt(m[2], 10);
+        if (h > 23 || mm > 59) return null;
+        return `${m[1]}:${m[2]}:${m[3] || '00'}`;
+      }
+      return null;
+    };
+
+    const cleanDate = normalizeDate(date);
+    const cleanTime = normalizeTime(time);
+    if (!cleanDate)
+      return res.status(400).json({ success: false, message: `Invalid date received: "${date}". Expected e.g. 2026-10-25.` });
+    if (!cleanTime)
+      return res.status(400).json({ success: false, message: `Invalid time received: "${time}". Expected e.g. "9:00 AM" or "09:00".` });
+    console.log(`[Cool Fix] Booking date/time normalized: "${date}" -> ${cleanDate}, "${time}" -> ${cleanTime}`);
+
+    // Unit count goes into comments so the technician sees it on the job
+    const finalComments = units > 1
+      ? `${comments ? String(comments) + ' | ' : ''}[${units} aircon units]`
+      : (comments ? String(comments) : null);
 
     const inserted = await pool.request()
       .input('cid', sql.Int, customer.customer_ID)
-      .input('date', sql.VarChar(10), String(date))
-      .input('time', sql.VarChar(20), String(time))
+      .input('date', sql.VarChar(10), cleanDate)
+      .input('time', sql.VarChar(8), cleanTime)
       .input('location', sql.VarChar(100), String(location))
       .input('status', sql.VarChar(100), 'Pending')
-      .input('comments', sql.VarChar(500), comments ? String(comments) : null)
+      .input('comments', sql.VarChar(500), finalComments)
       .query(`INSERT INTO [new_jobBooking].[Booking] (customer_ID, [date], [time], location, [status], comments)
               OUTPUT INSERTED.booking_ID VALUES (@cid, @date, @time, @location, @status, @comments)`);
     const bookingId = inserted.recordset[0].booking_ID;
 
+    // One job per service per unit → dashboard amount (SUM of job prices) matches the frontend estimate
+    let jobCount = 0;
     try {
-      const jobRes = await pool.request()
-        .input('status', sql.VarChar(100), 'Pending')
-        .input('serviceId', sql.Int, Number(serviceId))
-        .query(`INSERT INTO [new_jobBooking].[job] (job_status, isFollowup, serviceID)
-                OUTPUT INSERTED.job_ID VALUES (@status, 0, @serviceId)`);
-      await pool.request().input('jobId', sql.Int, jobRes.recordset[0].job_ID).input('bookingId', sql.Int, bookingId)
-        .query(`INSERT INTO [new_jobBooking].[work] (job_ID, booking_ID) VALUES (@jobId, @bookingId)`);
+      for (const sid of ids) {
+        for (let u = 0; u < units; u++) {
+          const jobRes = await pool.request()
+            .input('status', sql.VarChar(100), 'Pending')
+            .input('serviceId', sql.Int, sid)
+            .query(`INSERT INTO [new_jobBooking].[job] (job_status, isFollowup, serviceID)
+                    OUTPUT INSERTED.job_ID VALUES (@status, 0, @serviceId)`);
+          await pool.request().input('jobId', sql.Int, jobRes.recordset[0].job_ID).input('bookingId', sql.Int, bookingId)
+            .query(`INSERT INTO [new_jobBooking].[work] (job_ID, booking_ID) VALUES (@jobId, @bookingId)`);
+          jobCount++;
+        }
+      }
     } catch (linkErr) {
       console.error('[Cool Fix] job/work link skipped:', linkErr.message);
     }
@@ -346,16 +530,17 @@ const createBooking = async (req, res) => {
           await pool.request()
             .input('customerID', sql.Int, customer.customer_ID)
             .input('promoID', sql.Int, promoRes.recordset[0].promo_id)
-            .input('serviceID', sql.Int, Number(serviceId))
+            .input('serviceID', sql.Int, ids[0])
             .query(`INSERT INTO [payables].[purchases] (customerID, promoID, serviceID) VALUES (@customerID, @promoID, @serviceID)`);
         }
       } catch (promoErr) { console.error('[Cool Fix] promo log skipped:', promoErr.message); }
     }
 
-    return res.status(201).json({ success: true, booking_ID: bookingId,
+    return res.status(201).json({ success: true, booking_ID: bookingId, jobs_created: jobCount,
       reference: `BK-${new Date().getFullYear()}-${String(bookingId).padStart(3, '0')}` });
   } catch (err) {
-    console.error('[Cool Fix] POST Customer Booking Error:', err.message);
+    console.error('[Cool Fix] POST Customer Booking Error:', err.message,
+      '| received date =', req.body && req.body.date, '| received time =', req.body && req.body.time);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -401,4 +586,133 @@ const cancelBooking = async (req, res) => {
   }
 };
 
-module.exports = { getDashboard, getMyBookings, getMyUnits, registerUnit, getServices, getPromotions, getAddresses, createBooking, cancelBooking };
+/* ============================================================================
+ * CUSTOMER PROFILE — GET + PUT /api/customer/profile?customerId=<id>
+ * Real tables: [user3].[newCustomer] + [user3].[topUser]
+ * Body (all optional, at least one): { name, email, phone, address }
+ * ========================================================================== */
+const shapeProfile = (row) => ({
+  // both naming styles included so any page can read what it expects
+  customer_id: row.customer_ID,
+  customer_ID: row.customer_ID,
+  username: row.username || '',
+  name: row.customer_name || row.username || '',
+  customer_name: row.customer_name || row.username || '',
+  email: row.email || '',
+  phone: row.phoneNumber || '',
+  phoneNumber: row.phoneNumber || '',
+  address: row.customer_address || '',
+  customer_address: row.customer_address || '',
+  joined: row.joined || null,
+  loyalty_points: Number(row.loyaltyPoints || 0),
+  total_spent: Number(row.totalSpent || 0),
+});
+
+/* GET /api/customer/profile?customerId=# */
+const getProfile = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    if (!pool) return res.status(503).json({ success: false, message: 'Database not connected' });
+    const rawId = parseInt(req.query.customerId, 10) || parseInt(req.query.customer_id, 10) || 0;
+    const customer = await resolveCustomer(pool, rawId);
+    if (!customer) return res.status(404).json({ success: false, message: `Customer ${req.query.customerId || ''} not found` });
+    return res.status(200).json({ success: true, profile: shapeProfile(customer) });
+  } catch (err) {
+    console.error('[Cool Fix] GET Customer Profile Error:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/* PUT /api/customer/profile?customerId=# */
+const updateProfile = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    if (!pool) return res.status(503).json({ success: false, message: 'Database not connected' });
+
+    const rawId = parseInt(req.query.customerId, 10)
+      || parseInt((req.body || {}).customerId, 10)
+      || parseInt((req.body || {}).customer_id, 10)
+      || 0;
+    const customer = await resolveCustomer(pool, rawId);
+    if (!customer) return res.status(404).json({ success: false, message: `Customer ${req.query.customerId || ''} not found` });
+
+    const body = req.body || {};
+    const pick = (...vals) => {
+      for (const v of vals) {
+        if (typeof v === 'string' && v.trim() !== '') return v.trim();
+      }
+      return undefined;
+    };
+    const name = pick(body.name, body.customer_name);
+    const email = pick(body.email);
+    const phone = pick(body.phone, body.phoneNumber);
+    const address = pick(body.address, body.customer_address);
+
+    // ---- Validations ----
+    if (name !== undefined && name.length > 45)
+      return res.status(400).json({ success: false, message: 'Name is too long (max 45 characters)' });
+    if (email !== undefined) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+        return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
+      if (email.length > 100)
+        return res.status(400).json({ success: false, message: 'Email is too long (max 100 characters)' });
+    }
+    if (phone !== undefined && !/^[0-9+\-\s()]{6,20}$/.test(phone))
+      return res.status(400).json({ success: false, message: 'Please enter a valid phone number' });
+    if (address !== undefined && address.length > 200)
+      return res.status(400).json({ success: false, message: 'Address is too long (max 200 characters)' });
+    if (name === undefined && email === undefined && phone === undefined && address === undefined)
+      return res.status(400).json({ success: false, message: 'Nothing to update' });
+
+    // ---- user_ID of this customer (needed for topUser update + duplicate check) ----
+    const ownerRes = await pool.request()
+      .input('cid', sql.Int, customer.customer_ID)
+      .query(`SELECT user_ID FROM [user3].[newCustomer] WHERE customer_ID = @cid`);
+    const userId = ownerRes.recordset.length ? ownerRes.recordset[0].user_ID : null;
+
+    // ---- Duplicate email check (another account already uses it) ----
+    if (email !== undefined && userId != null) {
+      const dup = await pool.request()
+        .input('email', sql.VarChar(100), email)
+        .input('uid', sql.Int, userId)
+        .query(`SELECT user_ID FROM [user3].[topUser] WHERE email = @email AND user_ID <> @uid`);
+      if (dup.recordset.length)
+        return res.status(409).json({ success: false, message: 'That email is already used by another account' });
+    }
+
+    // ---- UPDATE [user3].[topUser]: email + phone ----
+    if (userId != null && (email !== undefined || phone !== undefined)) {
+      const nextEmail = email !== undefined ? email : (customer.email || '');
+      const nextPhone = phone !== undefined ? phone : (customer.phoneNumber || '');
+      await pool.request()
+        .input('email', sql.VarChar(100), nextEmail)
+        .input('phone', sql.VarChar(45), nextPhone)
+        .input('uid', sql.Int, userId)
+        .query(`UPDATE [user3].[topUser] SET email = @email, phoneNumber = @phone WHERE user_ID = @uid`);
+    }
+
+    // ---- UPDATE [user3].[newCustomer]: name + address ----
+    if (name !== undefined || address !== undefined) {
+      const nextName = name !== undefined ? name : (customer.customer_name || customer.username || 'Customer');
+      const nextAddress = address !== undefined ? address : (customer.customer_address || '');
+      await pool.request()
+        .input('name', sql.VarChar(45), nextName)
+        .input('address', sql.VarChar(200), nextAddress)
+        .input('cid', sql.Int, customer.customer_ID)
+        .query(`UPDATE [user3].[newCustomer] SET customer_name = @name, customer_address = @address WHERE customer_ID = @cid`);
+    }
+
+    // ---- Re-read and return the fresh profile ----
+    const fresh = await resolveCustomer(pool, customer.customer_ID);
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      profile: shapeProfile(fresh || customer),
+    });
+  } catch (err) {
+    console.error('[Cool Fix] PUT Customer Profile Error:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { getDashboard, getMyBookings, getMyUnits, registerUnit, getServices, getPlans, getMySubscriptions, getPromotions, getAddresses, createBooking, cancelBooking, getProfile, updateProfile };

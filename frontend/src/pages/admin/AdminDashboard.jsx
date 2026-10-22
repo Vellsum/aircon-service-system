@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/admin/Sidebar";
 import PortalWelcomeBanner from "../../components/common/PortalWelcomeBanner";
 import "../../styles/shared.css";
+
+const API = "http://localhost:5000/api/admin";
 
 const statusTone = {
   Confirmed: "success",
@@ -11,6 +14,7 @@ const statusTone = {
   Cancelled: "danger",
 };
 
+// NOTE: still sample data. Replace with a real revenue endpoint when one exists.
 const revenueTrend = [
   { label: "Apr", value: 12800 },
   { label: "May", value: 14200 },
@@ -30,21 +34,32 @@ const getInitials = (name = "") =>
     .slice(0, 2)
     .toUpperCase();
 
+const formatLocalDateString = (dateInput) => {
+  if (!dateInput) return "";
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 const AdminDashboard = () => {
-  // Live State from Backend
-  const [dbStats, setDbStats] = useState({
+  const navigate = useNavigate();
+
+  const [stats, setStats] = useState({
     totalBookings: 0,
     totalTechnicians: 0,
     totalCustomers: 0,
     pendingBookings: 0,
   });
-  const [bookings, setBookings] = useState([]);
+  const [recentBookings, setRecentBookings] = useState([]);
   const [topTechnicians, setTopTechnicians] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Fetch real data on component mount
+  // Everything is computed from the same endpoints the management pages use,
+  // so the dashboard always matches what admin sees there.
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const token = localStorage.getItem("token") || "";
       const headers = {
@@ -52,48 +67,78 @@ const AdminDashboard = () => {
         ...(token && { Authorization: `Bearer ${token}` }),
       };
 
-      // 1. Fetch Stats Metrics
-      const statsRes = await fetch("http://localhost:5000/api/admin/dashboard/stats", { headers });
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        if (statsData.success && statsData.stats) {
-          setDbStats(statsData.stats);
-        }
+      const [bookRes, techRes, custRes] = await Promise.all([
+        fetch(`${API}/bookings`, { headers }),
+        fetch(`${API}/bookings/technicians`, { headers }),
+        fetch(`${API}/users/customers`, { headers }),
+      ]);
+
+      const [bookData, techData, custData] = await Promise.all([
+        bookRes.json(),
+        techRes.json(),
+        custRes.json(),
+      ]);
+
+      const bookingList =
+        bookRes.ok && Array.isArray(bookData.bookings) ? bookData.bookings : [];
+      const technicianList =
+        techRes.ok && Array.isArray(techData.technicians) ? techData.technicians : [];
+      const customerList =
+        custRes.ok && Array.isArray(custData.customers) ? custData.customers : [];
+
+      if (!bookRes.ok || !techRes.ok || !custRes.ok) {
+        setError("Some dashboard data could not be loaded from the server.");
       }
 
-      // 2. Fetch Top Technicians Leaderboard
-      const techRes = await fetch("http://localhost:5000/api/admin/dashboard/technicians", { headers });
-      if (techRes.ok) {
-        const techData = await techRes.json();
-        if (techData.success && Array.isArray(techData.technicians)) {
-          const formattedTechs = techData.technicians.map((t) => ({
-            id: t.user_ID,
-            username: t.username || `Technician #${t.user_ID}`,
-            jobs: t.jobsDone || 0,
-            initials: getInitials(t.username || "Tech"),
-          }));
-          setTopTechnicians(formattedTechs);
-        }
-      }
+      // Stats
+      setStats({
+        totalBookings: bookingList.length,
+        totalTechnicians: technicianList.length,
+        totalCustomers: customerList.length,
+        pendingBookings: bookingList.filter((b) => (b.status || "Pending") === "Pending").length,
+      });
 
-      // 3. Fetch Recent Bookings Table
-      const bookingRes = await fetch("http://localhost:5000/api/admin/dashboard/recent-bookings", { headers });
-      if (bookingRes.ok) {
-        const bookingData = await bookingRes.json();
-        if (bookingData.success && Array.isArray(bookingData.bookings)) {
-          const formattedBookings = bookingData.bookings.slice(0, 5).map((b) => ({
-            id: `#BK${String(b.booking_ID || b.id).padStart(3, "0")}`,
+      // Recent bookings: newest 5
+      const formatted = bookingList
+        .map((b) => {
+          const rawId = b.booking_ID || b.id || 0;
+          return {
+            rawId,
+            id: `#BK${String(rawId).padStart(3, "0")}`,
             customer: b.customer_name || "Guest Customer",
-            service: "Aircon Servicing",
             technician: b.technician_name || "Unassigned",
-            date: b.booking_date || "Pending",
+            date: formatLocalDateString(b.booking_date) || "Pending",
             status: b.status || "Pending",
-          }));
-          setBookings(formattedBookings);
+          };
+        })
+        .sort((a, b) => b.rawId - a.rawId)
+        .slice(0, 5);
+      setRecentBookings(formatted);
+
+      // Top technicians: completed jobs per technician
+      const jobsByTech = {};
+      bookingList.forEach((b) => {
+        if (b.status === "Completed" && b.technician_ID) {
+          const key = String(b.technician_ID);
+          jobsByTech[key] = (jobsByTech[key] || 0) + 1;
         }
-      }
+      });
+      const leaderboard = technicianList
+        .map((t) => {
+          const name = t.technician_name || t.username || `Technician #${t.technician_ID}`;
+          return {
+            id: t.technician_ID,
+            username: name,
+            jobs: jobsByTech[String(t.technician_ID)] || 0,
+            initials: getInitials(name),
+          };
+        })
+        .sort((a, b) => b.jobs - a.jobs)
+        .slice(0, 5);
+      setTopTechnicians(leaderboard);
     } catch (err) {
-      console.error("Error loading live dashboard data:", err);
+      console.error("Error loading dashboard data:", err);
+      setError("Cannot reach the server. Check that the backend is running.");
     } finally {
       setLoading(false);
     }
@@ -106,34 +151,10 @@ const AdminDashboard = () => {
   const maxJobs = Math.max(...topTechnicians.map((t) => t.jobs), 1);
 
   const liveStats = [
-    {
-      label: "Total Bookings",
-      value: String(dbStats.totalBookings || bookings.length),
-      delta: "Live Database",
-      tone: "accent",
-      icon: "📅",
-    },
-    {
-      label: "Active Technicians",
-      value: String(dbStats.totalTechnicians || topTechnicians.length),
-      delta: "Available now",
-      tone: "cyan",
-      icon: "🛠",
-    },
-    {
-      label: "Customers",
-      value: String(dbStats.totalCustomers || 0),
-      delta: "Registered total",
-      tone: "accent",
-      icon: "👥",
-    },
-    {
-      label: "Pending Bookings",
-      value: String(dbStats.pendingBookings || 0),
-      delta: "Requires Action",
-      tone: "warning",
-      icon: "⏳",
-    },
+    { label: "Total Bookings", value: stats.totalBookings, delta: "Live Database", tone: "accent", icon: "📅" },
+    { label: "Active Technicians", value: stats.totalTechnicians, delta: "Available now", tone: "cyan", icon: "🛠" },
+    { label: "Customers", value: stats.totalCustomers, delta: "Registered total", tone: "accent", icon: "👥" },
+    { label: "Pending Bookings", value: stats.pendingBookings, delta: "Requires Action", tone: "warning", icon: "⏳" },
   ];
 
   return (
@@ -145,6 +166,26 @@ const AdminDashboard = () => {
           title="Welcome back, Admin 👋"
           subtitle="Here's what's happening with your aircon service system today."
         />
+
+        {error && (
+          <div
+            style={{
+              margin: "16px 0",
+              padding: "12px 16px",
+              borderRadius: 8,
+              background: "#fef2f2",
+              color: "#b91c1c",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span>{error}</span>
+            <button className="dash-btn dash-btn-ghost" onClick={fetchDashboardData}>
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Dashboard Metrics */}
         <section className="dash-stats">
@@ -159,11 +200,13 @@ const AdminDashboard = () => {
         </section>
 
         <div className="dash-two-col">
-          {/* Recent Bookings Table */}
+          {/* Recent Bookings */}
           <section className="dash-panel">
             <div className="dash-panel-head">
               <h2>Recent Bookings</h2>
-              <button className="dash-btn dash-btn-ghost">View All</button>
+              <button className="dash-btn dash-btn-ghost" onClick={() => navigate("/admin/bookings")}>
+                View All
+              </button>
             </div>
 
             <div className="dash-table-wrap">
@@ -172,19 +215,17 @@ const AdminDashboard = () => {
                   <tr>
                     <th>Booking ID</th>
                     <th>Customer</th>
-                    <th>Service</th>
                     <th>Technician</th>
                     <th>Date</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {bookings.length > 0 ? (
-                    bookings.map((booking) => (
+                  {recentBookings.length > 0 ? (
+                    recentBookings.map((booking) => (
                       <tr key={booking.id}>
                         <td className="dash-mono">{booking.id}</td>
                         <td>{booking.customer}</td>
-                        <td>{booking.service}</td>
                         <td>{booking.technician}</td>
                         <td className="dash-mono">{booking.date}</td>
                         <td>
@@ -197,7 +238,7 @@ const AdminDashboard = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
+                      <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
                         {loading ? "Loading bookings..." : "No recent bookings found."}
                       </td>
                     </tr>
@@ -207,7 +248,7 @@ const AdminDashboard = () => {
             </div>
           </section>
 
-          {/* Top Technicians Leaderboard (read-only) */}
+          {/* Top Technicians (read-only, completed jobs) */}
           <section className="dash-panel">
             <h2>Top Technicians</h2>
             {topTechnicians.length > 0 ? (
@@ -232,7 +273,7 @@ const AdminDashboard = () => {
           </section>
         </div>
 
-        {/* Revenue Chart */}
+        {/* Revenue Chart (sample data) */}
         <section className="dash-panel" style={{ marginTop: 20 }}>
           <h2>Revenue Trend</h2>
           <div className="dash-chart">
