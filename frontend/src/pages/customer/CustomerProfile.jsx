@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Icon } from "../../components/customer/CustomerIcons";
-import { CURRENT_CUSTOMER, SAVED_ADDRESSES } from "../../data/customer/customerMockData";
 import { formatDate } from "../../data/customer/customerSelectors";
 import { useAuth } from "../../context/AuthContext";
+import { getAddresses, getDashboard, updateProfile } from "../../api/customerApi";
 
 const getInitials = (name = "") =>
   name
@@ -16,37 +16,89 @@ const CustomerProfile = () => {
   const { user } = useAuth();
 
   const [form, setForm] = useState({
-    customer_name: user?.customer_name || CURRENT_CUSTOMER.customer_name,
-    email: user?.email || CURRENT_CUSTOMER.email,
-    phone: CURRENT_CUSTOMER.phone,
+    customer_name: user?.customer_name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    address: "",
   });
+  const [account, setAccount] = useState({ customer_ID: null, username: null, joined: null, loyalty_points: 0 });
+  const [addresses, setAddresses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all([getDashboard(), getAddresses()])
+      .then(([dashRes, addrRes]) => {
+        if (!alive) return;
+        const p = dashRes?.profile || {};
+        setForm({
+          customer_name: p.customer_name || user?.customer_name || "",
+          email: p.email || user?.email || "",
+          phone: p.phone || "",
+          address: p.address || "",
+        });
+        setAccount({
+          customer_ID: p.customer_ID || null,
+          username: p.username || user?.username || null,
+          joined: p.joined || null,
+          loyalty_points: Number(p.loyalty_points || 0),
+        });
+        const list = addrRes?.addresses || [];
+        setAddresses(list);
+      })
+      .catch((err) => alive && setToast(err.message || "Could not load profile"))
+      .finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const updateField = (key) => (event) =>
+    setForm((current) => ({ ...current, [key]: event.target.value }));
+
   const [prefs, setPrefs] = useState({
     emailReminders: true,
     smsReminders: true,
     promoOffers: false,
   });
-  const [toast, setToast] = useState(null);
-
-  const updateField = (key) => (event) =>
-    setForm((current) => ({ ...current, [key]: event.target.value }));
-
   const togglePref = (key) =>
     setPrefs((current) => ({ ...current, [key]: !current[key] }));
 
-  const save = (event) => {
+  // Real save — PUT /api/customer/profile updates user3.newCustomer + user3.topUser
+  const save = async (event) => {
     event.preventDefault();
-    // Demo save. The real call is a PUT against the customer record in
-    // user3.newCustomer / user3.topUser.
-    setToast("Profile updated.");
-    window.setTimeout(() => setToast(null), 3000);
+    setSaving(true);
+    try {
+      await updateProfile({
+        customer_name: form.customer_name,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+      });
+      setToast("Profile updated.");
+    } catch (err) {
+      setToast(err.message || "Could not save changes.");
+    } finally {
+      setSaving(false);
+      window.setTimeout(() => setToast(null), 3000);
+    }
   };
+
+  if (loading) {
+    return (
+      <section className="cust-panel" style={{ padding: 48, textAlign: "center" }}>
+        <p style={{ color: "var(--text-secondary)" }}>Loading your profile…</p>
+      </section>
+    );
+  }
 
   return (
     <>
       <div className="cust-page-head">
         <div>
           <h1>Profile & settings</h1>
-          <p>Your contact details, saved addresses and reminder preferences.</p>
+          <p>Your contact details, saved address and reminder preferences.</p>
         </div>
       </div>
 
@@ -62,20 +114,17 @@ const CustomerProfile = () => {
 
             <form onSubmit={save}>
               <div className="dash-form-row">
-                <label className="dash-form-label" htmlFor="profile-name">
-                  Full name
-                </label>
+                <label className="dash-form-label" htmlFor="profile-name">Full name</label>
                 <input
                   id="profile-name"
                   className="dash-form-input"
                   value={form.customer_name}
                   onChange={updateField("customer_name")}
+                  required
                 />
               </div>
               <div className="dash-form-row">
-                <label className="dash-form-label" htmlFor="profile-email">
-                  Email address
-                </label>
+                <label className="dash-form-label" htmlFor="profile-email">Email address</label>
                 <input
                   id="profile-email"
                   type="email"
@@ -85,9 +134,7 @@ const CustomerProfile = () => {
                 />
               </div>
               <div className="dash-form-row">
-                <label className="dash-form-label" htmlFor="profile-phone">
-                  Mobile number
-                </label>
+                <label className="dash-form-label" htmlFor="profile-phone">Mobile number</label>
                 <input
                   id="profile-phone"
                   className="dash-form-input"
@@ -95,9 +142,20 @@ const CustomerProfile = () => {
                   onChange={updateField("phone")}
                 />
               </div>
+              <div className="dash-form-row">
+                <label className="dash-form-label" htmlFor="profile-address">Service address</label>
+                <textarea
+                  id="profile-address"
+                  className="dash-form-input"
+                  rows={2}
+                  style={{ resize: "vertical" }}
+                  value={form.address}
+                  onChange={updateField("address")}
+                />
+              </div>
 
-              <button className="dash-btn dash-btn-primary" type="submit" style={{ marginTop: 6 }}>
-                Save changes
+              <button className="dash-btn dash-btn-primary" type="submit" disabled={saving} style={{ marginTop: 6 }}>
+                {saving ? "Saving…" : "Save changes"}
               </button>
             </form>
           </section>
@@ -105,45 +163,45 @@ const CustomerProfile = () => {
           <section className="cust-panel">
             <div className="cust-panel-head">
               <div>
-                <h2>Saved addresses</h2>
+                <h2>Saved address</h2>
                 <p>Where we send technicians.</p>
               </div>
-              <button className="dash-btn dash-btn-outline">
-                <Icon name="plus" size={13} /> Add address
-              </button>
             </div>
 
-            {SAVED_ADDRESSES.map((address) => (
-              <div
-                key={address.address_ID}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 12,
-                  padding: "14px 0",
-                  borderBottom: "1px solid var(--border)",
-                }}
-              >
-                <Icon name="pin" size={17} style={{ color: "var(--text-secondary)", marginTop: 2 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: "0 0 3px", fontSize: 13.5, fontWeight: 500 }}>
-                    {address.label}
-                    {address.isDefault && (
-                      <span className="cust-badge tone-accent" style={{ marginLeft: 8 }}>
-                        Default
-                      </span>
-                    )}
-                  </p>
-                  <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-secondary)" }}>
-                    {address.line}, Singapore {address.postal}
-                  </p>
+            {addresses.length > 0 ? (
+              addresses.map((address) => (
+                <div
+                  key={address.address_ID}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    padding: "14px 0",
+                    borderBottom: "1px solid var(--border)",
+                  }}
+                >
+                  <Icon name="pin" size={17} style={{ color: "var(--text-secondary)", marginTop: 2 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: "0 0 3px", fontSize: 13.5, fontWeight: 500 }}>
+                      {address.label}
+                      {address.isDefault && (
+                        <span className="cust-badge tone-accent" style={{ marginLeft: 8 }}>
+                          Default
+                        </span>
+                      )}
+                    </p>
+                    <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-secondary)" }}>
+                      {address.line}
+                      {address.postal ? `, Singapore ${address.postal}` : ""}
+                    </p>
+                  </div>
                 </div>
-                <div className="dash-row-actions">
-                  <button className="dash-row-btn">Edit</button>
-                  <button className="dash-row-btn is-danger">Remove</button>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                No address on file yet — add one above and press Save changes.
+              </p>
+            )}
           </section>
         </div>
 
@@ -162,14 +220,14 @@ const CustomerProfile = () => {
                 {getInitials(form.customer_name)}
               </span>
               <h2 style={{ fontSize: 16, fontWeight: 600, margin: "14px 0 4px" }}>
-                {form.customer_name}
+                {form.customer_name || "Customer"}
               </h2>
               <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-secondary)" }}>
-                Customer since {formatDate(CURRENT_CUSTOMER.joined)}
+                Customer since {formatDate(account.joined)}
               </p>
               <span className="cust-badge tone-success" style={{ marginTop: 12 }}>
                 <Icon name="star" size={12} />
-                {CURRENT_CUSTOMER.loyalty_points} loyalty points
+                {account.loyalty_points} loyalty points
               </span>
             </div>
           </section>
@@ -220,13 +278,11 @@ const CustomerProfile = () => {
             </div>
             <div className="cust-summary-row">
               <span className="cust-summary-label">Username</span>
-              <span className="cust-summary-value dash-mono">{CURRENT_CUSTOMER.username}</span>
+              <span className="cust-summary-value dash-mono">{account.username || "—"}</span>
             </div>
             <div className="cust-summary-row">
               <span className="cust-summary-label">Customer ID</span>
-              <span className="cust-summary-value dash-mono">
-                {CURRENT_CUSTOMER.customer_ID}
-              </span>
+              <span className="cust-summary-value dash-mono">{account.customer_ID || "—"}</span>
             </div>
             <button className="dash-btn dash-btn-outline" style={{ width: "100%", marginTop: 14 }}>
               Change password

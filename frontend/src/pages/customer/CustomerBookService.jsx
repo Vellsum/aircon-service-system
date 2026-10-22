@@ -46,6 +46,7 @@ function slotStartTime(label) {
 
 const CustomerBookService = () => {
   const navigate = useNavigate();
+  const [numberOfUnits, setNumOfUnits]=useState(); //change unit selection to just how many
   const [searchParams] = useSearchParams();
 
   // Deep links from the catalogue and unit cards preselect the draft,
@@ -55,6 +56,7 @@ const CustomerBookService = () => {
 
   const [step, setStep] = useState(1);
   const [serviceId, setServiceId] = useState(presetServiceId);
+  const [serviceIds, setServiceIds] = useState([]);   //this is to hold multiple services in a single booking
   const [unitIds, setUnitIds] = useState(presetUnitId ? [presetUnitId] : []);
   const [date, setDate] = useState("");
   const [slotId, setSlotId] = useState(null);
@@ -93,23 +95,43 @@ const CustomerBookService = () => {
   }, []);
 
   const service = useMemo(() => findService(serviceId, services), [serviceId, services]);
-  const slot = TIME_SLOTS.find((entry) => entry.id === slotId) || null;
+  //const slot = TIME_SLOTS.find((entry) => entry.id === slotId) || null;
+  const slot = slotId || null;
   const address = addresses.find((entry) => entry.address_ID === addressId) || null;
   const selectedUnits = units.filter((unit) => unitIds.includes(unit.installed_ID));
-
-  const pricing = useMemo(
-    () => priceBooking({ service, unitCount: unitIds.length, promo: appliedPromo }),
-    [service, unitIds.length, appliedPromo]
-  );
+  
+const pricing = useMemo(() => {
+    const unitCount = Number(numberOfUnits) || 0;
+    const selectedServices = services.filter((s) => serviceIds.includes(s.service_id));
+    const subtotal = selectedServices.reduce((acc, svc) => acc + (svc.price * unitCount), 0);
+    
+    // Calculate discount based on your appliedPromo logic
+    let discount = 0;
+    if (appliedPromo) {
+      if (appliedPromo.type === "percentage") {
+        discount = subtotal * (appliedPromo.value / 100);
+      } else {
+        discount = appliedPromo.value || 0;
+      }
+    }
+    
+    const total = Math.max(0, subtotal - discount);
+    return { subtotal, discount, total };
+  }, [serviceIds, services, numberOfUnits, appliedPromo]);
 
   // Each step gates the "Continue" button until it has what it needs.
   const stepComplete = {
-    1: Boolean(service),
-    2: unitIds.length > 0,
+    1:serviceIds.length > 0,
+    2: numberOfUnits > 0,
     3: Boolean(date) && Boolean(slot),
     4: Boolean(address),
     5: true,
   };
+
+  //method to link set amount to database or something, replaces below method
+const setNumberUnits= (amount)=>{
+
+};
 
   const toggleUnit = (installedId) => {
     setUnitIds((current) =>
@@ -133,16 +155,17 @@ const CustomerBookService = () => {
   const goNext = () => setStep((current) => Math.min(current + 1, STEPS.length));
   const goBack = () => setStep((current) => Math.max(current - 1, 1));
 
-  const submitBooking = async () => {
-    if (!service || !date || !slot || !address) return;
+  {/** this is the method to take all the data in this frontend to  backend */}
+const submitBooking = async () => {    
+    if (serviceIds.length === 0 || !date || !slot || !address) return;
     setSubmitting(true);
     setSubmitError("");
     try {
       const res = await createBooking({
-        serviceId: service.service_id,
-        unitIds: unitIds, // no link table yet — kept for future use
+        serviceIds: serviceIds,
+        numberOfUnits: Number(numberOfUnits),
         date,
-        time: slotStartTime(slot.label),
+        time: slot,
         location: `${address.line}${address.postal ? `, Singapore ${address.postal}` : ""}`,
         comments: notes || null,
         promoCode: appliedPromo?.code || null,
@@ -251,6 +274,10 @@ const CustomerBookService = () => {
     );
   }
 
+  //this method is to show number of aircons, uses usestate var from above
+const handleChange = (e) => {
+    setNumOfUnits(e.target.value);
+  };
   /* ---------------------------------------------------------- the wizard */
   return (
     <>
@@ -281,13 +308,14 @@ const CustomerBookService = () => {
 
       <div className="cust-grid-2">
         <div>
-          {/* Step 1 — service */}
+          
+        {/* Step 1 — services */}
           {step === 1 && (
             <section className="cust-panel">
               <div className="cust-panel-head">
                 <div>
                   <h2>What do you need done?</h2>
-                  <p>Pick the service that best matches the problem.</p>
+                  <p>Pick one or more services that match your needs.</p>
                 </div>
               </div>
               {services.length === 0 ? (
@@ -296,107 +324,102 @@ const CustomerBookService = () => {
                 </p>
               ) : (
                 <div className="cust-choice-grid">
-                  {services.map((entry) => (
-                    <button
-                      type="button"
-                      key={entry.service_id}
-                      className={`cust-choice${serviceId === entry.service_id ? " is-selected" : ""}`}
-                      onClick={() => setServiceId(entry.service_id)}
-                    >
-                      {serviceId === entry.service_id && (
-                        <span className="cust-choice-tick">
-                          <Icon name="check" size={12} strokeWidth={3} />
+                  {services.map((entry) => {
+                    const isSelected = Array.isArray(serviceIds) 
+                      ? serviceIds.includes(entry.service_id) 
+                      : serviceId === entry.service_id;
+
+                    const handleServiceToggle = () => {
+                      if (Array.isArray(serviceIds)) {
+                        if (isSelected) {
+                          setServiceIds(serviceIds.filter((id) => id !== entry.service_id));
+                        } else {
+                          setServiceIds([...serviceIds, entry.service_id]);
+                        }
+                      } else {
+                        // Fallback if transitioning from a single serviceId state
+                        setServiceId(entry.service_id);
+                      }
+                    };
+
+                    return (
+                      <button
+                        type="button"
+                        key={entry.service_id}
+                        className={`cust-choice${isSelected ? " is-selected" : ""}`}
+                        onClick={handleServiceToggle}
+                      >
+                        {isSelected && (
+                          <span className="cust-choice-tick">
+                            <Icon name="check" size={12} strokeWidth={3} />
+                          </span>
+                        )}
+                        <span className="cust-choice-icon">
+                          <Icon name={entry.icon} size={19} />
                         </span>
-                      )}
-                      <span className="cust-choice-icon">
-                        <Icon name={entry.icon} size={19} />
-                      </span>
-                      <h3 className="cust-choice-title">{entry.service_name}</h3>
-                      <p className="cust-choice-desc">{entry.description}</p>
-                      <div className="cust-choice-foot">
-                        <span className="cust-price">
-                          {formatMoney(entry.price)}
-                          <span className="cust-price-unit">{entry.unit_label}</span>
-                        </span>
-                        <span className="cust-duration">
-                          <Icon name="clock" size={12} />
-                          {entry.duration_mins} min
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+                        <h3 className="cust-choice-title">{entry.service_name}</h3>
+                        <p className="cust-choice-desc">{entry.description}</p>
+                        <div className="cust-choice-foot">
+                          <span className="cust-price">
+                            {formatMoney(entry.price)}
+                            <span className="cust-price-unit">{entry.unit_label}</span>
+                          </span>
+                          <span className="cust-duration">
+                            <Icon name="clock" size={12} />
+                            {entry.duration_mins} min
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </section>
           )}
 
-          {/* Step 2 — units */}
+
+          {/* Step 2 —  number units */}
           {step === 2 && (
             <section className="cust-panel">
               <div className="cust-panel-head">
-                <div>
-                  <h2>Which units need attention?</h2>
-                  <p>Select one or more. Pricing updates as you choose.</p>
-                </div>
+              <div>
+  <h2>How many units need attention?</h2>
+  <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+    {[1, 2, 3].map((num) => {
+      const isSelected = Number(numberOfUnits) === num;
+      return (
+        <button
+          type="button"
+          key={num}
+          className={`dash-btn ${isSelected ? "dash-btn-primary" : "dash-btn-outline"}`}
+          style={{ flex: 1, padding: "12px 0" }}
+          onClick={() => setNumOfUnits(num)}
+        >
+          {num} unit{num !== 1 ? "s" : ""}
+        </button>
+      );
+    })}
+  </div>
+  
+  <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)" }}>
+    You selected: {numberOfUnits || "None"}
+  </p>
+</div>
               </div>
-              {units.length === 0 ? (
-                <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                  You have no registered units yet. Add one from My Aircon Units first.
-                </p>
-              ) : (
-                <div className="cust-choice-grid">
-                  {units.map((unit) => (
-                    <button
-                      type="button"
-                      key={unit.installed_ID}
-                      className={`cust-choice${
-                        unitIds.includes(unit.installed_ID) ? " is-selected" : ""
-                      }`}
-                      onClick={() => toggleUnit(unit.installed_ID)}
-                    >
-                      {unitIds.includes(unit.installed_ID) && (
-                        <span className="cust-choice-tick">
-                          <Icon name="check" size={12} strokeWidth={3} />
-                        </span>
-                      )}
-                      <span className="cust-choice-icon">
-                        <Icon name="snowflake" size={19} />
-                      </span>
-                      <h3 className="cust-choice-title">{unit.nickname}</h3>
-                      <p className="cust-choice-desc">
-                        {unit.brand} {unit.model}
-                      </p>
-                      <div className="cust-choice-foot">
-                        <span className="cust-duration">
-                          <Icon name="history" size={12} />
-                          Last: {unit.last_service || "—"}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <p style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 14 }}>
-                Unit not listed? You can add it from{" "}
-                <button
-                  className="dash-btn dash-btn-ghost"
-                  style={{ padding: 0 }}
-                  onClick={() => navigate("/customer/my-units")}
-                >
-                  My Aircon Units
-                </button>
-                .
-              </p>
+             
+             
             </section>
-          )}
+          )} {/**end of step 2, select number of units   */}
 
-          {/* Step 3 — date and slot (slots are static UI config — no slot table in schema) */}
+
+
+{/* Step 3 — date and time of day */}
           {step === 3 && (
             <section className="cust-panel">
               <div className="cust-panel-head">
                 <div>
                   <h2>When suits you?</h2>
-                  <p>Choose a date, then an available time slot.</p>
+                  <p>Choose a date, then select morning or afternoon.</p>
                 </div>
               </div>
 
@@ -415,36 +438,36 @@ const CustomerBookService = () => {
               </div>
 
               {date ? (
-                ["Morning", "Afternoon", "Evening"].map((period) => {
-                  const periodSlots = TIME_SLOTS.filter((entry) => entry.period === period);
-                  if (periodSlots.length === 0) return null;
-                  return (
-                    <div className="cust-slot-group" key={period}>
-                      <p className="cust-slot-period">{period}</p>
-                      <div className="cust-slots">
-                        {periodSlots.map((entry) => (
-                          <button
-                            type="button"
-                            key={entry.id}
-                            disabled={!entry.available}
-                            className={`cust-slot${slotId === entry.id ? " is-selected" : ""}`}
-                            onClick={() => setSlotId(entry.id)}
-                            title={entry.available ? undefined : "Fully booked"}
-                          >
-                            {entry.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })
+                <div className="cust-slot-group">
+                  <p className="cust-slot-period">Time</p>
+                  <div className="cust-slots">
+                    {["Morning", "Afternoon"].map((period) => {
+                      const isAfternoonDisabled = period === "Afternoon" && Number(numberOfUnits) === 3;
+                      return (
+                        <button
+                          type="button"
+                          key={period}
+                          disabled={isAfternoonDisabled}
+                          className={`cust-slot${slotId === period ? " is-selected" : ""}`}
+                          onClick={() => setSlotId(period)}
+                          title={isAfternoonDisabled ? "Afternoon unavailable for 3 units" : undefined}
+                        >
+                          {period}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               ) : (
                 <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>
-                  Pick a date to see the available time slots.
+                  Pick a date to see available options.
                 </p>
               )}
             </section>
           )}
+
+
+
 
           {/* Step 4 — address and notes */}
           {step === 4 && (
@@ -505,7 +528,7 @@ const CustomerBookService = () => {
             </section>
           )}
 
-          {/* Step 5 — review */}
+       {/* Step 5 — review */}
           {step === 5 && (
             <section className="cust-panel">
               <div className="cust-panel-head">
@@ -516,22 +539,25 @@ const CustomerBookService = () => {
               </div>
 
               <div className="cust-summary-row">
-                <span className="cust-summary-label">Service</span>
-                <span className="cust-summary-value">{service?.service_name}</span>
-              </div>
-              <div className="cust-summary-row">
-                <span className="cust-summary-label">Units</span>
+                <span className="cust-summary-label">Services</span>
                 <span className="cust-summary-value">
-                  {selectedUnits.map((unit) => unit.nickname).join(", ") || "—"}
+                  {services
+                    .filter((s) => serviceIds.includes(s.service_id))
+                    .map((s) => s.service_name)
+                    .join(", ") || "None"}
                 </span>
               </div>
               <div className="cust-summary-row">
+                <span className="cust-summary-label">Number of Units</span>
+                <span className="cust-summary-value">{numberOfUnits || "—"}</span>
+              </div>
+              <div className="cust-summary-row">
                 <span className="cust-summary-label">Date</span>
-                <span className="cust-summary-value">{formatLongDate(date)}</span>
+                <span className="cust-summary-value">{date ? formatLongDate(date) : "—"}</span>
               </div>
               <div className="cust-summary-row">
                 <span className="cust-summary-label">Time</span>
-                <span className="cust-summary-value">{slot?.label}</span>
+                <span className="cust-summary-value">{slot || "—"}</span>
               </div>
               <div className="cust-summary-row">
                 <span className="cust-summary-label">Address</span>
@@ -547,6 +573,10 @@ const CustomerBookService = () => {
                 </div>
               )}
 
+        
+            
+          
+              {/**
               {service && (
                 <div style={{ marginTop: 20 }}>
                   <p className="cust-meta-label">What's included</p>
@@ -559,7 +589,7 @@ const CustomerBookService = () => {
                     ))}
                   </ul>
                 </div>
-              )}
+              )} */}
             </section>
           )}
 
@@ -598,24 +628,23 @@ const CustomerBookService = () => {
             </p>
           )}
         </div>
-
-        {/* Live summary */}
+{/* Live summary */}
         <aside className="cust-summary">
           <div className="cust-summary-head">
             <h3>Booking summary</h3>
           </div>
           <div className="cust-summary-body">
             <div className="cust-summary-row">
-              <span className="cust-summary-label">Service</span>
-              <span className={`cust-summary-value${service ? "" : " is-muted"}`}>
-                {service?.service_name || "Not chosen"}
+              <span className="cust-summary-label">Services</span>
+              <span className={`cust-summary-value${serviceIds.length ? "" : " is-muted"}`}>
+                {serviceIds.length > 0 
+                  ? services.filter(s => serviceIds.includes(s.service_id)).map(s => s.service_name).join(", ") 
+                  : "Not chosen"}
               </span>
             </div>
             <div className="cust-summary-row">
-              <span className="cust-summary-label">Units</span>
-              <span className={`cust-summary-value${unitIds.length ? "" : " is-muted"}`}>
-                {unitIds.length ? `${unitIds.length} selected` : "None"}
-              </span>
+              <span className="cust-summary-label">Number of Units</span>
+              <span>{numberOfUnits || 0}</span>
             </div>
             <div className="cust-summary-row">
               <span className="cust-summary-label">Date</span>
@@ -626,21 +655,38 @@ const CustomerBookService = () => {
             <div className="cust-summary-row">
               <span className="cust-summary-label">Time</span>
               <span className={`cust-summary-value${slot ? "" : " is-muted"}`}>
-                {slot?.label || "Not chosen"}
+                {slot || "Not chosen"}
               </span>
             </div>
 
-            {service && (
+            {serviceIds.length > 0 && numberOfUnits && (
               <>
+                {services
+                  .filter((s) => serviceIds.includes(s.service_id))
+                  .map((svc) => {
+                    const unitCount = Number(numberOfUnits) || 0;
+                    const itemTotal = svc.price * unitCount;
+                    return (
+                      <div key={svc.service_id} className="cust-summary-row">
+                        <span className="cust-summary-label">
+                          {svc.service_name} ({formatMoney(svc.price)} × {unitCount})
+                        </span>
+                        <span className="cust-summary-value dash-mono">
+                          {formatMoney(itemTotal)}
+                        </span>
+                      </div>
+                    );
+                  })}
+
                 <div className="cust-summary-row">
-                  <span className="cust-summary-label">
-                    {formatMoney(service.price)} × {pricing.billableUnits}{" "}
-                    {service.unit_label === "per unit" ? "unit(s)" : ""}
-                  </span>
-                  <span className="cust-summary-value dash-mono">
-                    {formatMoney(pricing.subtotal)}
+                  <span className="cust-summary-label">Total Estimated Time</span>
+                  <span className="cust-summary-value">
+                    {services
+                      .filter((s) => serviceIds.includes(s.service_id))
+                      .reduce((acc, svc) => acc + (svc.duration_mins || 0), 0) * (Number(numberOfUnits) || 0)} mins
                   </span>
                 </div>
+
                 {appliedPromo && (
                   <div className="cust-summary-row">
                     <span className="cust-summary-label">
@@ -680,6 +726,9 @@ const CustomerBookService = () => {
             <span className="cust-summary-total-value">{formatMoney(pricing.total)}</span>
           </div>
         </aside>
+
+
+
       </div>
     </>
   );

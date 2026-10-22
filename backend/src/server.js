@@ -31,6 +31,10 @@ const adminPayablesRoutes = require('./routes/adminPayablesRoutes');
 
 const customerRoutes = require('./routes/customerRoutes');
 
+// Chatbot Routes
+const chatbotRoutes = require('./routes/chatbotRoutes');
+app.use('/api/chatbot', chatbotRoutes);
+
 // Mount Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/bookings', bookingRoutes);

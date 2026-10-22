@@ -3,8 +3,6 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import CoolFixLogo from "../common/CoolFixLogo";
 import { Icon } from "./CustomerIcons";
-import { CURRENT_CUSTOMER } from "../../data/customer/customerMockData";
-import { getUpcomingBookings } from "../../data/customer/customerSelectors";
 
 // Highlighting is handled by NavLink from the current URL, the same way the
 // admin sidebar does it.
@@ -23,8 +21,8 @@ const navGroups = [
   {
     label: "My Account",
     items: [
-      { label: "My Bookings", path: "/customer/bookings", icon: "calendar", badgeKey: "upcoming" },
-      { label: "My Aircon Units", path: "/customer/my-units", icon: "snowflake" },
+      { label: "My Bookings", path: "/customer/bookings", icon: "calendar" },
+      { label: "My Subscriptions", path: "/customer/subscriptions", icon: "calendar" },
       { label: "Profile & Settings", path: "/customer/profile", icon: "user" },
     ],
   },
@@ -54,14 +52,10 @@ const CustomerSidebar = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
-  const displayName = user?.customer_name || user?.username || CURRENT_CUSTOMER.customer_name;
-  const displayEmail = user?.email || CURRENT_CUSTOMER.email;
-  const badges = { upcoming: getUpcomingBookings().length };
+  const displayName = user?.customer_name || user?.username || "Customer";
+  const displayEmail = user?.email || "—";
 
   const handleLogout = () => {
-    // AuthContext owns aircon_user / aircon_token; the two older keys are
-    // cleared as well so a session started before AuthContext existed
-    // does not survive a logout.
     if (logout) logout();
     localStorage.removeItem("aircon_role");
     localStorage.removeItem("aircon_email");
@@ -81,25 +75,19 @@ const CustomerSidebar = ({ isOpen, onClose }) => {
         {navGroups.map((group) => (
           <React.Fragment key={group.label}>
             <p className="cust-nav-label">{group.label}</p>
-            {group.items.map((item) => {
-              const badge = item.badgeKey ? badges[item.badgeKey] : 0;
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={onClose}
-                  className={({ isActive }) =>
-                    `cust-nav-item${isActive ? " is-active" : ""}`
-                  }
-                >
-                  <span className="cust-nav-icon" aria-hidden="true">
-                    <Icon name={item.icon} size={18} />
-                  </span>
-                  <span>{item.label}</span>
-                  {badge > 0 && <span className="cust-nav-badge">{badge}</span>}
-                </NavLink>
-              );
-            })}
+            {group.items.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                onClick={onClose}
+                className={({ isActive }) => `cust-nav-item${isActive ? " is-active" : ""}`}
+              >
+                <span className="cust-nav-icon" aria-hidden="true">
+                  <Icon name={item.icon} size={18} />
+                </span>
+                <span>{item.label}</span>
+              </NavLink>
+            ))}
           </React.Fragment>
         ))}
       </nav>

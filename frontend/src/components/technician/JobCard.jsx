@@ -3,7 +3,7 @@
 // Updated: 6 Oct 2026
 //   • Same date/time start-gate as JobRow: locked jobs show 🔒 with the
 //     unlock date/time instead of an active Start button.
-//   • 'scheduled' added to canStart (real DB status that was missing).
+//   • Start statuses mirror the shared workflow transition guard.
 // =============================================================================
 import React from 'react'
 import JobStatusBadge from './JobStatusBadge'
@@ -11,13 +11,20 @@ import { evaluateJobStart } from '../../utils/jobSchedule' // 6 Oct 2026
 
 function JobCard({ job, onView, onPrimaryAction, isActionPending = false, actionReadOnly = false }) {
   const normalizedStatus = String(job.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
-  // 6 Oct 2026: added 'scheduled'
-  const canStart = ['upcoming', 'assigned', 'pending', 'scheduled'].includes(normalizedStatus)
+  const canStart = ['upcoming', 'assigned', 'pending'].includes(normalizedStatus)
   const canContinue = normalizedStatus === 'in progress'
 
   // 6 Oct 2026 — date/time gate
   const gate = evaluateJobStart(job)
   const startLocked = canStart && !gate.allowed
+  const startDisabledReason = isActionPending
+    ? 'A status update for this booking is already in progress.'
+    : actionReadOnly ? 'Status updates require an authenticated Technician session.'
+      : !gate.allowed ? `This job is ${gate.reason} — Start unlocks then.` : undefined
+  const handleStart = () => {
+    if (!canStart || isActionPending || actionReadOnly || !evaluateJobStart(job).allowed) return
+    return onPrimaryAction(job)
+  }
 
   const initials = job.customerName
     ? job.customerName
@@ -100,7 +107,7 @@ function JobCard({ job, onView, onPrimaryAction, isActionPending = false, action
               className="job-primary-action"
               disabled
               style={{ opacity: 0.55, cursor: 'not-allowed' }}
-              title={`This job is ${gate.reason} — Start unlocks then.`}
+              title={startDisabledReason}
             >
               🔒 {gate.reason.replace('scheduled for ', '')}
             </button>
@@ -109,9 +116,10 @@ function JobCard({ job, onView, onPrimaryAction, isActionPending = false, action
             <button
               type="button"
               className="job-primary-action"
-              onClick={() => onPrimaryAction(job)}
+              onClick={handleStart}
               disabled={isActionPending || actionReadOnly}
               aria-busy={isActionPending}
+              title={startDisabledReason}
             >
               {isActionPending ? 'Updating…' : 'Start'}
             </button>

@@ -67,8 +67,30 @@ CREATE TABLE payables.promotions (
 CREATE TABLE payables.serviceList (packageID INT NOT NULL, promoID INT NOT NULL, serviceID INT NOT NULL, PRIMARY KEY (packageID, promoID, serviceID));
 CREATE TABLE payables.packageList (promoID INT NOT NULL, packageID INT NOT NULL, serviceID INT NOT NULL, PRIMARY KEY (promoID, packageID, serviceID));
 CREATE TABLE payables.purchases (purchase_id INT IDENTITY PRIMARY KEY, customerID INT NULL, promoID INT NULL, packageID INT NULL, serviceID INT NULL);
-GO
 
+--the table of subscriptions
+CREATE TABLE payables.subscription (
+    [subscriptionID]     INT IDENTITY(1,1) NOT NULL,
+    [name]               VARCHAR(255) NULL,
+    [description]        VARCHAR(MAX) NULL,
+    [recurringServiceID] INT NULL,       -- this is the standard service that gets repeated, take from the services we alr have
+    [timeTillNextService] INT NULL,       -- Representing interval/days/months till next service booking. lets do it in days
+    [numberOfBookings]   INT NULL     -- Total number of bookings included in this subscription cycle
+) 
+
+
+--junction table of who has subscriptions
+CREATE TABLE payables.currentSubscribers(
+
+  customerID INT NOT NULL,
+  subscriptionid INT NOT NULL,
+  remainingBookings INT,
+  dateStarted DATE,
+  nextBookingDate DATE
+
+);
+
+GO
 /* ============ inventory ============ */
 CREATE TABLE inventory.inventoryItem (
   itemID INT IDENTITY PRIMARY KEY, itemType VARCHAR(100) NULL, itemName VARCHAR(100) NULL,
@@ -111,8 +133,26 @@ CREATE TABLE new_jobBooking.Booking (
   booking_ID INT IDENTITY PRIMARY KEY, customer_ID INT NOT NULL, technician_ID INT NULL,
   [date] DATE NOT NULL, [time] TIME NOT NULL, isFollowup BIT DEFAULT 0,
   location VARCHAR(100) NOT NULL, [status] VARCHAR(100) NOT NULL, comments VARCHAR(500) NULL,
+
+ --new data of timing, number of units, estimated total time, estimate total cost, 
+  timing VARCHAR(50), --the morning or afternoon when customer first book. time is the actual time admin state
+  numberOfUnits int,
+  estimateTotalTime_minutes int, --in minutes
+  estimateTotalCost float,
+  reasonOfReassignment VARCHAR(100), --if admin need to reassign technician, need not let customer know
+
   CONSTRAINT FK_bk_customer FOREIGN KEY (customer_ID) REFERENCES user3.newCustomer(customer_ID),
-  CONSTRAINT FK_bk_tech FOREIGN KEY (technician_ID) REFERENCES user3.technician(technician_ID));
+  CONSTRAINT FK_bk_tech FOREIGN KEY (technician_ID) REFERENCES user3.technician(technician_ID)
+  
+ 
+
+  );
+
+-- the junction table if booking has multiple services
+  create table new_jobBooking.bookedServices(
+    booking_ID INT,
+    service_id int --wat services is in the booking
+  );
 
 CREATE TABLE new_jobBooking.partsUsed (reportID INT NOT NULL, itemID INT NOT NULL, PRIMARY KEY (reportID, itemID));
 CREATE TABLE new_jobBooking.work (job_ID INT NOT NULL, booking_ID INT NOT NULL, PRIMARY KEY (job_ID, booking_ID),
@@ -231,5 +271,42 @@ SET IDENTITY_INSERT new_jobBooking.Booking OFF;
 
 INSERT INTO new_jobBooking.partsUsed (reportID, itemID) VALUES (8002,306),(8003,305),(8003,309);
 INSERT INTO new_jobBooking.work (job_ID, booking_ID) VALUES (5001,1001),(5002,1002),(5003,1003),(5004,1004),(5005,1005),(5006,1006),(5007,1007);
+
+--dummy data for the 2 new tables of subscriptionTable and currentSubscribers
+INSERT INTO payables.subscription
+    ([name], [description], [recurringServiceID], [timeTillNextService], [numberOfBookings])
+VALUES 
+    (
+        'Quarterly Aircon Care Plan', 
+        'Covers routine chemical flushing and standard maintenance every 3 months for up to 3 units. Includes priority scheduling.', 
+        10,   -- Assuming serviceID 1 is standard general servicing
+        90,  -- 90 days till next service
+        4    -- 4 total bookings per year
+    ),
+    (
+        'Bi-Monthly Intensive Maintenance Shield', 
+        'Designed for heavy-usage environments and homes with pets. Servicing scheduled every 2 months.', 
+        11,   -- Assuming serviceID 2 is chemical wash / intensive servicing
+        60,  -- 60 days till next service
+        6    -- 6 total bookings per year
+    ),
+    (
+        'Half-Yearly Seasonal Checkup', 
+        'Light maintenance plan for secondary rooms or low-usage units, scheduled every 6 months.', 
+        12,   -- Standard service
+        180, -- 180 days till next service
+        2    -- 2 total bookings per year
+    );
+
+
+INSERT INTO payables.currentSubscribers (customerID, subscriptionid, remainingBookings, dateStarted, nextBookingDate)
+VALUES
+    (205, 1, 3, '2026-09-01', '2026-12-01'),  -- Scott: Quarterly Care Plan
+    (205, 2, 5, '2026-10-01', '2026-12-01'),  -- Scott: Bi-Monthly Shield
+    (201, 1, 2, '2026-07-01', '2026-10-01'),  -- John
+    (203, 3, 1, '2026-08-01', '2027-02-01');  -- David
+
+
+
 GO
 PRINT 'DONE: [aircon-db] created with schemas + demo data.';

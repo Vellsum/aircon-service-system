@@ -16,6 +16,9 @@ const updateJobStatus = technicianController.updateJobStatus || ((req, res) => r
 const getTechnicianProfile = technicianController.getTechnicianProfile
   || ((req, res) => res.status(500).json({ error: 'getTechnicianProfile missing in controller' }));
 
+const submitReport = technicianController.submitReport || ((req, res) => res.status(500).json({ error: 'submitReport missing in controller' }));
+router.post('/reports', submitReport);
+
 router.get('/profile', getTechnicianProfile);
 // Express GET: Retrieve assigned jobs for active technician
 router.get('/jobs', getAssignedJobs);
