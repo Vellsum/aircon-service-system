@@ -55,10 +55,17 @@ customer id was undefined. i bet i cant live not-null values null as well. the t
 IT WORKED!
 now when customer book, proper data aspecially timing, number of units, total time ,total cost, comments
 
-now i think still need that junction table, state the services when customer book (bookedservices table, where booking id can have multiple service id)
+now i think still
+
+231026 1123am - weijie continue in data structure className
+--- now i want admin booking management to have the same data as db [done]
+
+1pm - admin dashboard shows everything from sql 
+-> now need to have the input when chaning technician, reason
+->can alr assign technician, so it will update status n have customer to approve
 
 weijie tasklist;====================================================
--> edit customerbookservice jsx n booking controller for the new data
+-- edit customerbookservice jsx n booking controller for the new data [done]
 //once customer frontend can send the correct data wat does admin do?
 - admin frontend for assign booking to include time, for bookings in pending status
 
@@ -77,12 +84,17 @@ admin dashboard - revenue trend section
 admin profile page (follow customer ui)
 technician profile page (follow customer ui)
 
-promocode functionality, made code, customer use code, code give discount to final total cost
+promocode functionality, made code, customer use code, code give discount to final total cost - sum doing 231026 1225am when weijie manage to have customer booking in proper data
 
 logic that decide technician availability
-logic to allow cancellation
+b.
 
-parts usage by techncian
+
+
+
+
+
+logic to allow can,,,,,,,,,parts usage by techncian
 booking confirmed page - show number of units
 
 
