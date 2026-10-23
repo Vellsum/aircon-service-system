@@ -1,5 +1,8 @@
 /**
  * Cool Fix - Customer Portal Routes
+ * 
+ * this script used when customer create booking
+ * fucking heell the ai code
  */
 
 const express = require('express');
@@ -34,7 +37,7 @@ router.get('/subscriptions', getMySubscriptions);
 router.get('/services', getServices);
 router.get('/promotions', getPromotions);
 router.get('/addresses', getAddresses);
-router.post('/bookings', createBooking);
+router.post('/bookings', createBooking);  //to make booking
 router.put('/bookings/:bookingId/cancel', cancelBooking);
 
 module.exports = router;

@@ -16,12 +16,23 @@ const statusTone = {
 
 const statusFilters = ["All", "Confirmed", "Pending", "Assigned", "Completed", "Cancelled"];
 
+//this is wat the columns r . key is key, label is text. following order in db
 const columns = [
   { key: "booking_ID", label: "Booking ID" },
   { key: "customer_name", label: "Customer" },
   { key: "technician_name", label: "Technician" },
   { key: "booking_date", label: "Date" },
+  {key: "processedTime", label: "Time"},
+  {key: "isFollowup", label: "is it follow up?"},
+  {key: "customerAddress", label: "Location"},
   { key: "status", label: "Status" },
+  {key: "comments", label: "Customer Comments"},
+  {key: "timing", label: "Chosen time period"},
+  {key: "NO_U", label: "Number of units"},
+  {key: "totalTime", label: "total time"},
+  {key: "totalCost", label: "total cost"},
+  {key: "reassignmentReason", label: "reason for reassignment"},
+  //the html gets key from here
 ];
 
 const toDateString = (d) =>
@@ -64,7 +75,7 @@ const AssignTechnician = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async () => {  //this chunk return the data?
     setLoading(true);
     try {
       const token = localStorage.getItem("token") || "";
@@ -74,17 +85,32 @@ const AssignTechnician = () => {
       const bookRes = await fetch(`${API}/bookings`, { headers });
       const bookData = await bookRes.json();
       if (bookRes.ok && bookData.success && Array.isArray(bookData.bookings)) {
+        //this part calls api to get all bookings
+        // the b is the booking row than get by column
         setBookings(
           bookData.bookings.map((b) => {
             const rawId = b.booking_ID || b.id || 0;
             return {
               booking_ID: rawId,
-              id: `#BK${String(rawId).padStart(3, "0")}`,
-              customer_name: b.customer_name || "Guest Customer",
+              id: `#BK${String(rawId).padStart(3, "0")}`, //wateve rdafuw booking id
+
+              customer_name: b.customer_name || "Guest Customer", //the controllers convert their id to names for us
               technician_ID: b.technician_ID ? String(b.technician_ID) : "",
               technician_name: b.technician_name || "Unassigned",
               booking_date: formatLocalDateString(b.booking_date),
               status: b.status || "Pending",
+              processedTime: b.time,
+              isFollowup: b.isFollowup,
+              customerAddress: b.location,
+                status: b.status,
+                comments: b.comments,
+                timing: b.timing,
+                NO_U: b.numberOfUnits,
+                totalTime: b.estimateTotalTime_minutes,
+                totalCost: b.estimateTotalCost,
+                reassignmentReason: b.reasonOfReassignment,
+
+
             };
           })
         );
@@ -227,6 +253,7 @@ const AssignTechnician = () => {
 
   const sortIndicator = (key) => (key === sortKey ? (sortDir === "asc" ? " ▲" : " ▼") : "");
 
+  //component html===================================================================================================
   return (
     <div className="dash">
       {/* Keep this equal to the label in Sidebar.jsx; change both together when renaming */}
@@ -265,9 +292,11 @@ const AssignTechnician = () => {
             </div>
           </div>
 
+                {/**the table of bookings themselves=============================================================== */}
           <div className="dash-table-wrap">
             <table className="dash-table">
               <thead>
+                {/** the columns */}
                 <tr>
                   {columns.map((col) => (
                     <th
@@ -293,18 +322,27 @@ const AssignTechnician = () => {
                 ) : visibleBookings.length > 0 ? (
                   visibleBookings.map((booking) => {
                     const tooFar = isTooFarAhead(booking, assignLimit);
+
+                    {/**THIS IS ACTUAL DATA--------------------------------------------------------------- */}
+                    {/**the rows */}
                     return (
                       <tr key={booking.booking_ID}>
-                        <td className="dash-mono">{booking.id}</td>
-                        <td><strong>{booking.customer_name}</strong></td>
-                        <td>{booking.technician_name}</td>
-                        <td className="dash-mono">{booking.booking_date || "Pending"}</td>
-                        <td>
-                          <span className={`dash-status dash-status-${statusTone[booking.status] || "accent"}`}>
-                            <i />
-                            {booking.status}
-                          </span>
-                        </td>
+      {/**booking id */}                  <td className="dash-mono">{booking.id}</td>
+         {/**customer */}                   <td><strong>{booking.customer_name}</strong></td>
+              {/**technician */}              <td>{booking.technician_name}</td>
+          {/** date */}                  <td className="dash-mono">{booking.booking_date || "Pending"}</td>
+        {/** processed time*/}      <td className="dash-mono"> {booking.processedTime}</td>
+         {/**is followup */} <td> {String(booking.isFollowup) }</td>     {/**not showing properly */}
+         {/**location */} <td> {booking.customerAddress}</td>
+         {/**status */}                    <td>  <span className={`dash-status dash-status-${statusTone[booking.status] || "accent"}`}>  <i />    {booking.status}  </span> </td>
+                        {/**comment */} <td>  {booking.comments}</td>
+                        {/**timing */} <td> {booking.timing}</td>    
+                        {/**number of units */} <td> {booking.NO_U}</td> {/**not showing properly */}
+                        {/**total time */} <td> {booking.totalTime}</td>
+                        {/**total cost */} <td> { booking.totalCost} </td>
+                        {/**reason for reassignment */} <td> {booking. reasonOfReassignment} </td>                   
+                        
+                       {/**action buttons  */}
                         <td>
                           <div className="dash-row-actions">
                             <button
@@ -330,6 +368,8 @@ const AssignTechnician = () => {
                             )}
                           </div>
                         </td>
+
+
                       </tr>
                     );
                   })

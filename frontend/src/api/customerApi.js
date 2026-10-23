@@ -1,4 +1,15 @@
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'http://localhost:5000/api'; //something tells me when hosting these need to change
+
+/*
+ *  THIS IS THE API
+THIS IS A CONNECTOR FOR FRONTEND CODE TO CALL METHODS PROVIDED BY BACKEND
+WHEN CALLING METHOD, THEY JUST PUT THE DATA IN THESE METHOD ARGUMENTS
+
+THESE METHODS WHEN CALLED, SEND POST REQUEST TO BACKEND NODE  (cd backend, npm start, of localhost 5000)
+
+ * 
+ */
+
 
 function getAuthHeaders() {
   const token = localStorage.getItem('token') || '';
@@ -7,13 +18,29 @@ function getAuthHeaders() {
 
 // Same pattern as TechnicianDashboard: read id from localStorage "user"
 function getCurrentCustomerId() {
-  try {
+  
+     try {
     const stored = JSON.parse(localStorage.getItem('user') || '{}');
     return stored.customer_ID || stored.customerId || stored.id || stored.user_ID || 1;
+   // console.log('customer id: '+stored.customer_ID);
   } catch {
     return 1;
   }
 }
+/**
+ * 
+ *   function getCurrentCustomerId() {
+  try { //chatgpt adviced
+    const stored = JSON.parse(localStorage.getItem('user') || '{}');
+    return stored.customer_ID ?? stored.customerId ?? null;
+  } catch {
+    return null;
+  }
+}
+
+ */
+
+
 
 async function request(path) {
   const res = await fetch(`${API_BASE}${path}`, { headers: getAuthHeaders() });
@@ -22,6 +49,7 @@ async function request(path) {
   return body;
 }
 
+export const helpMyID = () => getCurrentCustomerId();
 export const getDashboard = () => request(`/customer/dashboard?customerId=${getCurrentCustomerId()}`);
 export const getMyBookings = () => request(`/customer/bookings?customerId=${getCurrentCustomerId()}`);
 export const getMyUnits = () => request(`/customer/units?customerId=${getCurrentCustomerId()}`);
@@ -33,8 +61,17 @@ export const getPromotions = () => request(`/customer/promotions`);
 export const getPlans = () => request(`/customer/plans`);
 export const getAddresses = () => request(`/customer/addresses?customerId=${getCurrentCustomerId()}`);
 
+
+/**
+ * 
+ * the method will call a fetch() that takes the api route as the argument
+ * server.js hears this 
+ * 
+ * 
+ * this script does not deal with data themselves
+ */
 // Create a new booking for the current customer
-export async function createBooking(payload) {
+export async function createBooking(payload) { //this method that is called by frontend is /customer
   const res = await fetch(`${API_BASE}/customer/bookings?customerId=${getCurrentCustomerId()}`, {
     method: 'POST',
     headers: getAuthHeaders(),

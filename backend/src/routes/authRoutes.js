@@ -7,4 +7,6 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/reset-password', authController.resetPassword);
 
+router.get('/customer-id/:userId', authController.getCustomerId); //for the new getting customer id
+
 module.exports = router;

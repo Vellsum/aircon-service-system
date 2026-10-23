@@ -14,10 +14,10 @@ import {
   getAddresses,
   getMyUnits,
   getPromotions,
-  getServices,
-} from "../../api/customerApi";
+  getServices,helpMyID,
+} from "../../api/customerApi"; // WE CALL CUSTOMER API EXPORTED METHODS
 
-const STEPS = [
+const STEPS = [ //steps to do here
   { id: 1, label: "Service" },
   { id: 2, label: "Units" },
   { id: 3, label: "Date & time" },
@@ -44,9 +44,10 @@ function slotStartTime(label) {
   return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }
 
+//the component itself =====================================================================================
 const CustomerBookService = () => {
   const navigate = useNavigate();
-  const [numberOfUnits, setNumOfUnits]=useState(); //change unit selection to just how many
+  const [numberOfUnits, setNumOfUnits]=useState(); //change unit selection to just how many, number of units from 1-3
   const [searchParams] = useSearchParams();
 
   // Deep links from the catalogue and unit cards preselect the draft,
@@ -59,14 +60,22 @@ const CustomerBookService = () => {
   const [serviceIds, setServiceIds] = useState([]);   //this is to hold multiple services in a single booking
   const [unitIds, setUnitIds] = useState(presetUnitId ? [presetUnitId] : []);
   const [date, setDate] = useState("");
-  const [slotId, setSlotId] = useState(null);
+  const [slotId, setSlotId] = useState(null); //morning or afternoon
+
+  //estimated total time n cost
+  const [estimatedtotaltime, setestimatedtotatltime]=useState("");
+    const [estimatedtotalcost, setestimatedtotatlcost]=useState("");
+
+    //customer id
+    const [customerid,setcustomerid]=useState(""); //where dafuq do i find the customer id??
+
   const [addressId, setAddressId] = useState(null);
   const [notes, setNotes] = useState("");
   const [promoInput, setPromoInput] = useState("");
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [promoError, setPromoError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
+  const [submitError, setSubmitError] = useState("");   //which fucking var is the data?
   const [confirmed, setConfirmed] = useState(null);
 
   // Live data
@@ -77,7 +86,17 @@ const CustomerBookService = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
+  //when component mounts...
   useEffect(() => {
+    //get my customer id
+      let my_id;
+        my_id=helpMyID();
+        console.log(my_id);
+      //watever the fuck logic here
+
+
+      setcustomerid(my_id);
+      
     let alive = true;
     Promise.all([getServices(), getMyUnits(), getPromotions(), getAddresses()])
       .then(([svcRes, unitRes, promoRes, addrRes]) => {
@@ -92,6 +111,8 @@ const CustomerBookService = () => {
       .catch((err) => alive && setLoadError(err.message))
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
+
+      
   }, []);
 
   const service = useMemo(() => findService(serviceId, services), [serviceId, services]);
@@ -100,6 +121,7 @@ const CustomerBookService = () => {
   const address = addresses.find((entry) => entry.address_ID === addressId) || null;
   const selectedUnits = units.filter((unit) => unitIds.includes(unit.installed_ID));
   
+  //we have this pricing method?
 const pricing = useMemo(() => {
     const unitCount = Number(numberOfUnits) || 0;
     const selectedServices = services.filter((s) => serviceIds.includes(s.service_id));
@@ -119,7 +141,15 @@ const pricing = useMemo(() => {
     return { subtotal, discount, total };
   }, [serviceIds, services, numberOfUnits, appliedPromo]);
 
-  // Each step gates the "Continue" button until it has what it needs.
+      //method for total estimated time, var kept
+      const totalEstimatedTime = useMemo(() => {
+      const unitCount = Number(numberOfUnits) || 0;
+      const selectedServices = services.filter((s) => serviceIds.includes(s.service_id));
+      const baseMinutes = selectedServices.reduce((acc, svc) => acc + (svc.duration_mins || 0), 0);
+      return baseMinutes * unitCount;
+    }, [serviceIds, services, numberOfUnits]);
+
+  // Each step gates the "Continue" button until it has what it needs. this part decides if user input is enough to go to the next step
   const stepComplete = {
     1:serviceIds.length > 0,
     2: numberOfUnits > 0,
@@ -130,7 +160,7 @@ const pricing = useMemo(() => {
 
   //method to link set amount to database or something, replaces below method
 const setNumberUnits= (amount)=>{
-
+//wtf??? did that pussy scott wrote this shit?
 };
 
   const toggleUnit = (installedId) => {
@@ -152,23 +182,35 @@ const setNumberUnits= (amount)=>{
     }
   };
 
+  //methods for the step
   const goNext = () => setStep((current) => Math.min(current + 1, STEPS.length));
   const goBack = () => setStep((current) => Math.max(current - 1, 1));
 
   {/** this is the method to take all the data in this frontend to  backend */}
+
+  //limpeh needs to change this to give newer data but backend also need to touch
 const submitBooking = async () => {    
     if (serviceIds.length === 0 || !date || !slot || !address) return;
     setSubmitting(true);
     setSubmitError("");
     try {
+
+          // Save the final calculated values
+  //  setEstimatedTotalTime(totalEstimatedTime);
+    //setEstimatedTotalCost(pricing.total); 
+
+
       const res = await createBooking({
-        serviceIds: serviceIds,
-        numberOfUnits: Number(numberOfUnits),
+        customer_ID: helpMyID(),//it should be customer id, not service id
+       // serviceIds: serviceIds,     
+        numberOfUnits: numberOfUnits,  //number of units to update in controller
         date,
-        time: slot,
+        time: slot,  //morning or afternooon thats going into timing column
         location: `${address.line}${address.postal ? `, Singapore ${address.postal}` : ""}`,
         comments: notes || null,
         promoCode: appliedPromo?.code || null,
+        estimatedtotalcost: pricing.total,    //the new data of estimated total time n cost
+        estimatedtotaltime: totalEstimatedTime
       });
       setConfirmed({ reference: res.reference, total: pricing.total });
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -176,6 +218,8 @@ const submitBooking = async () => {
       setSubmitError(err.message || "Could not create the booking. Please try again.");
     } finally {
       setSubmitting(false);
+      console.log(totalEstimatedTime  + ' min'); //so i can get the var directly from below
+      console.log(pricing.total+ ' $');
     }
   };
 
@@ -659,33 +703,67 @@ const handleChange = (e) => {
               </span>
             </div>
 
+                      
             {serviceIds.length > 0 && numberOfUnits && (
-              <>
-                {services
+              <>                      {/** estimated total cost -------------------- */}
+
+                                    {/**how about we send estimate total time n cost on the final confirm booking button */}
+               {services
+    .filter((s) => serviceIds.includes(s.service_id))
+    .map((svc) => {
+      const unitCount = Number(numberOfUnits) || 0;
+      const itemTotal = svc.price * unitCount;
+      return (
+        <div key={svc.service_id} className="cust-summary-row">
+          <span className="cust-summary-label">
+            {svc.service_name} ({formatMoney(svc.price)} × {unitCount})
+          </span>
+          <span className="cust-summary-value dash-mono">
+            {formatMoney(itemTotal)}
+          </span>
+        </div>
+      );
+    })}
+                {/**  {services
                   .filter((s) => serviceIds.includes(s.service_id))
                   .map((svc) => {
                     const unitCount = Number(numberOfUnits) || 0;
                     const itemTotal = svc.price * unitCount;
+                   // setestimatedtotatlcost(svc.price * unitCount);
                     return (
                       <div key={svc.service_id} className="cust-summary-row">
                         <span className="cust-summary-label">
                           {svc.service_name} ({formatMoney(svc.price)} × {unitCount})
                         </span>
                         <span className="cust-summary-value dash-mono">
-                          {formatMoney(itemTotal)}
+                          {formatMoney(itemTotal)} 
                         </span>
                       </div>
                     );
-                  })}
+                  })} */}
+              
 
-                <div className="cust-summary-row">
+                      {/** estimated total time -------------------- */}
+                        {/* estimated total time , ai code*/}
+                        <div className="cust-summary-row">
+                          <span className="cust-summary-label">Total Estimated Time</span>
+                          <span className="cust-summary-value">
+                            {totalEstimatedTime} mins
+                          </span>
+                        </div>
+                        {/** the estimated total is not a var number here */}
+                      {/**      <div className="cust-summary-row">
                   <span className="cust-summary-label">Total Estimated Time</span>
                   <span className="cust-summary-value">
+                    
+                
                     {services
                       .filter((s) => serviceIds.includes(s.service_id))
-                      .reduce((acc, svc) => acc + (svc.duration_mins || 0), 0) * (Number(numberOfUnits) || 0)} mins
+                      .reduce((acc, svc) => acc + (svc.duration_mins || 0), 0) * (Number(numberOfUnits) || 0)}
+                    {estimatedtotalcost} mins
                   </span>
-                </div>
+                </div> ***/}
+          
 
                 {appliedPromo && (
                   <div className="cust-summary-row">

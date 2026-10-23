@@ -8,7 +8,7 @@ import {
   Icon,
   SnowfieldBackdrop,
 } from "../../components/customer/CustomerIcons";
-import { getDashboard, getMySubscriptions } from "../../api/customerApi";
+import { getDashboard, getMySubscriptions } from "../../api/customerApi";  //NOTE GET METHODS FROM CUSTOMER API
 import {
   describeBookingUnits,
   describeCountdown,
@@ -17,7 +17,7 @@ import {
   formatMoney,
   statusTone,
 } from "../../data/customer/customerSelectors";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";     //various watever imports ===============================================================================
 
 const getInitials = (name = "") =>
   name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
@@ -27,14 +27,16 @@ const isUnitOverdue = (unit) => unit.next_due && new Date(unit.next_due) < new D
 const isUnitDueSoon = (unit) =>
   unit.next_due && new Date(unit.next_due) - new Date() <= 14 * DAY_MS;
 
-// ✅ FIXED: paths now match AppRoutes
+
+//the available options in the small quick actions button, just navigator ========================================================
 const quickActions = [
   { label: "Book a service", icon: "plus", path: "/customer/book-service" },
   { label: "View my bookings", icon: "calendar", path: "/customer/bookings" },
   { label: "Browse subscriptions", icon: "grid", path: "/customer/service-catalog" },
 
-];
+]; 
 
+//dashboard component itself ==================================================================================================
 const CustomerDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -44,7 +46,6 @@ const CustomerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // ✅ NEW: subscriptions panel state (moved INSIDE the component)
   const [subscriptions, setSubscriptions] = useState([]);
   const [subsLoading, setSubsLoading] = useState(true);
   const [subsError, setSubsError] = useState("");
@@ -58,7 +59,6 @@ const CustomerDashboard = () => {
     return () => { alive = false; };
   }, []);
 
-  // ✅ NEW: load subscriptions the same way the dashboard loads
   useEffect(() => {
     let alive = true;
     const load = async () => {
@@ -86,6 +86,7 @@ const CustomerDashboard = () => {
 
   const firstName = (user?.customer_name || data?.profile?.customer_name || "there").split(" ")[0];
 
+  //watever loading=====================================================================================================================================
   if (loading) {
     return (
       <section className="cust-panel" style={{ padding: 48, textAlign: "center" }}>
@@ -106,9 +107,33 @@ const CustomerDashboard = () => {
     );
   }
 
+
+
+//methods when user choose to reject or approve booking time ==================================
+//when either clicked, set the booking status
+const rejectTiming = () =>{
+  console.log('rejected timing');
+
+  //set booking status to request reschedule
+
+
+
+}
+
+const approveTiming = () => {
+    console.log('accepted  timing');
+
+//set booking status to confirmed
+
+
+
+}
+
+
+  //return actual html =====================================================================================================================================
   return (
     <>
-      {/* Welcome banner */}
+      {/* Welcome banner =------------------------------------------------------------------------------------------------  =*/}
       <section className="cust-banner">
         <SnowfieldBackdrop />
         <div className="cust-banner-text">
@@ -136,7 +161,110 @@ const CustomerDashboard = () => {
         </div>
       </section>
 
-            {/* Current subscriptions */}
+       {/* APPROVE PROCESSED BOOKING------------------------------------------------------------------------------------------------ */}
+<section className="cust-panel" style={{ borderLeft: "4px solid var(--primary, #1b8a5a)" }}>
+  <div className="cust-panel-head">
+      <div>
+        <h2>Bookings awaiting your approval</h2>
+        <p>Please review and confirm your processed service bookings.</p>
+      </div>
+  </div>
+
+  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "16px 20px",
+        borderRadius: "var(--radius)",
+        background: "var(--bg-app)",
+        border: "1px solid var(--border)",
+        flexWrap: "wrap",
+        gap: 16,
+      }}>
+    
+     {/** information to show */}
+          <div>
+            <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: 15 }}>  {/** show the type of servicing */}
+              Aircon General Servicing · 2 units
+            </p>
+            <p style={{ margin: 0, fontSize: 16, color: "var(--text-secondary)" }}>  {/** show admin chosen time, with date */}
+              Monday, 15 Nov 2026 · Morning (9:00 AM – 12:00 PM)
+            </p>
+          </div>
+
+        {/** the options */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }} onClick={() => handleRequestReschedule(booking.booking_ID)}>
+                      {/** reject timing */}
+                  <button className="dash-btn dash-btn-ghost"   style={{ color: "var(--danger, #c0392b)" }} onClick={   rejectTiming   }>
+                    Request reschedule
+                </button>   {/** <--- this button to reschdule booking, booking status change to back to pending, admin must redo timing */}
+
+
+              {/**approve timing */}
+                  <button   className="dash-btn dash-btn-primary"     onClick={ approveTiming  } >   
+                    Approve timing
+                  </button>    {/** <---- THIS BUTTON CALL METHOD TO CHANGE BOOKING STATUS TO CONFIRMED, NOTIFY TECHNICIAN */}
+          </div>
+
+
+    </div>
+  </div>
+</section>
+
+{/* View current subscriptions ---------------------------------------------------------------------------------------------*/}
+<section className="cust-panel">
+  <div className="cust-panel-head">
+    <div>
+      <h2>Your current subscriptions</h2>
+      <p>Active maintenance plans and packages</p>
+    </div>
+  </div>
+
+  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    {/* Example Mock Subscription Card - Replace or map with your actual subscription data */}
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "16px 20px",
+        borderRadius: "var(--radius)",
+        background: "var(--bg-app)",
+        border: "1px solid var(--border)",
+        flexWrap: "wrap",
+        gap: 16,
+      }}
+    >
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 15 }}>
+            Quarterly Aircon Maintenance Plan
+          </p>
+          <span className="cust-badge tone-success" style={{ fontSize: 11, padding: "2px 8px" }}>
+            Active
+          </span>
+        </div>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+          Covers 3 units · Renews on 12 Dec 2026
+        </p>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button
+          className="dash-btn dash-btn-outline"
+          onClick={() => navigate("/customer/service-catalog")}
+        >
+          Manage plan
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+            {/* Current subscriptions-------------------------------------------------------------------------------------------------------------- */}
       <section className="cust-panel">
         <div className="cust-panel-head">
           <div>
@@ -228,7 +356,9 @@ const CustomerDashboard = () => {
         )}
       </section>
 
-      {/* Service-due nudge */}
+      {/* Service-due nudge  -------------------------------------------------------------------------------------------------------------- */}
+      {/**unused codes */}
+      {/** */}
       {dueSoon.length > 0 && (
         <div className="cust-alert">
           <Icon name="alert" size={18} />
@@ -248,7 +378,7 @@ const CustomerDashboard = () => {
         </div>
       )}
 
-      {/* Stat row */}
+      {/* Stat row  -------------------------------------------------------------------------------------------------------------- */}
       <section className="cust-stats">
         <article className="cust-stat">
           <div className="cust-stat-icon"><Icon name="calendar" size={17} /></div>
@@ -259,7 +389,9 @@ const CustomerDashboard = () => {
           </p>
         </article>
 
-{/**   <article className="cust-stat cust-stat-cyan">
+{/**  
+ * removed watever this was
+ *  <article className="cust-stat cust-stat-cyan">
           <div className="cust-stat-icon"><Icon name="snowflake" size={17} /></div>
           <p className="cust-stat-label">Registered units</p>
           <p className="cust-stat-value">{stats.units}</p>
@@ -285,7 +417,7 @@ const CustomerDashboard = () => {
       </section>
 
       <div className="cust-grid-2">
-        {/* Left column */}
+        {/* Left column --------------------------------------------------------------------------------------------------------------*/}
         <div>
           <section className="cust-panel">
             <div className="cust-panel-head">
@@ -429,7 +561,7 @@ const CustomerDashboard = () => {
           </section>
         </div>
 
-        {/* Right column */}
+        {/* Right column, now just the quick actions --------------------------------------------------------------------------------------------------------------*/}
         <div>
           <section className="cust-panel">
             <div className="cust-panel-head">

@@ -1,6 +1,19 @@
 // backend/src/controllers/bookingController.js
-const { poolPromise, sql } = require('../config/db');
 
+
+/**these r controllers
+ * the actual methods sticking their dicks into the sql database
+ * sql queries r called here
+ */
+
+
+//gg this script was abandoned n nobody bothered to kill the lines
+
+
+/**
+ * 
+ * 
+ * const { poolPromise, sql } = require('../config/db');
 // 1. GET ALL SERVICES & PRICING
 exports.getServices = async (req, res) => {
     try {
@@ -26,8 +39,31 @@ exports.getServices = async (req, res) => {
 
 // 2. CREATE NEW BOOKING
 exports.createBooking = async (req, res) => {
+  
     try {
-        const { customer_ID, date, time, location } = req.body;
+  console.log("Booking request body:", req.body);
+console.log("Estimated cost:", req.body.estimatedTotalCost);
+console.log("Estimated time:", req.body.estimatedTotalTime);
+
+console.log("Booking values:", {
+    numberOfUnits,
+    time,
+    comments,
+    estimatedtotalcost,
+    estimatedtotaltime
+});
+
+        //Extract data from the request
+        const { customer_ID, //always have this
+            //service id? nah we need junction table
+            numberOfUnits,
+                date, 
+                time, 
+                location ,
+                comments,
+                //promocode cannot really, its a frontend calculation thing
+                estimatedtotalcost, 
+                estimatedtotaltime} = req.body; //these things take name from frontend 
 
         if (!customer_ID || !date || !time || !location) {
             return res.status(400).json({ 
@@ -39,19 +75,47 @@ exports.createBooking = async (req, res) => {
         const pool = await poolPromise;
 
         // technician_ID is set to NULL until assigned by Admin
-        const result = await pool.request()
+        const result = await pool.request() //prepare the inputs
             .input('customer_ID', sql.Int, customer_ID)
-            .input('technician_ID', sql.Int, null) 
+            //no service id here
+            .input('numberOfUnits', sql.Int,numberOfUnits) //number of units column
             .input('date', sql.Date, date)
-            .input('time', sql.VarChar(50), time)
+            .input('timing', sql.VarChar(50), time)   //changed to timing table
+             .input('location', sql.VarChar(100), location)
+             .input('comments',sql.VarChar(500),comments) //new line
+             .input('estimateTotalTime_minutes',sql.Int ,estimatedtotaltime) //new cpde
+             .input('estimateTotalCost',sql.Float,estimatedtotalcost) //new code
+            .input('technician_ID', sql.Int, null) 
             .input('isFollowup', sql.Bit, 0)
-            .input('location', sql.VarChar(100), location)
             .input('status', sql.VarChar(100), 'Pending')
+
+            //the sql code, these got sorted
             .query(`
-                INSERT INTO [new_jobBooking].[Booking] (customer_ID, technician_ID, date, time, isFollowup, location, status)
+                INSERT INTO [new_jobBooking].[Booking] (customer_ID,     
+                                                         numberOfUnits,
+                                                         date,
+                                                          timing,
+                                                           location,
+                                                           comments,
+                                                           estimateTotalTime_minutes,
+                                                           estimateTotalCost,
+                                                        technician_ID,      
+                                                           isFollowup, 
+                                                            status)
+               
                 OUTPUT INSERTED.booking_ID
-                VALUES (@customer_ID, @technician_ID, @date, @time, @isFollowup, @location, @status)
-            `);
+                VALUES (@customer_ID,
+                @numberOfUnits,
+                  @date,
+                  @timing, 
+                    @location,
+                    @comments,
+                       @estimateTotalTime_minutes,
+                    @estimateTotalCost,
+                 @technician_ID, 
+                  @isFollowup,
+                    @status)
+            `); //these @ ones refer to the input method on top
 
         const newBookingId = result.recordset[0].booking_ID;
 
@@ -66,3 +130,5 @@ exports.createBooking = async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 };
+ * 
+ */

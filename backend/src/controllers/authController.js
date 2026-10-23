@@ -2,6 +2,56 @@ const { poolPromise, sql } = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+
+
+/** this method so customer frontend can get customer id
+ * GET /api/auth/customer-id/:userId
+ * Retrieve the customer_ID associated with a user_ID.
+ */
+exports.getCustomerId = async (req, res) => {
+    try {
+        const userId = Number(req.params.userId);
+
+        if (!Number.isInteger(userId) || userId <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user_ID.'
+            });
+        }
+
+        const pool = await poolPromise;
+
+        const result = await pool.request()
+            .input('userId', sql.Int, userId)
+            .query(`
+                SELECT customer_ID
+                FROM [user3].[newCustomer]
+                WHERE user_ID = @userId
+            `);
+
+        if (result.recordset.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Customer record not found for this user.'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            customer_ID: result.recordset[0].customer_ID
+        });
+
+    } catch (err) {
+        console.error('[Cool Fix] Get Customer ID Error:', err);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve customer ID.'
+        });
+    }
+};
+
+
 // 1. REGISTER NEW CUSTOMER ONLY
 exports.register = async (req, res) => {
     try {

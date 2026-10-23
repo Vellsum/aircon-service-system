@@ -77,6 +77,7 @@ async function ensureJobLink(pool, bookingId, serviceId = null) {
     .query(`INSERT INTO [new_jobBooking].[work] (job_ID, booking_ID) VALUES (@jid, @bid)`);
 }
 
+
 /**
  * GET /api/admin/bookings
  */
@@ -84,7 +85,7 @@ exports.getAllBookings = async (req, res) => {
   try {
     const pool = await poolPromise;
     if (!pool) return res.status(200).json({ success: true, bookings: [] });
-
+//this part is needed by admin manage booking
     const query = `
       SELECT 
         b.booking_ID,
@@ -92,9 +93,17 @@ exports.getAllBookings = async (req, res) => {
         b.technician_ID,
         CONVERT(VARCHAR(10), b.[date], 120) AS booking_date,
         CONVERT(VARCHAR(8), b.[time], 108) AS [time],
+        b.isFollowup,
         b.location,
         b.status,
         b.comments,
+        b.timing,
+        b.numberOfUnits,
+        b.estimateTotalTime_minutes,
+        b.estimateTotalCost,
+        b.reasonOfReassignment,
+        
+
         ISNULL(c.customer_name, 'Guest Customer') AS customer_name,
         ISNULL(tech.technician_name, 'Unassigned') AS technician_name
       FROM [new_jobBooking].[Booking] b

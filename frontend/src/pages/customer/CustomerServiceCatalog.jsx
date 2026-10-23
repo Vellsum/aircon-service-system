@@ -124,8 +124,8 @@ const CustomerServiceCatalog = () => {
             ))}
           </div>
         </div>
-
-        <div className="cust-choice-grid">
+      
+     <div className="cust-choice-grid">
           {visible.map((service) => (
             <article className="cust-choice" key={service.service_id} style={{ cursor: "default" }}>
               <span className="cust-choice-icon">
@@ -164,7 +164,8 @@ const CustomerServiceCatalog = () => {
             </article>
           ))}
         </div>
-      </section>
+      
+      </section>*/
 
       {/* Maintenance plans — real data from payables.subscription */}
       <section className="cust-panel">

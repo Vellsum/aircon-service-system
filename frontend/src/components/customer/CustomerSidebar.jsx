@@ -15,7 +15,7 @@ const navGroups = [
     label: "Services",
     items: [
       { label: "Book a Service", path: "/customer/book-service", icon: "calendarPlus" },
-      { label: "Service Catalogue", path: "/customer/service-catalog", icon: "wrench" },
+      { label: "Purchase Subscription", path: "/customer/service-catalog", icon: "wrench" },
     ],
   },
   {
