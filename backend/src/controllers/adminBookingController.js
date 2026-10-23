@@ -215,6 +215,8 @@ exports.createBooking = async (req, res) => {
 
 /**
  * PUT /api/admin/bookings/:bookingId/status
+ * 
+ * this mega shit is used when admin change techniican. it updates technic but reason not in yet
  */
 exports.updateBookingStatus = async (req, res) => {
   try {
@@ -312,5 +314,322 @@ exports.updateBookingStatus = async (req, res) => {
   } catch (err) {
     console.error('[Cool Fix] SQL PUT Error:', err.message);
     return res.status(500).json({ success: false, message: `SQL Error: ${err.message}` });
+  }
+};
+
+
+//fuck above shit=====================================================================================
+
+/**
+ * PUT /api/admin/bookings/:bookingId/reassign
+ *
+ * Workflow A:
+ * Reassign the technician for a confirmed booking.
+ * Changes technician_ID and reassignment_reason only.
+ */
+exports.reassignConfirmedBooking = async (req, res) => {
+  console.log(req);
+  console.log(res);
+  try {
+    const bookingId = Number(req.params.bookingId);
+    const { technician_ID, reason } = req.body;
+
+    // 1. Validate request
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Booking ID.",
+      });
+    }
+
+    const technicianId = Number(technician_ID);
+    if (!Number.isInteger(technicianId) || technicianId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid technician must be selected.",
+      });
+    }
+
+    const cleanReason = String(reason || "").trim();
+    if (!cleanReason) {
+      return res.status(400).json({
+        success: false,
+        message: "A reason for reassignment is required.",
+      });
+    }
+
+    const pool = await poolPromise;
+    if (!pool) {
+      return res.status(500).json({
+        success: false,
+        message: "Database connection offline.",
+      });
+    }
+
+    // 2. Load existing booking
+    const bookingResult = await pool.request()
+      .input("bookingId", sql.Int, bookingId)
+      .query(`
+        SELECT
+          booking_ID,
+          technician_ID,
+          [date],
+          CONVERT(VARCHAR(8), [time], 108) AS bookingTime,
+          LOWER(LTRIM(RTRIM([status]))) AS bookingStatus
+        FROM [new_jobBooking].[Booking]
+        WHERE booking_ID = @bookingId
+      `);
+
+    if (bookingResult.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found.",
+      });
+    }
+
+    const booking = bookingResult.recordset[0];
+
+    // 3. Only confirmed bookings may use this workflow
+    if (booking.bookingStatus !== "confirmed") {
+      return res.status(409).json({
+        success: false,
+        message: "Only confirmed bookings can have their technician reassigned.",
+      });
+    }
+
+    if (Number(booking.technician_ID) === technicianId) {
+      return res.status(400).json({
+        success: false,
+        message: "Choose a different technician.",
+      });
+    }
+
+    // 4. Check whether the technician is already booked
+    const conflictResult = await pool.request()
+      .input("techId", sql.Int, technicianId)
+      .input("bookingId", sql.Int, bookingId)
+      .input("bookingDate", sql.Date, booking["date"])
+      .input("bookingTime", sql.VarChar(8), booking.bookingTime)
+      .query(`
+        SELECT COUNT(*) AS clashes
+        FROM [new_jobBooking].[Booking]
+        WHERE technician_ID = @techId
+          AND booking_ID <> @bookingId
+          AND [date] = @bookingDate
+          AND CONVERT(VARCHAR(5), [time], 108)
+              = LEFT(@bookingTime, 5)
+          AND LOWER(LTRIM(RTRIM([status]))) <> 'cancelled'
+      `);
+
+    if (conflictResult.recordset[0].clashes > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "This technician already has a booking at that date and time.",
+      });
+    }
+
+    // 5. Update technician and reason ONLY
+    const updateResult = await pool.request()
+      .input("bookingId", sql.Int, bookingId)
+      .input("techId", sql.Int, technicianId)
+      .input("reason", sql.VarChar(100), cleanReason)  // THIS IS THE REASON
+      .query(`
+        UPDATE [new_jobBooking].[Booking]
+        SET technician_ID = @techId,
+            reasonOfReassignment = @reason   
+        WHERE booking_ID = @bookingId
+          AND LOWER(LTRIM(RTRIM([status]))) = 'confirmed'
+      `);
+console.log(cleanReason);
+
+    if (updateResult.rowsAffected[0] === 0) {
+      return res.status(409).json({
+        success: false,
+        message: "The booking could not be reassigned. Refresh and try again.",
+      });
+    }
+
+    // 6. Ensure the job link exists
+    try {
+      await ensureJobLink(pool, bookingId);
+    } catch (err) {
+      console.error("[Cool Fix] ensureJobLink failed:", err.message);
+      // The technician update has already succeeded.
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Technician reassigned successfully.",
+    });
+  } catch (err) {
+    console.error("[Cool Fix] reassignConfirmedBooking error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reassign technician.",
+    });
+  }
+};
+
+
+
+
+
+
+/**
+ * PUT /api/admin/bookings/:bookingId/reschedule   -------------------------------------------
+ *
+ * Workflow B:
+ * Change the time of a booking awaiting rescheduling.
+ * Changes [time] only.
+ */
+exports.rescheduleRequestedBooking = async (req, res) => {
+  try {
+    const bookingId = Number(req.params.bookingId);
+const { time, technician_ID } = req.body;
+    // 1. Validate booking ID
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Booking ID.",
+      });
+    }
+
+    // 2. Validate and normalize requested time
+    if (typeof time !== "string" || !time.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "A new booking time is required.",
+      });
+    }
+
+    const targetTime = normalizeTimeToSql(time.trim());
+
+    if (!targetTime) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking time.",
+      });
+    }
+const technicianId = Number(technician_ID);
+
+if (!Number.isInteger(technicianId) || technicianId <= 0) {
+  return res.status(400).json({
+    success: false,
+    message: "A valid new technician is required.",
+  });
+}
+    const pool = await poolPromise;
+    if (!pool) {
+      return res.status(500).json({
+        success: false,
+        message: "Database connection offline.",
+      });
+    }
+
+    // 3. Load the existing booking
+    const bookingResult = await pool.request()
+      .input("bookingId", sql.Int, bookingId)
+      .query(`
+        SELECT
+          booking_ID,
+          technician_ID,
+          [date],
+          CONVERT(VARCHAR(8), [time], 108) AS bookingTime,
+          LOWER(LTRIM(RTRIM([status]))) AS bookingStatus
+        FROM [new_jobBooking].[Booking]
+        WHERE booking_ID = @bookingId
+      `);
+
+    if (bookingResult.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found.",
+      });
+    }
+
+    const booking = bookingResult.recordset[0];
+
+    // 4. Only reschedule-request bookings may use this workflow
+    const allowedStatuses = [
+      "request_reschedule",
+      "reschedule_requested",
+    ];
+
+    if (!allowedStatuses.includes(booking.bookingStatus)) {
+      return res.status(409).json({
+        success: false,
+        message: "This booking is not awaiting rescheduling.",
+      });
+    }
+
+    // 5. Reject the existing time
+    if (targetTime.slice(0, 5) === booking.bookingTime.slice(0, 5)) {
+      return res.status(400).json({
+        success: false,
+        message: "Choose a different booking time.",
+      });
+    }
+
+    // 6. Check for a technician conflict, if one is assigned
+    if (technician_ID != null) {
+      const conflictResult = await pool.request()
+        .input("techId", sql.Int, technicianId)
+        .input("bookingId", sql.Int, bookingId)
+        .input("bookingDate", sql.Date, booking["date"])
+        .input("bookingTime", sql.VarChar(8), targetTime)
+        .query(`
+          SELECT COUNT(*) AS clashes
+          FROM [new_jobBooking].[Booking]
+          WHERE technician_ID = @techId
+            AND booking_ID <> @bookingId
+            AND [date] = @bookingDate
+            AND CONVERT(VARCHAR(5), [time], 108)
+                = LEFT(@bookingTime, 5)
+            AND LOWER(LTRIM(RTRIM([status]))) <> 'cancelled'
+        `);
+
+      if (conflictResult.recordset[0].clashes > 0) {
+        return res.status(409).json({
+          success: false,
+          message: "The assigned technician already has a booking at that date and time.",
+        });
+      }
+    }
+
+    // 7. Update time and technician; return status to assigned.
+const updateResult = await pool.request()
+  .input("bookingId", sql.Int, bookingId)
+  .input("newTime", sql.VarChar(8), targetTime)
+  .input("technicianId", sql.Int, technicianId)
+  .query(`
+    UPDATE [new_jobBooking].[Booking]
+    SET
+      [time] = CONVERT(TIME, @newTime),
+      technician_ID = @technicianId,
+      [status] = 'Assigned'
+    WHERE booking_ID = @bookingId
+      AND LOWER(LTRIM(RTRIM([status])))
+          IN ('request_reschedule', 'reschedule_requested')
+  `);
+
+    if (updateResult.rowsAffected[0] === 0) {
+      return res.status(409).json({
+        success: false,
+        message: "The booking could not be rescheduled. Refresh and try again.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Booking time updated successfully.",
+    });
+  } catch (err) {
+    console.error("[Cool Fix] rescheduleRequestedBooking error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update booking time.",
+    });
   }
 };

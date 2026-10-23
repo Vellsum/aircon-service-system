@@ -3,7 +3,7 @@ import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
 
-const API = "http://localhost:5000/api/admin";
+const API = "http://localhost:5000/api/admin"; //the api? wat the bloody fuck is this fucking doign???
 const MAX_MONTHS_AHEAD = 2;
 
 const statusTone = {
@@ -12,9 +12,19 @@ const statusTone = {
   Assigned: "accent",
   Completed: "success",
   Cancelled: "danger",
+  reschedule_requested: "warning",
+  Reschedule_Requested: "warning",
 };
 
-const statusFilters = ["All", "Confirmed", "Pending", "Assigned", "Completed", "Cancelled"];
+const statusFilters = [
+  "All",
+  "Confirmed",
+  "Pending",
+  "Assigned",
+  "Completed",
+  "Cancelled",
+  "request_reschedule",
+];
 
 //this is wat the columns r . key is key, label is text. following order in db
 const columns = [
@@ -104,7 +114,7 @@ const AssignTechnician = () => {
               customerAddress: b.location,
                 status: b.status,
                 comments: b.comments,
-                timing: b.timing,
+                timing: b.timing,     //this is returned
                 NO_U: b.numberOfUnits,
                 totalTime: b.estimateTotalTime_minutes,
                 totalCost: b.estimateTotalCost,
@@ -171,85 +181,267 @@ const AssignTechnician = () => {
     }))
     .filter((o) => !isReassign || o.value !== modal.record.technician_ID);
 
-  // Everything is read-only except the technician (and the reason when reassigning)
-  const assignFields = [
-    { key: "id", label: "Booking ID", type: "text", readOnly: true },
-    { key: "customer_name", label: "Customer", type: "text", readOnly: true },
-    { key: "booking_date", label: "Booking Date", type: "text", readOnly: true },
-    { key: "status", label: "Status", type: "text", readOnly: true },
-    ...(isReassign
-      ? [{ key: "technician_name", label: "Current Technician", type: "text", readOnly: true }]
-      : []),
-    {
-      key: "technician_ID",
-      label: isReassign ? "New Technician" : "Technician",
-      type: "select",
-      required: true,
-      options: technicianOptions,
-    },
-    ...(isReassign
-      ? [{ key: "reason", label: "Reason for reassignment", type: "text", required: true }]
-      : []),
-  ];
+  // Reschedule requests: change time only.
+// Confirmed bookings: allow technician reassignment.
+// Everything else remains read-only.
+const isRescheduleRequested =
+  String(modal?.record?.status || "").toLowerCase() ===
+  "reschedule_requested";
 
-  const viewFields = [
-    { key: "id", label: "Booking ID" },
-    { key: "customer_name", label: "Customer" },
-    { key: "technician_name", label: "Technician" },
-    { key: "booking_date", label: "Booking Date" },
-    { key: "status", label: "Status" },
-  ];
+const assignFields = [
+  {
+    key: "id",
+    label: "Booking ID",
+    type: "text",
+    readOnly: true,
+  },
+  {
+    key: "customer_name",
+    label: "Customer",
+    type: "text",
+    readOnly: true,
+  },
+  {
+    key: "booking_date",
+    label: "Booking Date",
+    type: "text",
+    readOnly: true,
+  },
+  {
+    key: "status",
+    label: "Status",
+    type: "text",
+    readOnly: true,
+  },
 
-  const handleAssign = async (formData) => {
-    const record = modal.record;
+  ...(isReassign
+    ? [
+        {
+          key: "technician_name",
+          label: "Current Technician",
+          type: "text",
+          readOnly: true,
+        },
+      ]
+    : []),
 
-    if (!formData.technician_ID) {
+  {
+    key: "technician_ID",
+    label: isReassign ? "New Technician" : "Technician",
+    type: "select",
+    required: true,
+    options: technicianOptions,
+  },
+
+  {
+    key: "newTime",
+    label: isRescheduleRequested
+      ? "New Booking Time"
+      : "Booking Time",
+    type: "time",
+    required: isRescheduleRequested,
+    readOnly: !isRescheduleRequested,
+  },
+
+  ...(isReassign
+    ? [
+        {
+          key: "reason",
+          label: "Reason for reassignment",
+          type: "text",
+          required: true,
+        },
+      ]
+    : []),
+];
+
+const viewFields = [
+  { key: "id", label: "Booking ID" },
+  { key: "customer_name", label: "Customer" },
+  { key: "technician_name", label: "Technician" },
+  { key: "booking_date", label: "Booking Date" },
+  { key: "processedTime", label: "Booking Time" },
+  { key: "status", label: "Status" },
+];
+
+//this duc fucker======================================================================
+
+
+const handleAssign = async (formData) => {
+  const record = modal.record;
+
+  const status = String(record.status || "")
+    .trim()
+    .toLowerCase();
+
+  const isConfirmed = status === "confirmed";
+
+  const isRescheduleRequested = [
+    "request_reschedule",
+    "reschedule_requested",
+  ].includes(status);
+
+  const isInitialAssignment =
+    status === "pending" &&
+    !record.technician_ID;
+
+    console.log("Booking status:", record.status);
+console.log("Normalized status:", status);
+console.log("Technician ID:", record.technician_ID);
+console.log("Is confirmed:", isConfirmed);
+console.log("Is reschedule:", isRescheduleRequested);
+console.log("Is initial assignment:", isInitialAssignment);
+
+  if (
+    !isConfirmed &&
+    !isRescheduleRequested &&
+    !isInitialAssignment
+  ) {
+    showToast("Error: This booking cannot be edited using this form");
+    return;
+  }
+
+  if (isTooFarAhead(record, assignLimit)) {
+    showToast(
+      `Error: Bookings can only be assigned up to ${MAX_MONTHS_AHEAD} months ahead`
+    );
+    return;
+  }
+
+  let endpoint;
+  let requestBody;
+
+  if (isConfirmed) {
+    // Confirmed: change technician and reason only.
+    const technicianId = String(formData.technician_ID || "");
+    const reason = String(formData.reason || "").trim();
+
+    if (!technicianId) {
       showToast("Error: Please select a technician");
       return;
     }
-    if (isReassign && formData.technician_ID === record.technician_ID) {
+
+    if (technicianId === String(record.technician_ID || "")) {
       showToast("Error: Please choose a different technician");
       return;
     }
-    const reason = String(formData.reason || "").trim();
-    if (isReassign && !reason) {
+
+    if (!reason) {
       showToast("Error: A reason is required to reassign");
       return;
     }
-    if (isTooFarAhead(record, assignLimit)) {
-      showToast(`Error: Technicians can only be assigned up to ${MAX_MONTHS_AHEAD} months ahead`);
-      return;
-    }
+
+    endpoint =
+      `${API}/bookings/${record.booking_ID}/reassign`;
+
+    requestBody = {
+      technician_ID: Number(technicianId),
+      reason,
+    };
+ } else if (isRescheduleRequested) {
+              const newTime = String(formData.newTime || "").trim();
+              const technicianId = String(formData.technician_ID || "");
+              const currentTime = String(record.processedTime || "").slice(0, 5);
+
+              if (!technicianId) {
+                showToast("Error: Please select a technician");
+                return;
+              }
+
+              if (!newTime) {
+                showToast("Error: Please select a new booking time");
+                return;
+              }
+
+              if (newTime.slice(0, 5) === currentTime) {
+                showToast("Error: Please choose a different booking time");
+                return;
+              }
+
+              endpoint = `${API}/bookings/${record.booking_ID}/reschedule`;
+
+              requestBody = {
+                technician_ID: Number(technicianId),
+                time: newTime,
+              };
+  }
+
+else {
+  // New pending booking: assign its first technician.
+  const technicianId = String(formData.technician_ID || "");
+  const bookingTime = String(formData.newTime || "").trim();
+
+  if (!technicianId) {
+    showToast("Error: Please select a technician");
+    return;
+  }
+
+  if (!bookingTime) {
+    showToast("Error: Booking time is missing");
+    return;
+  }
+
+  endpoint = `${API}/bookings/${record.booking_ID}/status`;
+
+  requestBody = {
+    technician_ID: Number(technicianId),
+    time: bookingTime,
+    status: "Assigned",
+  };
+}
+
+  try {
+    const token = localStorage.getItem("token") || "";
+
+    console.log("Endpoint:", endpoint);
+    console.log("Request payload:", requestBody);
+
+    const res = await fetch(endpoint, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseText = await res.text();
+    console.log("HTTP status:", res.status);
+    console.log("Response:", responseText);
+
+    let result = {};
 
     try {
-      const token = localStorage.getItem("token") || "";
-
-      // Assigning a technician moves an open booking to "Assigned"
-      const nextStatus = ["Pending", "Confirmed"].includes(record.status) ? "Assigned" : record.status;
-
-      const res = await fetch(`${API}/bookings/${record.booking_ID}/status`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          technician_ID: parseInt(formData.technician_ID, 10),
-          status: nextStatus,
-          ...(isReassign && { reason }),
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to assign technician");
-
-      showToast(isReassign ? `${record.id} reassigned` : `Technician assigned to ${record.id}`);
-      setModal(null);
-      fetchData();
-    } catch (err) {
-      showToast(`Error: ${err.message}`);
+      result = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      throw new Error(
+        `Server returned invalid JSON (HTTP ${res.status}): ${responseText}`
+      );
     }
-  };
+
+    if (!res.ok) {
+      throw new Error(
+        result.message || `Request failed (HTTP ${res.status})`
+      );
+    }
+
+    showToast(
+      isConfirmed
+        ? `${record.id} reassigned successfully`
+        : isRescheduleRequested
+          ? `${record.id} booking time updated successfully`
+          : `${record.id} technician assigned successfully`
+    );
+
+    setModal(null);
+    await fetchData();
+  } catch (err) {
+    console.error("Booking update failed:", err);
+    showToast(`Error: ${err.message}`);
+  }
+};
+
+  //end of shit===================================
 
   const sortIndicator = (key) => (key === sortKey ? (sortDir === "asc" ? " ▲" : " ▼") : "");
 
@@ -340,7 +532,7 @@ const AssignTechnician = () => {
                         {/**number of units */} <td> {booking.NO_U}</td> {/**not showing properly */}
                         {/**total time */} <td> {booking.totalTime}</td>
                         {/**total cost */} <td> { booking.totalCost} </td>
-                        {/**reason for reassignment */} <td> {booking. reasonOfReassignment} </td>                   
+                        {/**reason for reassignment */} <td> {booking.reassignmentReason} </td>                   
                         
                        {/**action buttons  */}
                         <td>

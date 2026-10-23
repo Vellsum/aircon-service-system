@@ -8,6 +8,7 @@
  */
 
 const express = require('express');
+//app.use(express.json());
 const router = express.Router();
 const adminBookingController = require('../controllers/adminBookingController');
 
@@ -22,5 +23,14 @@ router.post('/', adminBookingController.createBooking);
 
 // PUT update booking
 router.put('/:bookingId/status', adminBookingController.updateBookingStatus);
+router.put(
+  '/:bookingId/reassign',
+  adminBookingController.reassignConfirmedBooking
+);
+
+router.put(
+  '/:bookingId/reschedule',
+  adminBookingController.rescheduleRequestedBooking
+);
 
 module.exports = router;

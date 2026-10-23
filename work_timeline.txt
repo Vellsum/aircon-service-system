@@ -64,15 +64,57 @@ now i think still
 -> now need to have the input when chaning technician, reason
 ->can alr assign technician, so it will update status n have customer to approve
 
+2.50pm - now i at home after class, continuing
+-> have to make customer dashboard get their assigned booking for them to accept
+>> also need the admin to add actual time to bookings
+4.30pm- now doing - admin assign booking, time sent to db
+
+4.42 - done, now when admin assign booking, actual time also updated to db. atm the code can also prevent assignment to dates too far + it can block if technican not available
+
+next - the customer prompt
+6.30pm continued after dinner
+8.11 - approving works, when approves, prompt disappears n status chaged to confirmed
+8.20pm - now customer can reject, the word is abit ugly tho
+--> now need admin manage booking to change accordingly, now if request_reschedule the 
+
+# it can reassign technician, just that reason not updoated
+10pm - now when admin reassign, db updated with guy n reason
+
+#now admin cannot change time for reschdule
+-for some reason new bookings made cannot assign techniician
+
+1017pm - ai is a sccam, it ruined my progress, now the time not going into db
+ok fixed
+
+1030 - so now admin can assign booking with techni n time, all this go to db
+can reasisgn with reason
+
+#now left the reschdcule
+11pm - ok now reschdule will set technicican and another time
+
+1130pm - it works but the status should go to assign after admin reschddule
+-- ok issue fixed
+
+- also the filtering go t problem, theres 2 names for reschduling
+-fixed
+
+
+1132pm - task:  technicians should only be able to progress jobs in confirmed states
+-> why cant i start the job?
+
+
+
 weijie tasklist;====================================================
 -- edit customerbookservice jsx n booking controller for the new data [done]
 //once customer frontend can send the correct data wat does admin do?
 - admin frontend for assign booking to include time, for bookings in pending status
 
 //when booking is processed, the status is wat? [assigned]
--> customer approve or reject
---reject -> status request reschedule, admin have to set time again
--- approve -> status confirmed, technician notified
+- customer approve or reject
+--reject - status request reschedule, admin have to set time again
+-- approve - status confirmed, technician notified 
+
+[the circle all done[]]
 
 ## booking status
 tentative (for subscription services) -> pending (waiting for admin to put time n technician) -> assigned (waiting for customer approve time) -> confirmed (customer approve time, tehcnician notified) -> progressing -> completed
@@ -87,11 +129,11 @@ technician profile page (follow customer ui)
 promocode functionality, made code, customer use code, code give discount to final total cost - sum doing 231026 1225am when weijie manage to have customer booking in proper data
 
 logic that decide technician availability
-b.
+user can reset password
 
+admin page - manage admin, make new admin
 
-
-
+manage package, manage promo - get real data
 
 
 logic to allow can,,,,,,,,,parts usage by techncian

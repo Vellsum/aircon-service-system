@@ -135,6 +135,136 @@ async function getCustomerUnits(pool, customerId) {
   });
 }
 
+
+//send updated data to db
+/**
+ * PUT /api/customer/bookings/:bookingId/status
+ * Customer approves an assigned booking or requests rescheduling.
+ */
+const updateIncomingBookingStatus = async (req, res) => {
+  console.log("Booking status request reached controller");
+console.log("Authenticated user:", req.user);
+  try {
+    const bookingId = Number(req.params.bookingId);
+    const userId = Number(req.user?.id);
+    const requestedStatus = String(req.body?.status || "")
+      .trim()
+      .toLowerCase();
+
+    // Validate booking ID and authenticated user.
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking ID."
+      });
+    }
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Customer authentication required."
+      });
+    }
+
+    // Only allow statuses intended for this customer action.
+    const allowedStatuses = ["confirmed", "request_reschedule"];
+console.log("Received status:", req.body?.status);
+console.log("Normalized status:", requestedStatus);
+console.log("Allowed statuses:", allowedStatuses);
+    if (!allowedStatuses.includes(requestedStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking status."
+      });
+    }
+
+    const pool = await poolPromise;
+
+    // Update only if this booking belongs to the logged-in customer
+    // and is currently assigned.
+    const result = await pool.request()
+      .input("bookingId", sql.Int, bookingId)
+      .input("userId", sql.Int, userId)
+      .input("status", sql.VarChar(30), requestedStatus)
+      .query(`
+        UPDATE b
+        SET b.[status] = @status
+        FROM [new_jobBooking].[Booking] AS b
+        INNER JOIN [user3].[newCustomer] AS c
+          ON c.customer_ID = b.customer_ID
+        WHERE b.booking_ID = @bookingId
+          AND c.user_ID = @userId
+          AND LOWER(b.[status]) = 'assigned';
+
+        SELECT @@ROWCOUNT AS rowsUpdated;
+      `);
+
+    const rowsUpdated = result.recordset[0].rowsUpdated;
+
+    if (rowsUpdated === 0) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Booking not found, not owned by this customer, or no longer assigned."
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Booking status updated to ${requestedStatus}.`,
+      bookingId,
+      status: requestedStatus
+    });
+
+  } catch (err) {
+    console.error(
+      "[Customer] Update incoming booking status error:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to update booking status."
+    });
+  }
+};
+
+module.exports.updateIncomingBookingStatus =
+  updateIncomingBookingStatus;
+
+
+//get customer booking with asssigned status
+const getINCOMING=  async (req,res)=>{
+
+  try{  
+    //taken from getmybookings
+    const pool = await poolPromise;
+    if (!pool) return res.status(200).json({ success: true, bookings: [] }); //return the bookings component of the response
+    const customer = await resolveCustomer(pool, parseInt(req.query.customerId, 10) || 1);
+    if (!customer) return res.status(404).json({ success: false, message: 'Customer profile not found' });
+    
+    const result = await pool.request().input('cid', sql.Int, customer.customer_ID).query(
+    
+      `${bookingSelect()} WHERE b.customer_ID = @cid
+      AND LOWER(b.status) = 'assigned'
+       ORDER BY b.[date] DESC, b.[time] DESC`);
+    
+      const unitList = await getCustomerUnits(pool, customer.customer_ID);
+    console.log(result); //this is actual result
+   
+      res.status(200).json({ success: true, bookings: (result.recordset || []).map((r) => shapeBooking(r, unitList)) });
+   //console.log (res); 
+   //above res is bullshit
+    } catch (err) {
+    console.error('[Cool Fix] GET Customer incoming Error:', err.message);
+    res.status(500).json({ success: false, message: err.message, bookings: [] });
+  
+
+  }
+
+  
+}
+
 /* GET /api/customer/dashboard?customerId=# */
 const getDashboard = async (req, res) => {
   try {
@@ -831,4 +961,4 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { getDashboard, getMyBookings, getMyUnits, registerUnit, getServices, getPlans, getMySubscriptions, getPromotions, getAddresses, createBooking, cancelBooking, getProfile, updateProfile };
+module.exports = { getDashboard, getMyBookings, getMyUnits, registerUnit, getServices, getPlans, getMySubscriptions, getPromotions, getAddresses, createBooking, cancelBooking, getProfile, updateProfile,getINCOMING,updateIncomingBookingStatus };
