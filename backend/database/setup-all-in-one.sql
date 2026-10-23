@@ -297,7 +297,15 @@ VALUES
         180, -- 180 days till next service
         2    -- 2 total bookings per year
     );
-
+CREATE TABLE payables.subscription (
+    [subscriptionID]     INT IDENTITY(1,1) NOT NULL,
+    [name]               VARCHAR(255) NULL,
+    [description]        VARCHAR(MAX) NULL,
+    [recurringServiceID] INT NULL,
+    [timeTillNextService] INT NULL,
+    [numberOfBookings]   INT NULL,
+    [isDeleted]          BIT NOT NULL DEFAULT 0   -- Active(0) / Inactive(1)
+);
 
 INSERT INTO payables.currentSubscribers (customerID, subscriptionid, remainingBookings, dateStarted, nextBookingDate)
 VALUES

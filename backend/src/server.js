@@ -50,6 +50,15 @@ const customerRoutes = require('./routes/customerRoutes');
 const chatbotRoutes = require('./routes/chatbotRoutes');
 app.use('/api/chatbot', chatbotRoutes);
 
+
+const promotionRoutes = require('./routes/promotionRoutes'); // match the path style of your customerRoutes require
+
+app.use('/api/promotions', promotionRoutes);
+
+const packageRoutes = require('./routes/packageRoutes');
+
+app.use('/api/packages', packageRoutes);
+
 /**this name is set so that with the below api url, it goes to that script 
  * 
  * so when api is calling the fetch method, server gets this
