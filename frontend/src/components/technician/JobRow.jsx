@@ -13,7 +13,8 @@ import { evaluateJobStart } from '../../utils/jobSchedule' // 6 Oct 2026
 
 function JobRow({ job, onView, onPrimaryAction, isActionPending = false, actionReadOnly = false }) {
   const normalizedStatus = String(job.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
-  const canStart = ['upcoming', 'assigned', 'pending'].includes(normalizedStatus)
+  //const canStart = ['confirmed'].includes(normalizedStatus)
+  const canStart = normalizedStatus === 'confirmed';
   const canContinue = normalizedStatus === 'in progress'
 
   // 6 Oct 2026 — date/time gate: decides whether Start is clickable

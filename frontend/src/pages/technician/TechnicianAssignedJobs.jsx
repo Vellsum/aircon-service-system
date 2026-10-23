@@ -1,6 +1,13 @@
 // =============================================================================
 // TechnicianAssignedJobs.jsx
 // -----------------------------------------------------------------------------
+
+/**
+ * firstly, why not use multiline comment?
+ * secondly, changelog 231026 weijie in the middle of the fucking night
+ * i will now start write the code
+ */
+
 // CHANGELOG — 6 Oct 2026:
 //   1. [RULE] Start is gated by utils/jobSchedule.evaluateJobStart — future-
 //      dated (or later-today) jobs show why they're locked instead of starting.
@@ -222,6 +229,7 @@ function TechnicianAssignedJobs() {
     }
   }
 
+  // so this shit is the start the job -======================================================================================================
   /* -------------------------------------------------------------------------
    * 6 Oct 2026 — START GATE (date + time)
    * evaluateJobStart() returns { allowed, reason, kind }. Blocked starts show
@@ -237,6 +245,7 @@ function TechnicianAssignedJobs() {
     await persistJobTransition(jobToStart, startService, 'Service could not be started. Please try again.')
   }
 
+  //let u view details for jobs moving
   const handlePrimaryAction = (job) => {
     const status = (job.status || '').toLowerCase()
     if (status === 'in progress' || status === 'completed') {

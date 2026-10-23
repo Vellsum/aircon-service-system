@@ -248,21 +248,33 @@ function TechnicianDashboard() {
   /* -------------------------------------------------------------------------
    * Start only from context-approved statuses and after the existing schedule gate.
    * ---------------------------------------------------------------------- */
-  const handleStartService = async (jobToStart) => {
-    const normalizedStatus = String(jobToStart.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
-    const canStart = ['upcoming', 'assigned', 'pending'].includes(normalizedStatus)
-    if (!canStart) {
-      setDashboardError('This job cannot be started from its current status.')
-      return
-    }
-    const gate = evaluateJobStart(jobToStart)
-    if (!gate.allowed) {
-      setDashboardError(`"${jobToStart.id}" is ${gate.reason} — Start unlocks then.`)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-      return
-    }
-    await persistJobTransition(jobToStart, startService, 'Service could not be started. Please try again.')
+  //this one decides if a job can start ======================================================================
+
+const handleStartService = async (jobToStart) => {
+  // Only allow jobs with Confirmed status to start
+  if ((jobToStart.status || '').toLowerCase() !== 'confirmed') {
+    setActionError(
+      `Job #BK${jobToStart.job_ID} cannot start because its status is not Confirmed.`
+    )
+    return
   }
+
+  // Existing date/time restriction
+  const gate = evaluateJobStart(jobToStart)
+
+  if (!gate.allowed) {
+    setActionError(
+      `"${jobToStart.id || `#BK${jobToStart.job_ID}`}" is ${gate.reason} — Start unlocks then.`
+    )
+    return
+  }
+
+  await persistJobTransition(
+    jobToStart,
+    startService,
+    'Service could not be started. Please try again.'
+  )
+}
 
   /* -------------------------------------------------------------------------
    * 3. Complete service — 6 Oct 2026: backend requires a service report FIRST

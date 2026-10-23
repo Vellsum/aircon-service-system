@@ -24,7 +24,7 @@ const normalizeStatus = (status) =>
 
 const TRANSITION_RULES = Object.freeze({
   start: {
-    allowedStatuses: new Set(['upcoming', 'assigned', 'pending']),
+    allowedStatuses: new Set(['confirmed']),
     nextStatus: JOB_STATUS.IN_PROGRESS,
   },
   complete: {
@@ -32,6 +32,7 @@ const TRANSITION_RULES = Object.freeze({
     nextStatus: JOB_STATUS.COMPLETED,
   },
 })
+
 
 function createTransitionError(message) {
   const error = new Error(message)

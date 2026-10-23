@@ -101,7 +101,9 @@ can reasisgn with reason
 
 1132pm - task:  technicians should only be able to progress jobs in confirmed states
 -> why cant i start the job?
+- fixed
 
+technician codes alr can access backend
 
 
 weijie tasklist;====================================================
@@ -122,23 +124,34 @@ tentative (for subscription services) -> pending (waiting for admin to put time 
 rejecting timing: assigned -> request reschedule (like pending but must pick another time with whoever is available)
 
 PROJECT BACKLOG; ========================================================================
+
+sum;
 admin dashboard - revenue trend section
 admin profile page (follow customer ui)
 technician profile page (follow customer ui)
 
-promocode functionality, made code, customer use code, code give discount to final total cost - sum doing 231026 1225am when weijie manage to have customer booking in proper data
+promocode functionality
+-> make code, customer use code, code give discount to final total cost - sum doing 231026 1225am when weijie manage to have customer booking in proper data
 
-logic that decide technician availability
-user can reset password
+logic that decide technician availability [alr have actually]
+
+
+
+service hstory for both technician n customer
+
+logic to allow parts usage by techncian
+parts used functionalities
+
+
+wejie will do;
+remove package pages
+manage promo - get real data
+manage subscriptions- get real data
+-subscritpion functionality when custoemr book
 
 admin page - manage admin, make new admin
-
-manage package, manage promo - get real data
-
-
-logic to allow can,,,,,,,,,parts usage by techncian
 booking confirmed page - show number of units
-
+user can reset password
 
 HOW TO BACKEND;========================================================================
 frontend component import api - this script has methods to do post request to server
