@@ -17,7 +17,7 @@ import Modal from 'react-bootstrap/Modal'
 
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
-import ServiceChecklist from '../../components/technician/ServiceChecklist'
+import ServiceChecklist, { CHECKLIST_ITEMS } from '../../components/technician/ServiceChecklist'
 import PartsMaterialsTable from '../../components/technician/PartsMaterialsTable'
 import FollowUpSection, {
   FOLLOW_UP_REASON_OPTIONS,
@@ -32,10 +32,107 @@ const FINDING_OPTIONS = [
   'Cooling performance issue', 'No abnormal issue found', 'Other',
 ]
 const ACTION_OPTIONS = [
-  'Cleaned coil', 'Cleared drainage', 'Refrigerant top-up',
+  'Inspection/testing performed', 'Cleaned filter', 'Cleaned coil', 'Cleared drainage', 'Refrigerant top-up',
   'Replaced / adjusted component', 'Other',
 ]
 const NO_ABNORMAL_FINDING = 'No abnormal issue found'
+const GENERAL_CHECKLIST_IDS = ['indoorUnit', 'outdoorUnit', 'coolingPerformance']
+const ALL_CHECKLIST_IDS = CHECKLIST_ITEMS.map((item) => item.id)
+const FINDING_RULES = {
+  'Dirty / clogged filter': { actions: ['Cleaned filter'], checks: ['filters'] },
+  'Weak airflow': { actions: [], checks: ['filters'] },
+  'Water leakage / drainage issue': { actions: ['Cleared drainage'], checks: ['drainage'] },
+  'Unusual noise / vibration': { actions: ['Replaced / adjusted component'], checks: ['noiseVibration'] },
+  'Refrigerant issue': { actions: ['Refrigerant top-up', 'Replaced / adjusted component'], checks: ['refrigerant'] },
+  'Electrical issue': { actions: ['Replaced / adjusted component'], checks: ['electricalConnections'] },
+  'Cooling performance issue': { actions: [], checks: ['filters'] },
+  [NO_ABNORMAL_FINDING]: { actions: [], checks: ALL_CHECKLIST_IDS },
+  Other: { actions: ACTION_OPTIONS, checks: ALL_CHECKLIST_IDS },
+}
+
+function getAvailableReportOptions(findings) {
+  const actions = new Set(['Inspection/testing performed', 'Other'])
+  const checks = new Set(GENERAL_CHECKLIST_IDS)
+  findings.forEach((finding) => {
+    if (!FINDING_OPTIONS.includes(finding)) return
+    const rule = FINDING_RULES[finding]
+    rule.actions.forEach((action) => actions.add(action))
+    rule.checks.forEach((id) => checks.add(id))
+  })
+  return {
+    actions: ACTION_OPTIONS.filter((action) => actions.has(action)),
+    checklistIDs: ALL_CHECKLIST_IDS.filter((id) => checks.has(id)),
+  }
+}
+
+function getEffectiveReport(report) {
+  const options = getAvailableReportOptions(report.findings)
+  const actionsTaken = [...new Set(report.actionsTaken.filter((action) => options.actions.includes(action)))]
+  return {
+    ...report,
+    actionsTaken,
+    findingsOther: report.findings.includes('Other') ? report.findingsOther : '',
+    poorReason: report.overallCondition === 'Poor' ? report.poorReason || '' : '',
+    poorSuggestions: report.overallCondition === 'Poor' ? report.poorSuggestions || '' : '',
+    actionsOther: actionsTaken.includes('Other') ? report.actionsOther : '',
+    checklist: Object.fromEntries(Object.entries(report.checklist)
+      .filter(([id]) => options.checklistIDs.includes(id))),
+  }
+}
+
+function toggleReportSelection(report, field, option, otherField) {
+  const allowed = field === 'findings' ? FINDING_OPTIONS : getAvailableReportOptions(report.findings).actions
+  if (!allowed.includes(option)) return report
+  const current = report[field]
+  const isSelected = current.includes(option)
+  let next = isSelected ? current.filter((value) => value !== option) : [...current, option]
+  if (field === 'findings' && !isSelected) {
+    next = option === NO_ABNORMAL_FINDING ? [NO_ABNORMAL_FINDING] : next.filter((value) => value !== NO_ABNORMAL_FINDING)
+  }
+  const nextReport = { ...report, [field]: next }
+  if (option === 'Other' && isSelected) nextReport[otherField] = ''
+  return getEffectiveReport(nextReport)
+}
+
+function wereReportSelectionsCleared(previous, next) {
+  return previous.actionsTaken.some((action) => !next.actionsTaken.includes(action))
+    || Object.entries(previous.checklist).some(([id, checked]) => checked === true && next.checklist[id] !== true)
+    || Boolean(previous.findingsOther && !next.findingsOther)
+    || Boolean(previous.actionsOther && !next.actionsOther)
+}
+
+function getFindingsOther(report) {
+  const details = []
+  if (report.findings.includes('Other') && report.findingsOther) details.push(report.findingsOther)
+  if (report.overallCondition === 'Poor') {
+    if (report.poorReason?.trim()) details.push(`Poor reason: ${report.poorReason.trim()}`)
+    if (report.poorSuggestions?.trim()) details.push(`Suggested next steps: ${report.poorSuggestions.trim()}`)
+  }
+  return details.join('; ')
+}
+
+// Mirror the active backend's joining, including every separator and prefix.
+function serializeReportField(values, other) {
+  const text = values.filter((value) => String(value || '').trim()).join('; ')
+  return other ? `${text}${text ? '; ' : ''}${other}` : text
+}
+
+function getSerializedReportErrors(report) {
+  const errors = {}
+  const findingsText = serializeReportField(report.findings, getFindingsOther(report))
+  // VARCHAR is byte-limited. UTF-8 is a conservative budget, not a guarantee
+  // that the database's current code page can represent every Unicode value.
+  if (findingsText.length > 300 || new TextEncoder().encode(findingsText).length > 300) {
+    errors.findings = 'Selected findings, Other details and Poor-condition details must fit within the shared 300-byte limit.'
+  }
+  if (serializeReportField(report.actionsTaken, report.actionsOther).length > 300) {
+    errors.actionsTaken = 'Selected actions and Other details must total 300 characters or fewer.'
+  }
+  if (Object.entries(report.checklist).filter(([, checked]) => checked === true).map(([id]) => id).join(', ').length > 500) {
+    errors.checklist = 'Selected checklist references must total 500 characters or fewer.'
+  }
+  return errors
+}
 
 const currencyFormatter = new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD' })
 
@@ -43,7 +140,7 @@ const currencyFormatter = new Intl.NumberFormat('en-SG', { style: 'currency', cu
 // Initial report state
 // -----------------------------------------------------------------------------
 function isFollowUpEligible(condition) {
-  return condition === 'Poor' || condition === 'Requires Follow-Up'
+  return condition === 'Requires Follow-Up'
 }
 
 function isFollowUpRequired(report) {
@@ -51,7 +148,7 @@ function isFollowUpRequired(report) {
 }
 
 function createInitialFollowUp() {
-  return { required: 'no', reasons: [], otherReason: '', date: '', priority: 'Normal' }
+  return { required: 'no', reasons: [], otherReason: '', date: '', priority: '' }
 }
 
 function getReportAccess({ loading, error, dataAvailable, technicianID, identitySource,
@@ -90,6 +187,8 @@ function createInitialReport() {
     selectedJobId: '',
     findings: [],
     findingsOther: '',
+    poorReason: '',
+    poorSuggestions: '',
     actionsTaken: [],
     actionsOther: '',
     overallCondition: '',
@@ -110,12 +209,13 @@ function calculateMaterialsTotal(materials) {
 }
 
 // Submission payload
-function buildReportPayload(report, selectedJob, inventoryById) {
+function buildReportPayload(inputReport, selectedJob, inventoryById) {
+  const report = getEffectiveReport(inputReport)
   const followUpRequired = isFollowUpRequired(report)
   return {
     job_ID: selectedJob?.job_ID || selectedJob?.id || report.selectedJobId,
     findings: report.findings,
-    findingsOther: report.findingsOther || null,
+    findingsOther: getFindingsOther(report) || null,
     actionsTaken: report.actionsTaken,
     actionsOther: report.actionsOther || null,
     overallCondition: report.overallCondition,
@@ -184,6 +284,8 @@ function TechnicianSubmitReport() {
   const presetJobId = Number(searchParams.get('job')) || null
 
   const [report, setReport] = useState(createInitialReport)
+  const effectiveReport = useMemo(() => getEffectiveReport(report), [report])
+  const availableOptions = useMemo(() => getAvailableReportOptions(report.findings), [report.findings])
   const [errors, setErrors] = useState({})
   const [notice, setNotice] = useState(null)
   const [showConfirmation, setShowConfirmation] = useState(false)
@@ -260,45 +362,51 @@ function TechnicianSubmitReport() {
   // ---- Form updaters ----
   const updateReportField = (field, value) => {
     if (field === 'selectedJobId' ? !reportAccess.canSelectJob : !reportAccess.canEdit) return
+    if ((field === 'findingsOther' && !report.findings.includes('Other'))
+      || (field === 'actionsOther' && !effectiveReport.actionsTaken.includes('Other'))
+      || (['poorReason', 'poorSuggestions'].includes(field) && report.overallCondition !== 'Poor')) return
     const resetFollowUp = field === 'overallCondition' && !isFollowUpEligible(value)
+    const resetPoor = field === 'overallCondition' && value !== 'Poor'
+    // Apply the existing default only after Yes is explicitly selected.
+    const nextValue = field === 'followUp' && value.required === 'yes' && !value.priority
+      ? { ...value, priority: 'Normal' } : value
     setReport((r) => ({
       ...r,
-      [field]: value,
+      [field]: nextValue,
       ...(resetFollowUp ? { followUp: createInitialFollowUp() } : {}),
+      ...(resetPoor ? { poorReason: '', poorSuggestions: '' } : {}),
     }))
     setErrors((e) => ({
       ...e,
       [field]: undefined,
+      ...(['findingsOther', 'poorReason', 'poorSuggestions'].includes(field) || resetPoor
+        ? { findings: undefined } : {}),
+      ...(field === 'actionsOther' ? { actionsTaken: undefined } : {}),
       ...(resetFollowUp ? { followUp: undefined } : {}),
+      ...(resetPoor ? { poorReason: undefined, poorSuggestions: undefined } : {}),
     }))
     setNotice(null)
   }
 
   const updateChecklist = (checkId, checked) => {
-    if (!reportAccess.canEdit) return
-    setReport((r) => ({ ...r, checklist: { ...r.checklist, [checkId]: checked } }))
+    if (!reportAccess.canEdit || !availableOptions.checklistIDs.includes(checkId)) return
+    setReport((r) => getAvailableReportOptions(r.findings).checklistIDs.includes(checkId)
+      ? { ...r, checklist: { ...r.checklist, [checkId]: checked } } : r)
+    setErrors((e) => ({ ...e, checklist: undefined }))
     setNotice(null)
   }
 
   const toggleReportOption = (field, option, otherField) => {
     if (!reportAccess.canEdit) return
-    setReport((r) => {
-      const current = Array.isArray(r[field]) ? r[field] : []
-      const isSelected = current.includes(option)
-      let next = isSelected ? current.filter((o) => o !== option) : [...current, option]
-      if (field === 'findings' && !isSelected) {
-        next = option === NO_ABNORMAL_FINDING
-          ? [NO_ABNORMAL_FINDING]
-          : next.filter((o) => o !== NO_ABNORMAL_FINDING)
-      }
-      const nextReport = { ...r, [field]: next }
-      if ((option === 'Other' && isSelected) || (field === 'findings' && option === NO_ABNORMAL_FINDING && !isSelected)) {
-        nextReport[otherField] = ''
-      }
-      return nextReport
-    })
-    setErrors((e) => ({ ...e, [field]: undefined }))
-    setNotice(null)
+    const nextReport = toggleReportSelection(report, field, option, otherField)
+    if (nextReport === report) return
+    setReport((r) => toggleReportSelection(r, field, option, otherField))
+    setErrors((e) => ({ ...e, [field]: undefined,
+      ...(field === 'findings' ? { actionsTaken: undefined, checklist: undefined } : {}),
+    }))
+    setNotice(field === 'findings' && wereReportSelectionsCleared(report, nextReport)
+      ? { type: 'info', message: 'We cleared selections that no longer match your findings. Please review your report.' }
+      : null)
   }
 
   // ---- Validation ----
@@ -306,8 +414,12 @@ function TechnicianSubmitReport() {
     const next = {}
     if (!report.selectedJobId || !selectedJob) next.selectedJobId = 'Select a job before continuing.'
     if (!report.findings.length) next.findings = 'Select at least one finding or observation.'
-    if (!report.actionsTaken.length) next.actionsTaken = 'Select at least one action completed during the service.'
+    if (!effectiveReport.actionsTaken.length) next.actionsTaken = 'Select at least one action completed during the service.'
     if (!report.overallCondition) next.overallCondition = 'Select the overall AC condition.'
+    if (report.overallCondition === 'Poor' && !effectiveReport.poorReason.trim()) {
+      next.poorReason = 'Explain why the AC condition is poor.'
+    }
+    Object.assign(next, getSerializedReportErrors(effectiveReport))
 
     const matErr = {}
     report.materials.forEach((row) => {
@@ -352,7 +464,7 @@ function TechnicianSubmitReport() {
     setSubmitting(true)
     setShowConfirmation(false)
     try {
-      const payload = buildReportPayload(report, selectedJob, inventoryById)
+      const payload = buildReportPayload(effectiveReport, selectedJob, inventoryById)
       const token = localStorage.getItem('token') || ''
       const response = await fetch(`${API_BASE_URL}/api/technician/reports`, {
         method: 'POST',
@@ -497,10 +609,10 @@ function TechnicianSubmitReport() {
                   name="report-findings"
                   legend="Findings & Observations"
                   options={FINDING_OPTIONS}
-                  values={report.findings}
+                  values={effectiveReport.findings}
                   error={errors.findings}
                   onToggle={(option) => toggleReportOption('findings', option, 'findingsOther')}
-                  otherValue={report.findingsOther}
+                  otherValue={effectiveReport.findingsOther}
                   onOtherChange={(value) => updateReportField('findingsOther', value)}
                   otherPlaceholder="Add any finding not covered above."
                 />
@@ -521,6 +633,34 @@ function TechnicianSubmitReport() {
                   </select>
                   {errors.overallCondition && <span className="report-field-error">{errors.overallCondition}</span>}
                 </div>
+                {report.overallCondition === 'Poor' && (
+                  <>
+                    <div className="report-field report-field-full">
+                      <label className="report-label" htmlFor="poor-reason">
+                        Why is the condition poor? <span aria-hidden="true">*</span>
+                      </label>
+                      <textarea id="poor-reason" className="report-control" rows={2}
+                        value={effectiveReport.poorReason}
+                        onChange={(event) => updateReportField('poorReason', event.target.value)}
+                        aria-required="true" aria-invalid={Boolean(errors.poorReason)}
+                        aria-describedby={`poor-details-hint${errors.poorReason ? ' poor-reason-error' : ''}`} />
+                      {errors.poorReason && <span id="poor-reason-error" className="report-field-error">{errors.poorReason}</span>}
+                    </div>
+                    <div className="report-field report-field-full">
+                      <label className="report-label" htmlFor="poor-suggestions">
+                        Suggested next steps <span className="report-optional-label">(optional)</span>
+                      </label>
+                      <textarea id="poor-suggestions" className="report-control" rows={2}
+                        value={effectiveReport.poorSuggestions}
+                        onChange={(event) => updateReportField('poorSuggestions', event.target.value)}
+                        aria-describedby="poor-details-hint" />
+                      <p id="poor-details-hint" className="report-choice-hint">
+                        These details are saved as Findings, not Recommendations, within the shared 300-byte limit.
+                        Suggested next steps describe proposed work, not work already performed.
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </fieldset>
 
@@ -530,18 +670,18 @@ function TechnicianSubmitReport() {
                 <div>
                   <span className="cf-card-step">03</span>
                   <h3 id="work-performed-title">Work Performed</h3>
-                  <p>Capture completed actions and service timing.</p>
+                  <p>Options follow your findings. Select only work actually performed; nothing is selected automatically.</p>
                 </div>
               </div>
               <div className="report-fields-grid cf-work-performed-fields">
                 <ReportMultiSelectField
                   name="actions-taken"
                   legend="Actions Taken"
-                  options={ACTION_OPTIONS}
-                  values={report.actionsTaken}
+                  options={availableOptions.actions}
+                  values={effectiveReport.actionsTaken}
                   error={errors.actionsTaken}
                   onToggle={(option) => toggleReportOption('actionsTaken', option, 'actionsOther')}
-                  otherValue={report.actionsOther}
+                  otherValue={effectiveReport.actionsOther}
                   onOtherChange={(value) => updateReportField('actionsOther', value)}
                   otherPlaceholder="Add any action not covered above."
                 />
@@ -581,7 +721,8 @@ function TechnicianSubmitReport() {
           {/* ---- Sidebar ---- */}
           <aside className="report-support-column cf-report-rail" aria-label="Report completion and follow-up">
             <fieldset disabled={!reportAccess.canEdit} className="report-component-slot report-checklist-slot cf-report-side-card" aria-labelledby="service-checklist-title">
-              <ServiceChecklist values={report.checklist} onChange={updateChecklist} />
+              <ServiceChecklist values={effectiveReport.checklist} onChange={updateChecklist}
+                visibleItemIDs={availableOptions.checklistIDs} error={errors.checklist} />
             </fieldset>
             {followUpEligible && (
               <fieldset disabled={!reportAccess.canEdit} className="report-component-slot report-follow-up-slot cf-report-side-card" aria-labelledby="follow-up-title">
@@ -638,6 +779,9 @@ function TechnicianSubmitReport() {
           <dl className="report-confirmation-summary">
             <div><dt>Job</dt><dd>{selectedJob?.id} · {selectedJob?.customerName}</dd></div>
             <div><dt>Overall condition</dt><dd>{report.overallCondition}</dd></div>
+            <div><dt>Findings</dt><dd>{serializeReportField(effectiveReport.findings, getFindingsOther(effectiveReport)) || 'None selected'}</dd></div>
+            <div><dt>Work performed</dt><dd>{[...effectiveReport.actionsTaken, effectiveReport.actionsOther].filter(Boolean).join('; ') || 'None selected'}</dd></div>
+            <div><dt>Service checklist</dt><dd>{CHECKLIST_ITEMS.filter((item) => effectiveReport.checklist[item.id] === true).map((item) => item.label).join('; ') || 'None selected'}</dd></div>
             <div><dt>Materials total</dt><dd>{currencyFormatter.format(materialsTotal)}</dd></div>
             <div><dt>Follow-up required</dt><dd>{followUpRequired ? `Yes — ${report.followUp.priority} priority` : 'No'}</dd></div>
             <div><dt>Customer acknowledged</dt><dd>{report.customerAcknowledged ? 'Yes' : 'No'}</dd></div>

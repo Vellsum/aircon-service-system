@@ -183,7 +183,7 @@ function TechnicianFollowUp() {
           <div className="follow-up-status-field">
             <label htmlFor="follow-up-status">Status</label>
             <select id="follow-up-status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="ALL">All Statuses</option>
+              <option value="ALL">All</option>
               {GROUPS.map((g) => <option value={g.status} key={g.status}>{g.status}</option>)}
             </select>
           </div>

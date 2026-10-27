@@ -12,6 +12,8 @@ import { useAuth } from './AuthContext'
 
 const TechnicianWorkflowContext = createContext(null)
 const DEVELOPMENT_TECHNICIAN_ID = 1
+const REPORT_REQUIRED_RESPONSE_MESSAGE = 'A service report must be submitted BEFORE completing this job. Submit the report first, then mark it completed.'
+export const REPORT_REQUIRED_MESSAGE = 'Please submit the service report before completing this job. Use Open Report Form to continue.'
 
 const JOB_STATUS = Object.freeze({
   UPCOMING: 'Upcoming',
@@ -33,9 +35,10 @@ const TRANSITION_RULES = Object.freeze({
   },
 })
 
-function createTransitionError(message) {
+function createTransitionError(message, code) {
   const error = new Error(message)
   error.name = 'TechnicianTransitionError'
+  if (code) error.code = code
   return error
 }
 
@@ -235,6 +238,10 @@ function TechnicianWorkflowProvider({ children }) {
         }
 
         if (!response.ok || result?.success !== true) {
+          if (transitionName === 'complete' && response.status === 400 && result?.success === false
+            && result?.message === REPORT_REQUIRED_RESPONSE_MESSAGE) {
+            throw createTransitionError(REPORT_REQUIRED_MESSAGE, 'REPORT_REQUIRED')
+          }
           throw new Error(
             `Status request failed with HTTP ${response.status} and success=${String(result?.success)}`,
           )
@@ -259,6 +266,10 @@ function TechnicianWorkflowProvider({ children }) {
           status: transition.nextStatus,
         }
       } catch (err) {
+        if (isCurrentSession() && transitionName === 'complete'
+          && err?.name === 'TechnicianTransitionError' && err.code === 'REPORT_REQUIRED') {
+          throw err
+        }
         if (isCurrentSession()) {
           console.error(
             `[Technician Context] Failed to persist status update for booking #${jobID}:`,
