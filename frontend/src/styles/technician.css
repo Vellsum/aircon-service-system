@@ -1884,6 +1884,16 @@
   overflow: hidden;
 }
 
+.technician-dashboard-page .cf-schedule-widget > .cf-widget-header > div {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.technician-dashboard-page .cf-schedule-widget > .cf-widget-header > .cf-text-link {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .cf-schedule-list {
   padding: 0 1.25rem 0.4rem;
 }
@@ -2728,6 +2738,36 @@
   background: #ffffff;
   color: var(--cf-text);
   font-size: 0.78rem;
+}
+
+/* Keep native controls; reserve text space for one inset, non-interactive chevron. */
+.technician-submit-report-page select.report-control,
+.technician-follow-up-page .follow-up-status-field select {
+  appearance: none;
+  padding-right: 48px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%23666666' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 16px 16px;
+  text-overflow: ellipsis;
+}
+
+.technician-submit-report-page input.report-control[type='datetime-local'],
+.technician-job-history-page .cf-date-filter-field input[type='date'] {
+  min-width: 0;
+  padding-inline: 12px 16px;
+  color-scheme: light;
+}
+
+.technician-submit-report-page input.report-control[type='datetime-local']::-webkit-calendar-picker-indicator,
+.technician-job-history-page .cf-date-filter-field input[type='date']::-webkit-calendar-picker-indicator {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  align-self: center;
+  filter: brightness(0) opacity(0.6);
 }
 
 .technician-submit-report-page textarea.report-control {
@@ -13170,6 +13210,22 @@ textarea.report-control {
   margin: 0.45rem 0 0;
   color: var(--cf-muted);
   font-size: 0.86rem;
+}
+
+.technician-performance-page > .tech-performance-empty:has(> h2) {
+  min-height: 0;
+  justify-items: start;
+  margin-bottom: 1rem;
+  padding: 1rem 1.15rem;
+  text-align: left;
+}
+
+.technician-performance-page > .tech-performance-empty:has(> h2) > h2 {
+  margin: 0;
+  color: var(--cf-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 @media (max-width: 1199.98px) {

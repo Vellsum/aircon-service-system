@@ -20,7 +20,7 @@ const statusTone = {   //dafuq is this used for???
 const statusFilters = [
   "All",
   "confirmed",
-  "pending",
+  "Pending",
   "Assigned",
   "Completed",
   "Cancelled",
@@ -231,6 +231,13 @@ const assignFields = [
     type: "text",
     readOnly: true,
   },
+  {
+key: "NO_U",
+    label: "Number of units",
+    type: "text",
+    readOnly: true,
+
+  },
 
   ...(isReassign
     ? [
@@ -257,6 +264,22 @@ const assignFields = [
     required: true,
     options: technicianOptions,
   },
+
+
+// Show a second technician slot when more than 3 aircon units
+...(Number(modal?.record?.NO_U) > 3 &&
+    String(modal?.record?.status || "").toLowerCase() === "pending" &&
+    !modal?.record?.technician_ID
+  ? [
+      {
+        key: "technician_ID_2",
+        label: "Assisting Technician",
+        type: "select",
+        required: true,
+        options: technicianOptions,
+      },
+    ]
+  : []),
 
   /**   the original am pm time 
    *  {
@@ -359,7 +382,8 @@ const viewFields = [
   { key: "booking_date", label: "Service Date" },
  // { key: "processedTime", label: "Booking Time" },
   { key: "status", label: "Status" },
-  {key: "timing", label: "Time Slot"} //new
+  {key: "timing", label: "Time Slot"} ,//new
+  {key: "NO_U", label:"Number of units"},
 ];
 
 //this duc fucker======================================================================
@@ -481,6 +505,8 @@ else {
     showToast("Error: Booking time is missing");
     return;
   } */
+
+//on more than 3 aircon, call another method
 
 
   endpoint = `${API}/bookings/${record.booking_ID}/status`;

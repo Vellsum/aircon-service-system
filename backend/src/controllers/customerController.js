@@ -659,7 +659,7 @@ const createBooking = async (req, res) => {
              .input('estimateTotalCost',sql.Float,estimatedtotalcost) //new code
             .input('technician_ID', sql.Int, null) 
             .input('isFollowup', sql.Bit, 0)
-            .input('status', sql.VarChar(100), 'Pending')
+            .input('status', sql.VarChar(100), 'pending')
             .input('time',sql.VarChar(8), '12:00:00')
 
             //the sql code, these got sorted

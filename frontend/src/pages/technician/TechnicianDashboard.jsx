@@ -26,7 +26,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
+import { useTechnicianWorkflow, REPORT_REQUIRED_MESSAGE } from '../../context/TechnicianWorkflowContext'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import JobDetailsModal from '../../components/technician/JobDetailsModal'
 import "../../styles/technician.css";
@@ -232,7 +232,8 @@ function TechnicianDashboard() {
       if (selectedJobID === jobID) closeJobDetails()
     } catch (err) {
       console.error('Error updating booking status:', err)
-      setDashboardError(failureMessage)
+      setDashboardError(transition === completeService && err?.code === 'REPORT_REQUIRED'
+        ? REPORT_REQUIRED_MESSAGE : failureMessage)
       return
     } finally {
       actionJobIDsRef.current.delete(jobID)

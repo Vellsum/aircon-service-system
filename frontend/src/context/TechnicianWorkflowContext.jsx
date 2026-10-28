@@ -12,6 +12,8 @@ import { useAuth } from './AuthContext'
 
 const TechnicianWorkflowContext = createContext(null)
 const DEVELOPMENT_TECHNICIAN_ID = 1
+const REPORT_REQUIRED_RESPONSE_MESSAGE = 'A service report must be submitted BEFORE completing this job. Submit the report first, then mark it completed.'
+export const REPORT_REQUIRED_MESSAGE = 'Please submit the service report before completing this job. Use Open Report Form to continue.'
 
 const JOB_STATUS = Object.freeze({
   UPCOMING: 'Upcoming',
@@ -33,10 +35,10 @@ const TRANSITION_RULES = Object.freeze({
   },
 })
 
-
-function createTransitionError(message) {
+function createTransitionError(message, code) {
   const error = new Error(message)
   error.name = 'TechnicianTransitionError'
+  if (code) error.code = code
   return error
 }
 
@@ -62,16 +64,28 @@ function TechnicianWorkflowProvider({ children }) {
     }
     return { technicianID: null, identitySource: 'unavailable', canMutateTechnicianData: false }
   }, [initializing, user, token])
-  const identityKey = `${identitySource}:${technicianID ?? 'none'}`
+  // Reference identity separates session generations, including token changes and A → B → A.
+  const identityKey = useMemo(() => ({ technicianID, identitySource, token }), [technicianID, identitySource, token])
   const activeIdentityKeyRef = useRef(identityKey)
   activeIdentityKeyRef.current = identityKey
+  const mountedRef = useRef(true)
+  const confirmedRevisionRef = useRef(0)
+  const jobsRequestGenerationRef = useRef(0)
   const activeJobsRequestRef = useRef(null)
   const [jobsState, setJobsState] = useState({
     identityKey: null, jobs: [], loading: true, error: null, dataAvailable: false,
   })
   const [jobStatusOverrides, setJobStatusOverrides] = useState({ identityKey: null, values: {} })
   const [pendingTransitionState, setPendingTransitionState] = useState({ identityKey: null, jobIDs: [] })
-  const pendingTransitionJobIDsRef = useRef(new Set())
+  const pendingTransitionJobIDsRef = useRef({ identityKey, jobIDs: new Set() })
+  if (pendingTransitionJobIDsRef.current.identityKey !== identityKey) {
+    pendingTransitionJobIDsRef.current = { identityKey, jobIDs: new Set() }
+  }
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   const activeJobsState = jobsState.identityKey === identityKey
     ? jobsState
@@ -82,19 +96,26 @@ function TechnicianWorkflowProvider({ children }) {
     : {}
 
   const fetchJobs = useCallback(async () => {
-    activeJobsRequestRef.current?.abort()
+    if (!mountedRef.current || activeIdentityKeyRef.current !== identityKey) return
+    activeJobsRequestRef.current?.controller.abort()
     const controller = new AbortController()
-    activeJobsRequestRef.current = controller
-    const isCurrent = () => !controller.signal.aborted
-      && activeJobsRequestRef.current === controller
+    const request = {
+      identityKey, controller, generation: ++jobsRequestGenerationRef.current,
+      startedRevision: confirmedRevisionRef.current,
+    }
+    activeJobsRequestRef.current = request
+    const isCurrent = () => mountedRef.current && !controller.signal.aborted
+      && activeJobsRequestRef.current === request
+      && jobsRequestGenerationRef.current === request.generation
       && activeIdentityKeyRef.current === identityKey
 
-    setJobsState({ identityKey, jobs: [], loading: true, error: null, dataAvailable: false })
+    const updateJobs = (nextState) => setJobsState((current) => isCurrent() ? nextState : current)
+    updateJobs({ identityKey, jobs: [], loading: true, error: null, dataAvailable: false })
 
     if (initializing) return
 
     if (!technicianID) {
-      setJobsState({
+      updateJobs({
         identityKey, jobs: [], loading: false,
         error: 'Technician identity is unavailable.', dataAvailable: false,
       })
@@ -111,28 +132,51 @@ function TechnicianWorkflowProvider({ children }) {
       const data = await res.json()
       if (!isCurrent()) return
 
-      if (res.ok && data.success && Array.isArray(data.jobs)) {
-        setJobsState({ identityKey, jobs: data.jobs, loading: false, error: null, dataAvailable: true })
-      } else {
-        setJobsState({ identityKey, jobs: [], loading: false, error: 'Assigned job data is unavailable.', dataAvailable: false })
+      // The documented normal envelope includes technicianName. The current
+      // DB-unavailable early return omits it; HTTP 200 alone is not sufficient.
+      const returnedJobIDs = new Set()
+      const validResponse = res.ok && data?.success === true
+        && typeof data.technicianName === 'string' && Boolean(data.technicianName.trim())
+        && Array.isArray(data.jobs) && data.jobs.every((job) => {
+          if (!job || !Number.isSafeInteger(job.job_ID) || job.job_ID <= 0
+            || typeof job.status !== 'string' || !job.status.trim() || returnedJobIDs.has(job.job_ID)) return false
+          returnedJobIDs.add(job.job_ID)
+          return true
+        })
+      if (!validResponse) {
+        updateJobs({ identityKey, jobs: [], loading: false, error: 'Assigned job data is unavailable.', dataAvailable: false })
+        return
       }
+      const pendingAtResponse = new Set(pendingTransitionJobIDsRef.current.jobIDs)
+      updateJobs({ identityKey, jobs: data.jobs, loading: false, error: null, dataAvailable: true })
+      setJobStatusOverrides((current) => {
+        if (!isCurrent()) return current
+        if (current.identityKey !== identityKey) return { identityKey, values: {} }
+        const values = { ...current.values }
+        // Only a read started after confirmation can supersede that override.
+        // Omitted bookings and writes pending at response/commit stay protected.
+        for (const [jobID, override] of Object.entries(values)) {
+          if (override.confirmedRevision <= request.startedRevision && returnedJobIDs.has(Number(jobID))
+            && !pendingAtResponse.has(Number(jobID))
+            && !pendingTransitionJobIDsRef.current.jobIDs.has(Number(jobID))) delete values[jobID]
+        }
+        return { identityKey, values }
+      })
     } catch (err) {
       if (!isCurrent()) return
       console.error('[Technician Context] Error fetching live jobs:', err)
-      setJobsState({ identityKey, jobs: [], loading: false, error: 'Assigned job data is unavailable.', dataAvailable: false })
+      updateJobs({ identityKey, jobs: [], loading: false, error: 'Assigned job data is unavailable.', dataAvailable: false })
     }
   }, [identityKey, initializing, technicianID, token])
 
   useEffect(() => {
     fetchJobs()
-    return () => activeJobsRequestRef.current?.abort()
-  }, [fetchJobs])
-
-  useEffect(() => {
-    setJobStatusOverrides({ identityKey, values: {} })
-    pendingTransitionJobIDsRef.current.clear()
-    setPendingTransitionState({ identityKey, jobIDs: [] })
-  }, [identityKey])
+    return () => {
+      if (activeJobsRequestRef.current?.identityKey === identityKey) {
+        activeJobsRequestRef.current.controller.abort()
+      }
+    }
+  }, [fetchJobs, identityKey])
 
   const baselineJobById = useMemo(
     () => new Map(dbJobs.map((job) => [job.job_ID, job])),
@@ -141,7 +185,7 @@ function TechnicianWorkflowProvider({ children }) {
 
   const transitionJobStatus = useCallback(
     async (jobID, transitionName) => {
-      if (!canMutateTechnicianData || activeIdentityKeyRef.current !== identityKey) {
+      if (!mountedRef.current || !canMutateTechnicianData || activeIdentityKeyRef.current !== identityKey) {
         throw createTransitionError('Status updates require an authenticated Technician session.')
       }
       const transition = TRANSITION_RULES[transitionName]
@@ -151,17 +195,22 @@ function TechnicianWorkflowProvider({ children }) {
         throw createTransitionError('This booking is not available for a status update.')
       }
 
-      const effectiveStatus = activeOverrides[jobID] ?? baselineJob.status
+      const effectiveStatus = activeOverrides[jobID]?.status ?? baselineJob.status
       if (!transition || !transition.allowedStatuses.has(normalizeStatus(effectiveStatus))) {
         throw createTransitionError('This booking cannot be updated from its current status.')
       }
 
-      if (pendingTransitionJobIDsRef.current.has(jobID)) {
+      const pendingSession = pendingTransitionJobIDsRef.current
+      const isCurrentSession = () => mountedRef.current && activeIdentityKeyRef.current === identityKey
+        && pendingTransitionJobIDsRef.current === pendingSession
+      if (pendingSession.jobIDs.has(jobID)) {
         throw createTransitionError('A status update for this booking is already in progress.')
       }
 
-      pendingTransitionJobIDsRef.current.add(jobID)
-      setPendingTransitionState({ identityKey, jobIDs: Array.from(pendingTransitionJobIDsRef.current) })
+      const updatePending = () => setPendingTransitionState((current) => isCurrentSession()
+        ? { identityKey, jobIDs: Array.from(pendingSession.jobIDs) } : current)
+      pendingSession.jobIDs.add(jobID)
+      updatePending()
 
       try {
         const headers = { 'Content-Type': 'application/json' }
@@ -180,28 +229,36 @@ function TechnicianWorkflowProvider({ children }) {
         try {
           result = await response.json()
         } catch (parseError) {
-          console.error(
-            `[Technician Context] Invalid status response for booking #${jobID}:`,
-            parseError,
-          )
+          if (isCurrentSession()) {
+            console.error(
+              `[Technician Context] Invalid status response for booking #${jobID}:`,
+              parseError,
+            )
+          }
         }
 
         if (!response.ok || result?.success !== true) {
+          if (transitionName === 'complete' && response.status === 400 && result?.success === false
+            && result?.message === REPORT_REQUIRED_RESPONSE_MESSAGE) {
+            throw createTransitionError(REPORT_REQUIRED_MESSAGE, 'REPORT_REQUIRED')
+          }
           throw new Error(
             `Status request failed with HTTP ${response.status} and success=${String(result?.success)}`,
           )
         }
 
-        if (activeIdentityKeyRef.current !== identityKey) {
+        if (!isCurrentSession()) {
           throw createTransitionError('The Technician session changed during the status update.')
         }
-        setJobStatusOverrides((currentOverrides) => ({
-          identityKey,
-          values: {
-            ...(currentOverrides.identityKey === identityKey ? currentOverrides.values : {}),
-            [jobID]: transition.nextStatus,
-          },
-        }))
+        const confirmedRevision = ++confirmedRevisionRef.current
+        setJobStatusOverrides((currentOverrides) => {
+          if (!isCurrentSession()) return currentOverrides
+          const values = currentOverrides.identityKey === identityKey ? currentOverrides.values : {}
+          if (values[jobID]?.confirmedRevision > confirmedRevision) return currentOverrides
+          return { identityKey, values: {
+            ...values, [jobID]: { status: transition.nextStatus, confirmedRevision },
+          } }
+        })
 
         return {
           success: true,
@@ -209,15 +266,21 @@ function TechnicianWorkflowProvider({ children }) {
           status: transition.nextStatus,
         }
       } catch (err) {
-        console.error(
-          `[Technician Context] Failed to persist status update for booking #${jobID}:`,
-          err,
-        )
+        if (isCurrentSession() && transitionName === 'complete'
+          && err?.name === 'TechnicianTransitionError' && err.code === 'REPORT_REQUIRED') {
+          throw err
+        }
+        if (isCurrentSession()) {
+          console.error(
+            `[Technician Context] Failed to persist status update for booking #${jobID}:`,
+            err,
+          )
+        }
         throw createTransitionError('The booking status could not be updated. Please try again.')
       } finally {
-        if (activeIdentityKeyRef.current === identityKey) {
-          pendingTransitionJobIDsRef.current.delete(jobID)
-          setPendingTransitionState({ identityKey, jobIDs: Array.from(pendingTransitionJobIDsRef.current) })
+        if (isCurrentSession()) {
+          pendingSession.jobIDs.delete(jobID)
+          updatePending()
         }
       }
     },
@@ -244,7 +307,7 @@ function TechnicianWorkflowProvider({ children }) {
     () =>
       dbJobs.map((job) => ({
         ...job,
-        status: activeOverrides[job.job_ID] ?? job.status,
+        status: activeOverrides[job.job_ID]?.status ?? job.status,
       })),
     [activeOverrides, dbJobs],
   )

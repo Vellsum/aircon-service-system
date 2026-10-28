@@ -186,6 +186,36 @@ now doing -> the 3+ aircon logic
 //will see if i want to do more after class
 
 
+3+ aircon situation: 1 technician : 3 aircon
+
+2pm weijie come home;
+//bobby ask me about the pm stuff like risk n change management, communication, corporate office politics culture, etc
+// azure not a fixed requirement, jut a recommendations
+so we plan to frontend auzre n bakend supabase
+
+
+things left;
+- 3+ aircon logic, another technician assigned to cloned booking 
+- customer multiple address (3 separate inputs for postal, street, unit  --> these combine into a string)
+
+-- make more dummy for uses and all (maybe. maybe not)
+-reserved booking logic when asdmin make the alternateive (not as critical)
+
+-customer profile
+- subscriptions fullstack
+- promotions fullstack
+-admin revenue analytics
+
+2.24pm - i make the mange booking modal show number of units
+decided for a max of 6 aircons so that 1 technician max 3 aircon, which means the assisting technciian is 1 more
+then that one is another tech for their reserved n cloned booking
+
+
+
+
+
+
+
 
 pending;===========================================================
 frontend for customer to accept incoming (status as request reschddule) 

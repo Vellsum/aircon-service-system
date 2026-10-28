@@ -21,7 +21,7 @@
 // =============================================================================
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
+import { useTechnicianWorkflow, REPORT_REQUIRED_MESSAGE } from '../../context/TechnicianWorkflowContext'
 import { evaluateJobStart } from '../../utils/jobSchedule'   // 6 Oct 2026: shared start gate
 import FilterTabs from '../../components/technician/FilterTabs'
 import JobRow from '../../components/technician/JobRow'
@@ -214,7 +214,8 @@ function TechnicianAssignedJobs() {
       if (selectedJobID === jobID) closeJobDetails()
     } catch (err) {
       console.error('Error updating booking status:', err)
-      setActionError(failureMessage)
+      setActionError(transition === completeService && err?.code === 'REPORT_REQUIRED'
+        ? REPORT_REQUIRED_MESSAGE : failureMessage)
       return
     } finally {
       actionJobIDsRef.current.delete(jobID)
@@ -418,7 +419,7 @@ function TechnicianAssignedJobs() {
                   onChange={(event) => setStatusFilter(event.target.value)}
                   aria-label="Filter by job status"
                 >
-                  <option value="ALL">All Statuses</option>
+                  <option value="ALL">All</option>
                   <option value="In Progress">In Progress</option>
                   <option value="Upcoming">Upcoming</option>
                   <option value="Completed">Completed</option>

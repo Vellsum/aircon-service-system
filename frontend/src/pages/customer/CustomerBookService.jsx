@@ -435,14 +435,16 @@ const handleChange = (e) => {
                     value={numberOfUnits}
                     onChange={handleChange}
                     min="1"
-                    max="100"
+                    max="6"    
                     step="1"
       /><p>You entered: {numberOfUnits}</p>
+      {/**we do a max of 6 first so when overload, just 1 extra technician assisting */}
 
-      {/**now with clause for 3+ */}
+      {/**now with clause for 3+ units*/}
       {Number(numberOfUnits) > 3 && (
   <div className="cust-panel">
-Note: An additional technician will be provided for more than 3 aircons.    
+Note: An additional technician will be provided for more than 3 aircons.  
+A maximum of 6 aircons is permitted.  
   </div>
 )}
                 </div>

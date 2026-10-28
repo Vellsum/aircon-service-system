@@ -1,3 +1,9 @@
+
+
+
+
+
+
 /* AirCon Care — LOCAL DEV DATABASE (single DB + schemas, matches backend queries)
    Re-runnable: drops and rebuilds everything.
    
@@ -152,6 +158,12 @@ CREATE TABLE new_jobBooking.Booking (
   RR2_date DATE, RR2_time VARCHAR(50) , RR2_technician int,
 RR3_date DATE,RR3_time VARCHAR(50) , RR3_technician int,
 RR_expiry date,
+
+--slot for the assisting technicians
+assisting int,
+RR1_assisting int,
+RR2_assisting int,
+RR3_assisting int,
 
 
   CONSTRAINT FK_bk_customer FOREIGN KEY (customer_ID) REFERENCES user3.newCustomer(customer_ID),

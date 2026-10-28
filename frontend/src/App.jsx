@@ -2,7 +2,6 @@
 import React from 'react';
 import { BrowserRouter, useLocation } from 'react-router-dom';
 import AppRoutes from './routes/AppRoutes';
-import { TechnicianWorkflowProvider } from './context/TechnicianWorkflowContext';
 import ChatbotWidget from './components/customer/ChatbotWidget';
 
 // ✅ NEW: inner component — it renders INSIDE <BrowserRouter>, so useLocation() works
@@ -16,9 +15,7 @@ function AppContent() {
 
   return (
     <>
-      <TechnicianWorkflowProvider>
-        <AppRoutes />
-      </TechnicianWorkflowProvider>
+      <AppRoutes />
 
       {/* ✅ one line at the end, outside the routes */}
       {showChatbot && <ChatbotWidget />}
