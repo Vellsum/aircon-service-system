@@ -9,7 +9,7 @@ import {
   SnowfieldBackdrop,
 } from "../../components/customer/CustomerIcons";
 import { getDashboard, getMySubscriptions, getIncomingBookings,helpMyID
-  ,updateIncomingBookingStatus
+  ,updateIncomingBookingStatus,chooseRROption, pickRR1,pickRR2, pickRR3
  } from "../../api/customerApi";  //NOTE GET METHODS FROM CUSTOMER API
 import {
   describeBookingUnits,
@@ -20,6 +20,7 @@ import {
   statusTone,
 } from "../../data/customer/customerSelectors";
 import { useAuth } from "../../context/AuthContext";     //various watever imports ===============================================================================
+//import { chooseRROption } from "../../../../backend/src/controllers/customerController";
 
 const getInitials = (name = "") =>
   name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
@@ -223,8 +224,160 @@ const handleBookingDecision = async (booking, status) => {
   }
 };
 
+//the new methods for the RR -----------------------------------------------------------------------------------
+const pick_RR1 = async(booking)=>{
+console.log("customer pick rr1 option");
+  if (!booking?.booking_ID) {
+    setBookingActionError("This booking has no valid booking ID.");
+    return;
+  }
+
+  console.log(booking); console.log(status);
+  try {
+    setProcessingId(booking.booking_ID);
+    setBookingActionError("");
+
+    await pickRR1(booking.booking_ID, status); {/** <--- this method to be made in the api */}
+
+    // Remove it from the assigned bookings list after success.
+    setIncomingBookings((current) =>
+      current.filter(
+        (item) => item.booking_ID !== booking.booking_ID
+      )
+    );
+  } catch (err) {
+    setBookingActionError(
+      err.message || "Could not update this alternative booking 1 .booking."
+    );
+  } finally {
+    setProcessingId(null);
+  }
 
 
+}
+
+const pick_RR2 = async(booking)=>{
+  console.log("customer pick rr2 option");
+  if (!booking?.booking_ID) {
+    setBookingActionError("This booking has no valid booking ID.");
+    return;
+  }
+
+  console.log(booking); console.log(status);
+  try {
+    setProcessingId(booking.booking_ID);
+    setBookingActionError("");
+
+    await pickRR2(booking.booking_ID, status); {/** <--- this method to be made in the api */}
+
+    // Remove it from the assigned bookings list after success.
+    setIncomingBookings((current) =>
+      current.filter(
+        (item) => item.booking_ID !== booking.booking_ID
+      )
+    );
+  } catch (err) {
+    setBookingActionError(
+      err.message || "Could not update this alternative booking 2 .booking."
+    );
+  } finally {
+    setProcessingId(null);
+  }
+
+
+}
+
+const pick_RR3 = async(booking)=>{
+  console.log("customer pick rr3 option");
+  if (!booking?.booking_ID) {
+    setBookingActionError("This booking has no valid booking ID.");
+    return;
+  }
+
+  console.log(booking); console.log(status);
+  try {
+    setProcessingId(booking.booking_ID);
+    setBookingActionError("");
+
+    await pickRR3(booking.booking_ID, status); {/** <--- this method to be made in the api */}
+
+    // Remove it from the assigned bookings list after success.
+    setIncomingBookings((current) =>
+      current.filter(
+        (item) => item.booking_ID !== booking.booking_ID
+      )
+    );
+  } catch (err) {
+    setBookingActionError(
+      err.message || "Could not update this alternative booking 3 .booking."
+    );
+  } finally {
+    setProcessingId(null);
+  }
+
+
+
+
+}
+
+
+//merge into 1 method that take in the diff arguments
+const pick_RR=async(booking,option)=>{
+    console.log("clicked on merge method");
+
+
+try {
+    setProcessingId(booking.booking_ID);
+    setBookingActionError("");
+
+    await chooseRROption(booking.booking_ID, option);//call controller method
+
+   // await fetch(``)
+    // Remove it from the assigned bookings list after success.
+    setIncomingBookings((current) =>
+      current.filter(
+        (item) => item.booking_ID !== booking.booking_ID
+      )
+    );
+  } catch (err) {
+    setBookingActionError(
+      err.message || "Could not book this alternative booking."
+    );
+  } finally {
+    setProcessingId(null);
+  }
+
+
+
+
+}
+
+const RR_redo=async (booking,status)=>{
+console.log("customer reject all RR options");
+// change status back to pending
+
+try {
+    setProcessingId(booking.booking_ID);
+    setBookingActionError("");
+
+    await updateIncomingBookingStatus(booking.booking_ID, status);
+
+    // Remove it from the assigned bookings list after success.
+    setIncomingBookings((current) =>
+      current.filter(
+        (item) => item.booking_ID !== booking.booking_ID
+      )
+    );
+  } catch (err) {
+    setBookingActionError(
+      err.message || "Could not update this booking."
+    );
+  } finally {
+    setProcessingId(null);
+  }
+
+
+}
 
 
   //return actual html =====================================================================================================================================
@@ -258,17 +411,18 @@ const handleBookingDecision = async (booking, status) => {
         </div>
       </section>
 
-       {/* APPROVE PROCESSED BOOKING------------------------------------------------------------------------------------------------ */}
+       {/* RR BOOKINGS 
+       now its admin propose slots for bookings ------------------------------------------------------------------------------------------------ */}
 <section className="cust-panel" style={{ borderLeft: "4px solid var(--primary, #1b8a5a)" }}>
   <div className="cust-panel-head">
       <div>
-        <h2>Bookings awaiting your approval</h2>
-        <p>Please review and confirm your processed service bookings.</p>
+        <h2>Slot unavailable for these bookings.</h2>
+        <p>Please consider these other slots instead.</p>
       </div>
   </div>
 
 
-    
+  
 <div>
 
 {/** with the api methods, put them all out with a input*/}
@@ -297,8 +451,36 @@ const handleBookingDecision = async (booking, status) => {
         <p>Service: {booking.service_name || "Service booking"}</p>
         <p>Status: {booking.status}</p>
         <p>Date: {booking.date || "Not specified"}</p>
-        <p>Time: {booking.time || "Not specified"}</p>
+        <p>Timing: {booking.timing}</p>
+      {/**<p>Time: {booking.time || "Not specified"}</p> */}  
         <p>Location: {booking.location || "Not specified"}</p>
+{/**i dont need to know technicaisn 
+        <p>======================</p>
+        
+
+        <p>{booking.RR1_date}</p>
+        <p>{booking.RR1_time}</p>*/}
+        <hr></hr>
+        <p><b>Proposed alternatives</b></p>
+        <div> <span>Option 1: </span>
+        <button 
+        className="dash-btn dash-btn-primary"
+        onClick={() => pick_RR1(booking)}>
+          Date: {booking.RR1_date}, Timing: {booking.RR1_time}</button></div>
+
+  <p> </p>
+        <div><span>Option 2: </span>
+        <button 
+        className="dash-btn dash-btn-primary"
+        onClick={() => pick_RR2(booking)}>
+          Date: {booking.RR2_date}, Timing: {booking.RR2_time}</button></div>
+
+  <p> </p>
+
+             <div><span>Option 3: </span><button 
+        className="dash-btn dash-btn-primary"
+        onClick={() => pick_RR3(booking)}>
+          Date: {booking.RR3_date}, Timing: {booking.RR3_time}</button></div>
 
 
 
@@ -308,28 +490,49 @@ const handleBookingDecision = async (booking, status) => {
   </p>
 )}
 
-<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-  <button
-    className="dash-btn dash-btn-ghost"
-    style={{ color: "var(--danger, #c0392b)" }}
-    disabled={processingId === booking.booking_ID}
-    onClick={() => handleBookingDecision(booking, "request_reschedule")}
-  >
-    {processingId === booking.booking_ID
-      ? "Processing..."
-      : "request_reschedule"}
-  </button>
 
-  <button
-    className="dash-btn dash-btn-primary"
-    disabled={processingId === booking.booking_ID}
-    onClick={() => handleBookingDecision(booking, "confirmed")}
-  >
-    {processingId === booking.booking_ID
-      ? "Processing..."
-      : "Approve timing"}
-  </button>
-</div>
+  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+
+{/**newer */}
+<button
+      className="dash-btn dash-btn-ghost"
+      style={{ color: "var(--danger, #c0392b)" }}
+     
+      onClick={() => RR_redo(booking, "Pending")}
+    >
+      
+     Request another date
+    </button>
+
+
+    {/** <button
+      className="dash-btn dash-btn-ghost"
+      style={{ color: "var(--danger, #c0392b)" }}
+      disabled={processingId === booking.booking_ID}
+      onClick={() => handleBookingDecision(booking, "request_reschedule")}
+    >
+      
+      {processingId === booking.booking_ID
+        ? "Processing..."
+        : "Request another date"}
+    </button>*/}
+    
+
+{/**
+ * 
+ *   <button
+      className="dash-btn dash-btn-primary"
+      disabled={processingId === booking.booking_ID}
+      onClick={() => handleBookingDecision(booking, "confirmed")}
+    >
+      {processingId === booking.booking_ID
+        ? "Processing..."
+        : "Approve timing"}
+    </button>
+ */}
+  
+  </div>
+
 </div>
 
 
@@ -370,14 +573,14 @@ const handleBookingDecision = async (booking, status) => {
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
           <p style={{ margin: 0, fontWeight: 600, fontSize: 15 }}>
-            Quarterly Aircon Maintenance Plan
+            Quarterly Aircon Maintenance Plan (i am mock data)
           </p>
           <span className="cust-badge tone-success" style={{ fontSize: 11, padding: "2px 8px" }}>
-            Active
+            Active (i am mock data)
           </span>
         </div>
         <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
-          Covers 3 units · Renews on 12 Dec 2026
+          Covers 3 units · Renews on 12 Dec 2026 (i am mock data)
         </p>
       </div>
 
@@ -386,7 +589,7 @@ const handleBookingDecision = async (booking, status) => {
           className="dash-btn dash-btn-outline"
           onClick={() => navigate("/customer/service-catalog")}
         >
-          Manage plan
+          Manage plan (i am not done yet)
         </button>
       </div>
     </div>

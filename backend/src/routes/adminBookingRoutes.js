@@ -33,4 +33,6 @@ router.put(
   adminBookingController.rescheduleRequestedBooking
 );
 
+router.put('/:bookingId/alternatives',adminBookingController.submitBookingAlternatives);
+
 module.exports = router;

@@ -105,6 +105,107 @@ can reasisgn with reason
 
 technician codes alr can access backend
 
+1235am - weijie thinks technician is quite correct  n done with the day
+==============================================================================================
+
+
+
+
+
+
+
+
+
+261026:
+try to change the manage booking part;
+- removed time from manage booking table view
+- remove time from modal, added the new timing slot fields instead. for the view
+- change editing mode in modal to follow (now theres no more of the original time data in manage booking)
+-removed that little artefact n services from buy subscription page
+- remove it from customer view. now customer incoming is date n time. for now they can confirm or reject
+
+>>> when confirm, nothing change. but if reject, admin has to give options for customer to reply to (have sql table store this, with expiry date) (on expire admin do again)
+
+subtask:
+[done ] ---  make table have some way to hold the 3 options (booking table, columns for each bookings date n time )  (has a date for the expiry, expires in a day, uses an expiry date column)
+ [done] - when techncian available, admin can just assign techcnician n confirm booking
+ - nothing to change for reassinginging techcnician
+
+- [done]  frontend for admin to set status to request reschddule then set options
+FUCK i forget the technician
+[done]frotend  - have button to Click, on pending status
+
+8.43pm - frontend ready, sql ready
+- no when customer book n technciian ready, admin process n it become confirm
+-if admin want, it got the propose altenartive dates, 3 alternative each with input for date time n techcnician
+--above is frontend only, need api to get techncians by filter, currently using the general getter for all techncians
+
+9.15pm - making backend code to push new data to server
+-- [done] currently doing - making backend api n controller to send the alternative dates to server
+- but the modal wont close
+10.00 - fixed
+
+//// end of day ============================================================================
+
+271026;
+2pm - start, making customer frontend get data from rr status
+[customer can now reject booking, loop makes it pending status so admin must redo again]
+
+3pm - now doing backend of customer acceptive aternatetive
+//looks lik there would be 3 separate controller methods for picking the shit
+//wat about unreserving the technciians when booking confirm? or leave this out?
+5pm - made it work for the first option
+backend done for customer to accept options
+
+current state;
+customer book -> admin process 
+    -- if got technician, confirm stragiht away
+    -- if no techncician. make alternatives
+
+    customer receive alternatives:
+    -- reject -> booking return to pending
+    --accept either 1 -> booking confirmed with the selected option
+//backend works 
+
+next: the 3+ aircon situation OR making the reserved mock bookings
+
+5.30 - cleaned the homepage of shit
+now doing -> the 3+ aircon logic
+- change back unit selection to original , before the limit. frontend [done]
+6pm - NOW WITH CLAUSE
+
+// work paused -------------------------------
+//decided to take the night off
+
+
+
+
+281026;
+- in class meeting of progresss
+
+//will see if i want to do more after class
+
+
+
+pending;===========================================================
+frontend for customer to accept incoming (status as request reschddule) 
+ reject another date (status return to assigned) [done[]]
+-- [backedn done] when customer receive the incoming, it take the 3 alternatives n present them, customer choose 1 or reject all [fronentd done]
+
+
+--> then have to make mock booking for proposed alternatives
+
+
+//idk this section can last how outdated
+//extras
+>> customer cancel logic, can only cancel 5 days before confirmed date (just change booking status to cancel)
+
+>> customer side change approve words to accept
+
+>>remove homepage dummy datas
+>> when customer book, promocodes below
+
+
 
 weijie tasklist;====================================================
 -- edit customerbookservice jsx n booking controller for the new data [done]
@@ -123,8 +224,17 @@ tentative (for subscription services) -> pending (waiting for admin to put time 
 
 rejecting timing: assigned -> request reschedule (like pending but must pick another time with whoever is available)
 
-PROJECT BACKLOG; ========================================================================
 
+//this part is might be outdated
+
+
+
+
+
+
+
+PROJECT BACKLOG; ========================================================================
+//this part is might be outdated
 sum;
 admin dashboard - revenue trend section
 admin profile page (follow customer ui)
@@ -142,6 +252,13 @@ service hstory for both technician n customer
 logic to allow parts usage by techncian
 parts used functionalities
 
+optional - 
+//customer address
+-- possible that customer can have multiple addresses, frontend
+- for now just one address, address data in customer table
+- this part tbc , ask sponsor
+
+
 
 wejie will do;
 remove package pages
@@ -152,6 +269,9 @@ manage subscriptions- get real data
 admin page - manage admin, make new admin
 booking confirmed page - show number of units
 user can reset password
+
+//this part is might be outdated
+
 
 HOW TO BACKEND;========================================================================
 frontend component import api - this script has methods to do post request to server
@@ -200,7 +320,7 @@ tech_alex
 tech123
 
 
-
+//can or cannto?
 
 
 
@@ -229,4 +349,69 @@ frontend/layout/customerlayout
 frontend/pages/customer/all the scripts
 frontend/pages/public/home jsx
 frontend/components/customer/ all the jsx
+
+### WEIJIE IS NOW A FULL STACK DEVELOPER
+
+
+
+// old notes ==============================================================
+============================================================================
+
+azure; -------------------------------------
+already made app service
+
+to push zip of code, deployment -> deployment center -> manual deployment (push) -> save
+
+to change default page: settings >configuration> default documents
+
+see build;
+development tools>advanced tools> go
+
+
+
+
+
+
+
+sql admin login;
+server admin login - admin_12345_SCOTT
+password;   pw+++SUM+++1234
+
+db is weijie-db (weijie-db/weijie-db) 
+work on database tables with Query editor (preview)
+
+
+
+
+//tutor feedback --------------------------
+
+ 
+
+This project provides you the opportunity to study team dynamics and to take note of challenges and how you address them to gain valuable experience for your future endeavours.
+
+ 
+
+I am pretty sure you must have experienced the dynamics of working in a team already (albeit the unpleasant ones), things don’t turn out as expected and the continued pressure forces you to start doubting your capability and beliefs! You put in your every effort and then sees them falling apart!
+
+ 
+
+Anyway, this is a precious experience, and you need to learn from it and move on. However, as the project manager, you have failed to engage with me, your “stakeholder” throughout term 1 and that’s disappointing. I have basically begged you guys if you need help! Please stay engaged with me!
+//but tbh i can see the political power issues among dr bobby n sponsors, imo, from my experience
+
+You must be realised by now that certain decisions are beyond your current level, bring it up to the next level then.
+
+ 
+
+This term is about systems analysis and design and there are plenty of things to get ready for implementation next term.
+
+ 
+
+We will replace the DPM, do you have anyone in mind?
+
+ 
+
+If the project starts again, what are three things you would want to do differently? Why?
+
+ 
+
 

@@ -633,3 +633,266 @@ const updateResult = await pool.request()
     });
   }
 };
+
+
+//updates the booking status to request reschedule, all altenratives sent
+//below freshly paste, plz check
+
+/**
+ * PUT /api/admin/bookings/:bookingId/alternatives
+ *
+ * Saves three proposed booking options and updates the booking status.
+ */
+exports.submitBookingAlternatives = async (req, res) => {
+  console.log(
+  "[submitBookingAlternatives] Received body:",
+  JSON.stringify(req.body, null, 2)
+);
+  const bookingId = Number(req.params.bookingId);
+  const { alternatives } = req.body;
+ try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+  .input("bookingId", sql.Int, bookingId)
+
+  .input("RR1_date", sql.Date, alternatives[0].date)
+  .input("RR1_time", sql.VarChar(50), alternatives[0].time)
+  .input("RR1_technician", sql.Int, alternatives[0].technician_ID)
+
+  .input("RR2_date", sql.Date, alternatives[1].date)
+  .input("RR2_time", sql.VarChar(50), alternatives[1].time)
+  .input("RR2_technician", sql.Int, alternatives[1].technician_ID)
+
+  .input("RR3_date", sql.Date, alternatives[2].date)
+  .input("RR3_time", sql.VarChar(50), alternatives[2].time)
+  .input("RR3_technician", sql.Int, alternatives[2].technician_ID)
+
+  .input("RR_expiry", sql.Date, alternatives[0].date)
+
+  .query(`
+    UPDATE [new_jobBooking].[Booking]
+    SET
+
+      RR1_date = @RR1_date,
+      RR1_time = @RR1_time,
+      RR1_technician = @RR1_technician,
+
+      RR2_date = @RR2_date,
+      RR2_time = @RR2_time,
+      RR2_technician = @RR2_technician,
+
+      RR3_date = @RR3_date,
+      RR3_time = @RR3_time,
+      RR3_technician = @RR3_technician,
+
+      RR_expiry = @RR_expiry,
+
+      status = 'request_reschedule'
+
+    WHERE booking_ID = @bookingId
+  `);
+
+
+
+if (result.rowsAffected[0] === 0) {throw new Error(`Booking ${bookingId} was not found or was not updated.`);};
+  
+  
+  return res.status(200).json({
+      success: true,
+      message: "Booking time updated successfully.",
+    });
+
+  }catch (err) {
+    console.error("[submitBookingAlternatives] Error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to submit booking alternatives.",
+      error: err.message
+    });
+  
+
+  }
+
+};//end of method - set alternatives
+
+/**   if (!Number.isInteger(bookingId) || bookingId <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Booking ID."
+    });
+  }
+
+  if (!Array.isArray(alternatives) || alternatives.length !== 3) {
+    return res.status(400).json({
+      success: false,
+      message: "Exactly three alternatives are required."
+    });
+  }
+*/
+
+  // Validate and normalize all three options first.
+  /** const normalizedAlternatives = [];
+
+  for (const option of alternatives) {
+    const date = normalizeDateToSql(option.date);
+    const time = normalizeTimeToSql(option.time);
+    const technicianId = Number(option.technician_ID);
+
+    if (
+      !date ||
+      !time ||
+      !Number.isInteger(technicianId) ||
+      technicianId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Each alternative requires a valid date, time and technician."
+      });
+    }
+
+    normalizedAlternatives.push({
+      date,
+      time,
+      technicianId
+    });
+  } */
+ 
+    /**   // Reject duplicate date/time options.
+  const uniqueSlots = new Set(
+    normalizedAlternatives.map(
+      option => `${option.date}T${option.time.slice(0, 5)}`
+    )
+  );
+
+  if (uniqueSlots.size !== 3) {
+    return res.status(400).json({
+      success: false,
+      message: "All three alternatives must have different date/time slots."
+    });
+  }*/
+
+
+
+  //let transaction;
+
+ 
+
+    /**  if (!pool) {
+      return res.status(500).json({
+        success: false,
+        message: "Database connection offline."
+      });
+    }
+    */
+   
+    // Verify the booking exists and is still pending.
+    /**
+     *  const bookingResult = await pool.request()
+      .input("bookingId", sql.Int, bookingId)
+      .query(`
+        SELECT booking_ID, status
+        FROM [new_jobBooking].[Booking]
+        WHERE booking_ID = bookingId
+      `);
+
+    if (bookingResult.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found."
+      });
+    }
+
+    const currentStatus = String(
+      bookingResult.recordset[0].status || ""
+    ).trim().toLowerCase();
+
+    if (currentStatus !== "pending") {
+      return res.status(409).json({
+        success: false,
+        message: "Only pending bookings can receive alternative proposals."
+      });
+    }
+
+    // Verify that all selected technicians exist.
+    for (const option of normalizedAlternatives) {
+      const technicianResult = await pool.request()
+        .input("technicianId", sql.Int, option.technicianId)
+        .query(`
+          SELECT technician_ID
+          FROM [user3].[technician]
+          WHERE technician_ID = technicianId
+        `);
+
+      if (technicianResult.recordset.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Technician ${option.technicianId} does not exist.`
+        });
+      }
+    }
+
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+     */
+   
+
+    // PLACEHOLDER TABLE/COLUMNS:
+    // Replace BookingAlternative and its column names with your actual schema.
+    //  for (let i = 0; i < normalizedAlternatives.length; i++) {
+    //  const option = normalizedAlternatives[i];
+
+     // await new pool(transaction)
+     
+
+
+    // Change the booking status after saving all alternatives.
+    //  const updateResult = await new sql.Request(transaction)
+  /**
+   *   .input("bookingId", sql.Int, bookingId)
+      .query(`
+        UPDATE [new_jobBooking].[Booking]
+        SET status = 'request_reschedule'
+        WHERE booking_ID = @\bookingId
+          AND LOWER(LTRIM(RTRIM(status))) = 'pending'
+      `);
+
+    if (updateResult.rowsAffected[0] === 0) {
+      throw new Error(
+        "Booking status changed before the proposal could be submitted."
+      );
+    }
+   */
+    
+
+  // await transaction.commit();
+/**
+ * return res.status(200).json({
+      success: true,
+      message: "Three alternative booking options submitted.",
+      booking_ID: bookingId,
+      status: "request_reschedule"
+    });
+
+  } catch (err) {
+    if (transaction) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error("Transaction rollback failed:", rollbackError.message);
+      }
+    }
+
+    console.error("submitBookingAlternatives error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to submit alternative booking options."
+    });
+ */
+    
+  
+
+
+

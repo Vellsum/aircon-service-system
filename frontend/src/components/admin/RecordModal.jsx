@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../common/Modal";
 
+//the component itsef, takes in many arguments
 const RecordModal = ({
   mode,
   title,
@@ -9,29 +10,28 @@ const RecordModal = ({
   data,
   onClose,
   onSave,
+  alternativeFields,
+  onProposeAlternatives,
+  onSaveAlternatives,
+  action
 }) => {
   const [form, setForm] = useState(data || {});
 
-  const bookingStatus = String(data?.status || "")
-    .trim()
-    .toLowerCase();
+  const bookingStatus = String(data?.status || "") .trim() .toLowerCase(); //get booking status
+  const isConfirmed = bookingStatus === "confirmed"; //will state a var for wat is indeed confirmed
 
-  const isConfirmed = bookingStatus === "confirmed";
-
-  const isRescheduleRequested = [
-    "request_reschedule",
-    "reschedule_requested",
-  ].includes(bookingStatus);
-
-  const isTechnicianField = (key) =>
-    ["technician_id", "technicianid", "technician"].includes(
-      String(key).toLowerCase()
-    );
-
+  //for this state, the different spelling
+  const isRescheduleRequested = ["request_reschedule",  "reschedule_requested",  ].includes(bookingStatus);
+    
+  
+  //get the right spelling for techcnican column
+  const isTechnicianField = (key) =>  ["technician_id", "technicianid", "technician"].includes(  String(key).toLowerCase()  );
+  
+    //check booking data, state the  timefields (var refered to in this modal), as those spellings
   const isTimeField = (key) =>
     [
       "time",
-      "timing",
+     // "timing",
       "booking_time",
       "bookingtime",
       "processedtime",
@@ -39,15 +39,18 @@ const RecordModal = ({
      // "newtime",
     ].includes(String(key).toLowerCase());
 
-  const isReasonField = (key) =>
-    ["reason", "reassignmentreason"].includes(
-      String(key).toLowerCase()
-    );
+    //booking data - reassignment reason
+  const isReasonField = (key) => ["reason", "reassignmentreason"].includes(String(key).toLowerCase());
+       
+    //on component moount, set the data
+  useEffect(() => { setForm(data || {}); }, [data]);
+   
+ const isPending = bookingStatus === "pending";//use to determine if on pending status
+const isProposingAlternatives = action === "propose";
 
-  useEffect(() => {
-    setForm(data || {});
-  }, [data]);
-
+const fieldsToDisplay = isProposingAlternatives
+  ? alternativeFields
+  : fields;
   const handleChange = (key, value) => {
     setForm((prev) => ({
       ...prev,
@@ -55,6 +58,7 @@ const RecordModal = ({
     }));
   };
 
+  //on the final button click==================================================================================
   const handleSubmit = (e) => {
     e.preventDefault();console.log("RecordModal handleSubmit fired");
 
@@ -94,6 +98,7 @@ const RecordModal = ({
       }
     }
 
+    // based on which status, do the checks -------------------------------------------------------------
    if (isRescheduleRequested) {
   const newTime = String(form.newTime || "").trim().slice(0, 5);
   const originalTime = String(data?.processedTime || "")
@@ -111,7 +116,7 @@ console.log("Original time:", data?.processedTime);
   }*/
 
 
-      if (!newTime) {
+    /**     if (!newTime) {
         alert("Please select a new booking time.");
         return;
       }
@@ -120,7 +125,10 @@ console.log("Original time:", data?.processedTime);
         alert("Please choose a different booking time.");
         return;
       }
+     */
+ 
     }
+    //debuggin print statements -------------------------------------------
 console.log("Modal form data:", form);
 console.log("Modal fields:", fields.map(f => ({
   key: f.key,
@@ -132,10 +140,19 @@ console.log(
   "TIME FIELDS:",
   fields.filter((f) => String(f.key).toLowerCase().includes("time"))
 );
-onSave(form);
-   // onSave(form);
-  };
 
+  if (isProposingAlternatives) {
+  onSaveAlternatives?.(form);
+} else {
+  onSave(form);
+}//send data to db
+   // onSave(form);
+
+  };//end of handle submit button
+
+
+
+ //view mode of the popup=======================================================================================
   if (mode === "view") {
     return (
       <Modal title={title} onClose={onClose}>
@@ -165,6 +182,7 @@ onSave(form);
     );
   }
 
+  //else return the full input popup ====================================================================
   return (
     <Modal title={title} onClose={onClose}>
       <form onSubmit={handleSubmit}>
@@ -183,8 +201,13 @@ onSave(form);
               date, and reassignment reason cannot be changed here.
             </p>
           )}
+<h2>
+  {isProposingAlternatives
+    ? "Propose Alternative Booking Times"
+    : title}
+</h2>
 
-          {fields.map((field) => {
+          {fieldsToDisplay.map((field) => {
             const key = field.key;
             const technicianField = isTechnicianField(key);
             const timeField = isTimeField(key);
@@ -194,32 +217,44 @@ onSave(form);
             let disabled = false;
             let required = field.required !== false;
 
-          if (isConfirmed) {
+
+//these set the field input restrictions based on status of booking ====================================================
+   if (!isProposingAlternatives && isConfirmed) {
   readOnly = !technicianField && !reasonField;
   disabled = !technicianField && !reasonField;
   required = technicianField || reasonField;
-  
-} else if (isRescheduleRequested) {
+} else if (!isProposingAlternatives && isRescheduleRequested) {
   readOnly = !timeField;
   disabled = !timeField && !technicianField;
   required = timeField || technicianField;
 }
 
-else if (bookingStatus === "pending") {
+else if (bookingStatus === "pending" && !isProposingAlternatives) {
   const isInitialAssignmentTime = timeField;
 
   readOnly = !technicianField && !isInitialAssignmentTime;
   disabled = !technicianField && !isInitialAssignmentTime;
   required = technicianField || isInitialAssignmentTime;
 }
+/** const isProposingAlternatives = action === "propose";
 
+const fieldsToDisplay = isProposingAlternatives
+  ? alternativeFields
+  : fields;
+*/
+
+//return html =========================================================================================================================================
             return (
+              
               <div className="dash-form-row" key={key}>
+
+
                 <label className="dash-form-label">
                   {field.label}
                   {required && " *"}
                 </label>
 
+{/**turn the options into  a dropdown */}
                 {field.type === "select" ? (
                   <select
                     className="dash-form-select"
@@ -268,26 +303,59 @@ else if (bookingStatus === "pending") {
           })}
         </div>
 
+{/** this little part of the options button below the modal --------------------------------------------------- */}
         <div className="dash-modal-footer">
-          <button
-            type="button"
-            className="dash-btn dash-btn-outline"
-            onClick={onClose}
-          >
-            Cancel
-          </button>
 
+          {/**cancel button */}
+      <button
+  type="button"
+  className="dash-btn dash-btn-outline"
+  onClick={() => {
+    if (isProposingAlternatives) {
+      onProposeAlternatives?.("default");
+    } else {
+      onClose();
+    }
+  }}
+>
+  Cancel
+</button>
+
+{/** new button here to make the 3 options */}
+  {isPending &&!isProposingAlternatives &&  (
+    <>
+      
+
+      <button
+        type="button"            className="dash-btn dash-btn-outline"
+
+        onClick={() => onProposeAlternatives?.(form)}
+      >
+        Propose Alternatives
+      </button>
+    </>
+  )}
+
+
+
+
+            {/**save changes, in pending status it says Assign technician */}
           <button
             type="submit"
             className="dash-btn dash-btn-primary"
           >
-            {isConfirmed
-              ? "Reassign Technician"
-              : isRescheduleRequested
-                ? "Update Booking Time"
-                : mode === "create"
-                  ? "Create"
-                  : "Save Changes"}
+            {/**show button text based on status workflow */}
+           {isProposingAlternatives
+  ? "Submit Alternatives"
+  : isConfirmed
+    ? "Reassign Technician"
+    : isRescheduleRequested
+      ? "Update Booking Time"
+      : mode === "create"
+        ? "Create"
+        : "Assign Technician"}
+                  
+                 
           </button>
         </div>
       </form>

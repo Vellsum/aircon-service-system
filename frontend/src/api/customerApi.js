@@ -43,6 +43,16 @@ function getCurrentCustomerId() {
 //method to get bookings with assigned status
 export const getIncomingBookings =()=> request(`/customer/incoming?customerId=${getCurrentCustomerId()}`);
 
+
+export const chooseRROption=(bookingId,option)=>{
+   return request(
+    `/customer/bookings/${encodeURIComponent(bookingId)}/choose`,
+    {
+      method: "PUT",
+      body: JSON.stringify(bookingId), option,
+    }
+  );
+}
 export const updateIncomingBookingStatus = (bookingId, status) => {
   return request(
     `/customer/bookings/${encodeURIComponent(bookingId)}/status`,
@@ -163,6 +173,43 @@ export const getPromotions = () => request(`/customer/promotions`);
 export const getPlans = () => request(`/customer/plans`);
 export const getAddresses = () => request(`/customer/addresses?customerId=${getCurrentCustomerId()}`);
 
+
+//the 3 picks for RR
+export const pickRR1 = (bookingId) =>  {
+    console.log("reached rr1 api")
+
+  return request(`/customer/bookings/${encodeURIComponent(bookingId)}/RR1`,
+     {
+      method: "PUT",
+      body: JSON.stringify({bookingId}),
+    }
+   );
+  };
+export const pickRR2 = (bookingId) =>  {
+    console.log("reached rr2 api")
+
+  return request(`/customer/bookings/${encodeURIComponent(bookingId)}/RR2`,
+     {
+      method: "PUT",
+      body: JSON.stringify({bookingId}),
+    }
+   );
+  };
+export const pickRR3 = (bookingId) =>  {
+    console.log("reached rr3 api")
+
+  return request(`/customer/bookings/${encodeURIComponent(bookingId)}/RR3`,
+     {
+      method: "PUT",
+      body: JSON.stringify({bookingId}),
+    }
+   );
+  };
+
+
+
+//export const pickRR2 = () => request(`/customer/bookings?customerId=${getCurrentCustomerId()}/RR2`);
+//export const pickRR3 = () => request(`/customer/bookings?customerId=${getCurrentCustomerId()}/RR3`);
 
 /**
  * 
