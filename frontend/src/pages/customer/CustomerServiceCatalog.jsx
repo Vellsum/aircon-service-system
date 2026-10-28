@@ -105,7 +105,7 @@ const CustomerServiceCatalog = () => {
         </div>
       </section>
 
-      {/* Individual services — real data from payables.service */}
+      {/* Individual services — real data from payables.service 
       <section className="cust-panel">
         <div className="cust-panel-head">
           <div>
@@ -165,9 +165,9 @@ const CustomerServiceCatalog = () => {
           ))}
         </div>
       
-      </section>*/
-
-      {/* Maintenance plans — real data from payables.subscription */}
+      </section>*/}
+      
+            {/* Maintenance plans — real data from payables.subscription */}
       <section className="cust-panel">
         <div className="cust-panel-head">
           <div>

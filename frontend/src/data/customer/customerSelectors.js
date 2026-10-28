@@ -1,22 +1,23 @@
-// Derived reads over the customer fixtures.
+// Derived reads over customer data.
 //
 // Pages stay presentational: every count, total and grouping a customer page
-// renders is computed here, so the same numbers appear on the dashboard, the
-// bookings list and the unit cards without being re-derived per page.
+// renders is computed here. All functions are PURE — data goes in, results
+// come out. No mock imports: live data comes from /api/customer/* and is
+// passed in by the pages. Defaults are empty arrays so a failed fetch can
+// never show fake numbers.
 
-import {
-  MY_BOOKINGS,
-  MY_UNITS,
-  PROMOTIONS,
-  SERVICES,
-  TIME_SLOTS,
-} from "./customerMockData";
-
-export const OPEN_STATUSES = Object.freeze(["Pending", "Confirmed", "Assigned", "In Progress"]);
+export const OPEN_STATUSES = Object.freeze([
+  "Pending",
+  "Confirmed",
+  "Scheduled",
+  "Assigned",
+  "In Progress",
+]);
 
 const STATUS_TONE = Object.freeze({
   Pending: "warning",
   Confirmed: "accent",
+  Scheduled: "accent",
   Assigned: "accent",
   "In Progress": "accent",
   Completed: "success",
@@ -32,44 +33,44 @@ export function isOpenBooking(booking) {
 }
 
 /** Bookings not yet completed or cancelled, soonest first. */
-export function getUpcomingBookings(bookings = MY_BOOKINGS) {
+export function getUpcomingBookings(bookings = []) {
   return bookings
     .filter(isOpenBooking)
     .slice()
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 }
 
 /** Completed or cancelled bookings, most recent first. */
-export function getPastBookings(bookings = MY_BOOKINGS) {
+export function getPastBookings(bookings = []) {
   return bookings
     .filter((booking) => !isOpenBooking(booking))
     .slice()
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
 }
 
-export function getNextBooking(bookings = MY_BOOKINGS) {
+export function getNextBooking(bookings = []) {
   return getUpcomingBookings(bookings)[0] || null;
 }
 
-export function findBooking(bookingId, bookings = MY_BOOKINGS) {
+export function findBooking(bookingId, bookings = []) {
   return bookings.find((booking) => booking.booking_ID === bookingId) || null;
 }
 
-export function findService(serviceId, services = SERVICES) {
+export function findService(serviceId, services = []) {
   return services.find((service) => service.service_id === serviceId) || null;
 }
 
-export function findUnit(installedId, units = MY_UNITS) {
+export function findUnit(installedId, units = []) {
   return units.find((unit) => unit.installed_ID === installedId) || null;
 }
 
 /** Resolve a booking's unit_ids into the unit records they point at. */
-export function getBookingUnits(booking, units = MY_UNITS) {
+export function getBookingUnits(booking, units = []) {
   if (!booking) return [];
-  return booking.unit_ids.map((id) => findUnit(id, units)).filter(Boolean);
+  return (booking.unit_ids || []).map((id) => findUnit(id, units)).filter(Boolean);
 }
 
-export function describeBookingUnits(booking, units = MY_UNITS) {
+export function describeBookingUnits(booking, units = []) {
   const names = getBookingUnits(booking, units).map((unit) => unit.nickname);
   if (names.length === 0) return "—";
   if (names.length <= 2) return names.join(" + ");
@@ -77,21 +78,21 @@ export function describeBookingUnits(booking, units = MY_UNITS) {
 }
 
 /** Headline figures for the dashboard stat row. */
-export function getDashboardStats(bookings = MY_BOOKINGS, units = MY_UNITS) {
+export function getDashboardStats(bookings = [], units = []) {
   const completed = bookings.filter((booking) => booking.status === "Completed");
   return {
     upcoming: getUpcomingBookings(bookings).length,
     units: units.length,
     completed: completed.length,
-    totalSpend: completed.reduce((sum, booking) => sum + booking.amount, 0),
+    totalSpend: completed.reduce((sum, booking) => sum + Number(booking.amount || 0), 0),
   };
 }
 
 /**
- * Units whose next service date has passed, or falls inside the next 30 days.
+ * Units whose next service date falls inside the next 30 days (or is overdue).
  * Drives the "service due" prompts on the dashboard and unit cards.
  */
-export function getUnitsDueSoon(units = MY_UNITS, today = new Date()) {
+export function getUnitsDueSoon(units = [], today = new Date()) {
   const horizon = new Date(today);
   horizon.setDate(horizon.getDate() + 30);
 
@@ -120,18 +121,18 @@ export function healthLabel(health) {
 }
 
 /** Most recent service report across all bookings, for the dashboard panel. */
-export function getLatestReport(bookings = MY_BOOKINGS) {
+export function getLatestReport(bookings = []) {
   const withReports = bookings
     .filter((booking) => booking.report)
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
   return withReports[0] || null;
 }
 
-export function getServiceCategories(services = SERVICES) {
-  return ["All", ...new Set(services.map((service) => service.category))];
+export function getServiceCategories(services = []) {
+  return ["All", ...new Set(services.map((service) => service.category || "Maintenance"))];
 }
 
-export function findPromotion(code, promotions = PROMOTIONS) {
+export function findPromotion(code, promotions = []) {
   const normalized = (code || "").trim().toUpperCase();
   if (!normalized) return null;
   return promotions.find((promo) => promo.code === normalized) || null;
@@ -139,8 +140,8 @@ export function findPromotion(code, promotions = PROMOTIONS) {
 
 /**
  * Price a booking draft: line total across selected units, then the promo
- * discount if the entered code resolves. Returns whole-dollar figures so the
- * summary panel and the confirmation row never disagree by a rounding cent.
+ * discount if the entered code resolves. Uses the REAL API field names
+ * (discount_type / discount_value, 'percent' | 'fixed').
  */
 export function priceBooking({ service, unitCount, promo }) {
   if (!service) {
@@ -155,14 +156,10 @@ export function priceBooking({ service, unitCount, promo }) {
     discount =
       promo.discount_type === "percent"
         ? Math.round((subtotal * promo.discount_value) / 100)
-        : Math.min(promo.discount_value, subtotal);
+        : Math.min(promo.discount_value || 0, subtotal);
   }
 
   return { subtotal, discount, total: subtotal - discount, billableUnits };
-}
-
-export function getAvailableSlots(slots = TIME_SLOTS) {
-  return slots.filter((slot) => slot.available);
 }
 
 /** "24 Sep 2026" — the date format used across the technician and admin pages. */
@@ -190,7 +187,7 @@ export function formatLongDate(value) {
 }
 
 export function formatMoney(amount) {
-  return `$${Number(amount || 0).toFixed(2)}`;
+  return `S$${Number(amount || 0).toFixed(2)}`;
 }
 
 /** Whole days until a date; negative once it is in the past. */

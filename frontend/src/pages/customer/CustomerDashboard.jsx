@@ -8,7 +8,9 @@ import {
   Icon,
   SnowfieldBackdrop,
 } from "../../components/customer/CustomerIcons";
-import { getDashboard, getMySubscriptions } from "../../api/customerApi";  //NOTE GET METHODS FROM CUSTOMER API
+import { getDashboard, getMySubscriptions, getIncomingBookings,helpMyID
+  ,updateIncomingBookingStatus,chooseRROption, pickRR1,pickRR2, pickRR3
+ } from "../../api/customerApi";  //NOTE GET METHODS FROM CUSTOMER API
 import {
   describeBookingUnits,
   describeCountdown,
@@ -18,6 +20,7 @@ import {
   statusTone,
 } from "../../data/customer/customerSelectors";
 import { useAuth } from "../../context/AuthContext";     //various watever imports ===============================================================================
+//import { chooseRROption } from "../../../../backend/src/controllers/customerController";
 
 const getInitials = (name = "") =>
   name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
@@ -38,6 +41,12 @@ const quickActions = [
 
 //dashboard component itself ==================================================================================================
 const CustomerDashboard = () => {
+  //usestate var to hold incoooming booking to approve
+const [incomingBookings, setIncomingBookings] = useState([]);
+const [incomingLoading, setIncomingLoading] = useState(true);
+const [incomingError, setIncomingError] = useState("");const [processingId, setProcessingId] = useState(null);
+const [bookingActionError, setBookingActionError] = useState("");
+
   const navigate = useNavigate();
   const { user } = useAuth();
   const [openBooking, setOpenBooking] = useState(null);
@@ -49,6 +58,56 @@ const CustomerDashboard = () => {
   const [subscriptions, setSubscriptions] = useState([]);
   const [subsLoading, setSubsLoading] = useState(true);
   const [subsError, setSubsError] = useState("");
+
+// get the proper incomings============================================================================================================
+
+useEffect(() => {
+  let alive = true;
+
+  const loadIncomingBookings = async () => {
+    try {
+      setIncomingLoading(true);
+      setIncomingError("");
+
+      // Use the logged-in customer's actual ID.
+      const customerId = user?.customer_ID ?? user?.customerId;
+
+      if (!customerId) {
+        throw new Error("Customer ID is missing from the logged-in user.");
+      }
+
+      const res = await getIncomingBookings(customerId);
+
+      if (!alive) return;
+
+      if (res?.success) {
+        setIncomingBookings(res.bookings || []);
+      } else {
+        setIncomingError(res?.message || "Could not load incoming bookings.");
+      }
+    } catch (err) {
+      if (alive) {
+        console.error("Incoming bookings error:", err);
+        setIncomingError(
+          err.response?.data?.message ||
+          err.message ||
+          "Unable to load incoming bookings."
+        );
+      }
+    } finally {
+      if (alive) setIncomingLoading(false);
+    }
+  };
+
+  loadIncomingBookings();
+
+  return () => {
+    alive = false;
+  };
+}, [user]);
+
+ 
+
 
   useEffect(() => {
     let alive = true;
@@ -126,6 +185,197 @@ const approveTiming = () => {
 //set booking status to confirmed
 
 
+}
+
+//a method to get incoming booking, filter by assigned status
+const getIncoming=()=>{
+
+  console.log('assigned booking came');
+
+}
+
+
+//all in one, takes the booking id and status n send to api
+const handleBookingDecision = async (booking, status) => {
+  if (!booking?.booking_ID) {
+    setBookingActionError("This booking has no valid booking ID.");
+    return;
+  }
+
+  console.log(booking); console.log(status);
+  try {
+    setProcessingId(booking.booking_ID);
+    setBookingActionError("");
+
+    await updateIncomingBookingStatus(booking.booking_ID, status); {/** <--- this method to be made in the api */}
+
+    // Remove it from the assigned bookings list after success.
+    setIncomingBookings((current) =>
+      current.filter(
+        (item) => item.booking_ID !== booking.booking_ID
+      )
+    );
+  } catch (err) {
+    setBookingActionError(
+      err.message || "Could not update this booking."
+    );
+  } finally {
+    setProcessingId(null);
+  }
+};
+
+//the new methods for the RR -----------------------------------------------------------------------------------
+const pick_RR1 = async(booking)=>{
+console.log("customer pick rr1 option");
+  if (!booking?.booking_ID) {
+    setBookingActionError("This booking has no valid booking ID.");
+    return;
+  }
+
+  console.log(booking); console.log(status);
+  try {
+    setProcessingId(booking.booking_ID);
+    setBookingActionError("");
+
+    await pickRR1(booking.booking_ID, status); {/** <--- this method to be made in the api */}
+
+    // Remove it from the assigned bookings list after success.
+    setIncomingBookings((current) =>
+      current.filter(
+        (item) => item.booking_ID !== booking.booking_ID
+      )
+    );
+  } catch (err) {
+    setBookingActionError(
+      err.message || "Could not update this alternative booking 1 .booking."
+    );
+  } finally {
+    setProcessingId(null);
+  }
+
+
+}
+
+const pick_RR2 = async(booking)=>{
+  console.log("customer pick rr2 option");
+  if (!booking?.booking_ID) {
+    setBookingActionError("This booking has no valid booking ID.");
+    return;
+  }
+
+  console.log(booking); console.log(status);
+  try {
+    setProcessingId(booking.booking_ID);
+    setBookingActionError("");
+
+    await pickRR2(booking.booking_ID, status); {/** <--- this method to be made in the api */}
+
+    // Remove it from the assigned bookings list after success.
+    setIncomingBookings((current) =>
+      current.filter(
+        (item) => item.booking_ID !== booking.booking_ID
+      )
+    );
+  } catch (err) {
+    setBookingActionError(
+      err.message || "Could not update this alternative booking 2 .booking."
+    );
+  } finally {
+    setProcessingId(null);
+  }
+
+
+}
+
+const pick_RR3 = async(booking)=>{
+  console.log("customer pick rr3 option");
+  if (!booking?.booking_ID) {
+    setBookingActionError("This booking has no valid booking ID.");
+    return;
+  }
+
+  console.log(booking); console.log(status);
+  try {
+    setProcessingId(booking.booking_ID);
+    setBookingActionError("");
+
+    await pickRR3(booking.booking_ID, status); {/** <--- this method to be made in the api */}
+
+    // Remove it from the assigned bookings list after success.
+    setIncomingBookings((current) =>
+      current.filter(
+        (item) => item.booking_ID !== booking.booking_ID
+      )
+    );
+  } catch (err) {
+    setBookingActionError(
+      err.message || "Could not update this alternative booking 3 .booking."
+    );
+  } finally {
+    setProcessingId(null);
+  }
+
+
+
+
+}
+
+
+//merge into 1 method that take in the diff arguments
+const pick_RR=async(booking,option)=>{
+    console.log("clicked on merge method");
+
+
+try {
+    setProcessingId(booking.booking_ID);
+    setBookingActionError("");
+
+    await chooseRROption(booking.booking_ID, option);//call controller method
+
+   // await fetch(``)
+    // Remove it from the assigned bookings list after success.
+    setIncomingBookings((current) =>
+      current.filter(
+        (item) => item.booking_ID !== booking.booking_ID
+      )
+    );
+  } catch (err) {
+    setBookingActionError(
+      err.message || "Could not book this alternative booking."
+    );
+  } finally {
+    setProcessingId(null);
+  }
+
+
+
+
+}
+
+const RR_redo=async (booking,status)=>{
+console.log("customer reject all RR options");
+// change status back to pending
+
+try {
+    setProcessingId(booking.booking_ID);
+    setBookingActionError("");
+
+    await updateIncomingBookingStatus(booking.booking_ID, status);
+
+    // Remove it from the assigned bookings list after success.
+    setIncomingBookings((current) =>
+      current.filter(
+        (item) => item.booking_ID !== booking.booking_ID
+      )
+    );
+  } catch (err) {
+    setBookingActionError(
+      err.message || "Could not update this booking."
+    );
+  } finally {
+    setProcessingId(null);
+  }
+
 
 }
 
@@ -161,56 +411,139 @@ const approveTiming = () => {
         </div>
       </section>
 
-       {/* APPROVE PROCESSED BOOKING------------------------------------------------------------------------------------------------ */}
+       {/* RR BOOKINGS 
+       now its admin propose slots for bookings ------------------------------------------------------------------------------------------------ */}
 <section className="cust-panel" style={{ borderLeft: "4px solid var(--primary, #1b8a5a)" }}>
   <div className="cust-panel-head">
       <div>
-        <h2>Bookings awaiting your approval</h2>
-        <p>Please review and confirm your processed service bookings.</p>
+        <h2>Slot unavailable for these bookings.</h2>
+        <p>Please consider these other slots instead.</p>
       </div>
   </div>
 
-  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "16px 20px",
-        borderRadius: "var(--radius)",
-        background: "var(--bg-app)",
-        border: "1px solid var(--border)",
-        flexWrap: "wrap",
-        gap: 16,
-      }}>
+
+  
+<div>
+
+{/** with the api methods, put them all out with a input*/}
+  {incomingLoading ? (
+    <p>Loading incoming bookings...</p>
+  ) : incomingError ? (
+    <p style={{ color: "var(--danger, #c0392b)" }}>
+      {incomingError}
+    </p>
+  ) : incomingBookings.length === 0 ? (
+    <p>No incoming bookings found.</p>
+  ) : (
+    incomingBookings.map((booking) => (
+      <div
+        key={booking.booking_ID}
+        style={{
+          padding: 16,
+          marginBottom: 12,
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius)",
+        }}
+      >
+        <p>
+          <strong>Booking #{booking.booking_ID}</strong>
+        </p>
+        <p>Service: {booking.service_name || "Service booking"}</p>
+        <p>Status: {booking.status}</p>
+        <p>Date: {booking.date || "Not specified"}</p>
+        <p>Timing: {booking.timing}</p>
+      {/**<p>Time: {booking.time || "Not specified"}</p> */}  
+        <p>Location: {booking.location || "Not specified"}</p>
+{/**i dont need to know technicaisn 
+        <p>======================</p>
+        
+
+        <p>{booking.RR1_date}</p>
+        <p>{booking.RR1_time}</p>*/}
+        <hr></hr>
+        <p><b>Proposed alternatives</b></p>
+        <div> <span>Option 1: </span>
+        <button 
+        className="dash-btn dash-btn-primary"
+        onClick={() => pick_RR1(booking)}>
+          Date: {booking.RR1_date}, Timing: {booking.RR1_time}</button></div>
+
+  <p> </p>
+        <div><span>Option 2: </span>
+        <button 
+        className="dash-btn dash-btn-primary"
+        onClick={() => pick_RR2(booking)}>
+          Date: {booking.RR2_date}, Timing: {booking.RR2_time}</button></div>
+
+  <p> </p>
+
+             <div><span>Option 3: </span><button 
+        className="dash-btn dash-btn-primary"
+        onClick={() => pick_RR3(booking)}>
+          Date: {booking.RR3_date}, Timing: {booking.RR3_time}</button></div>
+
+
+
+{bookingActionError && processingId === null && (
+  <p style={{ color: "var(--danger, #c0392b)" }}>
+    {bookingActionError}
+  </p>
+)}
+
+
+  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+
+{/**newer */}
+<button
+      className="dash-btn dash-btn-ghost"
+      style={{ color: "var(--danger, #c0392b)" }}
+     
+      onClick={() => RR_redo(booking, "Pending")}
+    >
+      
+     Request another date
+    </button>
+
+
+    {/** <button
+      className="dash-btn dash-btn-ghost"
+      style={{ color: "var(--danger, #c0392b)" }}
+      disabled={processingId === booking.booking_ID}
+      onClick={() => handleBookingDecision(booking, "request_reschedule")}
+    >
+      
+      {processingId === booking.booking_ID
+        ? "Processing..."
+        : "Request another date"}
+    </button>*/}
     
-     {/** information to show */}
-          <div>
-            <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: 15 }}>  {/** show the type of servicing */}
-              Aircon General Servicing · 2 units
-            </p>
-            <p style={{ margin: 0, fontSize: 16, color: "var(--text-secondary)" }}>  {/** show admin chosen time, with date */}
-              Monday, 15 Nov 2026 · Morning (9:00 AM – 12:00 PM)
-            </p>
-          </div>
 
-        {/** the options */}
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }} onClick={() => handleRequestReschedule(booking.booking_ID)}>
-                      {/** reject timing */}
-                  <button className="dash-btn dash-btn-ghost"   style={{ color: "var(--danger, #c0392b)" }} onClick={   rejectTiming   }>
-                    Request reschedule
-                </button>   {/** <--- this button to reschdule booking, booking status change to back to pending, admin must redo timing */}
-
-
-              {/**approve timing */}
-                  <button   className="dash-btn dash-btn-primary"     onClick={ approveTiming  } >   
-                    Approve timing
-                  </button>    {/** <---- THIS BUTTON CALL METHOD TO CHANGE BOOKING STATUS TO CONFIRMED, NOTIFY TECHNICIAN */}
-          </div>
-
-
-    </div>
+{/**
+ * 
+ *   <button
+      className="dash-btn dash-btn-primary"
+      disabled={processingId === booking.booking_ID}
+      onClick={() => handleBookingDecision(booking, "confirmed")}
+    >
+      {processingId === booking.booking_ID
+        ? "Processing..."
+        : "Approve timing"}
+    </button>
+ */}
+  
   </div>
+
+</div>
+
+
+        
+    
+      
+    ))
+  )}
+</div>
+
+
 </section>
 
 {/* View current subscriptions ---------------------------------------------------------------------------------------------*/}
@@ -240,14 +573,14 @@ const approveTiming = () => {
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
           <p style={{ margin: 0, fontWeight: 600, fontSize: 15 }}>
-            Quarterly Aircon Maintenance Plan
+            Quarterly Aircon Maintenance Plan (i am mock data)
           </p>
           <span className="cust-badge tone-success" style={{ fontSize: 11, padding: "2px 8px" }}>
-            Active
+            Active (i am mock data)
           </span>
         </div>
         <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
-          Covers 3 units · Renews on 12 Dec 2026
+          Covers 3 units · Renews on 12 Dec 2026 (i am mock data)
         </p>
       </div>
 
@@ -256,7 +589,7 @@ const approveTiming = () => {
           className="dash-btn dash-btn-outline"
           onClick={() => navigate("/customer/service-catalog")}
         >
-          Manage plan
+          Manage plan (i am not done yet)
         </button>
       </div>
     </div>
@@ -264,8 +597,9 @@ const approveTiming = () => {
 </section>
 
 
-            {/* Current subscriptions-------------------------------------------------------------------------------------------------------------- */}
-      <section className="cust-panel">
+{/***
+ * this is that weird ass-----------------------------------------------------------------
+ *   <section className="cust-panel">
         <div className="cust-panel-head">
           <div>
             <h2>Your current subscriptions</h2>
@@ -355,6 +689,9 @@ const approveTiming = () => {
           </div>
         )}
       </section>
+ * 
+ */}
+    
 
       {/* Service-due nudge  -------------------------------------------------------------------------------------------------------------- */}
       {/**unused codes */}
@@ -369,6 +706,9 @@ const approveTiming = () => {
             <p className="cust-alert-text">
               {dueSoon.map((unit) => unit.nickname).join(", ")} — regular servicing keeps cooling
               efficient and prevents costly repairs later.
+
+
+
             </p>
           </div>
           {/* ✅ FIXED path */}

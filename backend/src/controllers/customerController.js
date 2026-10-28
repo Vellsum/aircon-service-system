@@ -42,17 +42,28 @@ async function resolveCustomer(pool, id) {
   return byUser.recordset[0] || null;
 }
 
+//helper method to get booking by the dunno wat ---------------------------------------------------------
 const bookingSelect = (top = 0) => `
   SELECT ${top ? `TOP (${top})` : ''}
     b.booking_ID,
     CONVERT(VARCHAR(10), b.[date], 120) AS cleanDate,
     b.[time] AS rawTime,
-    b.[status], b.location, b.comments,
+     b.timing,
+    b.[status], b.location, b.comments,   
+
+       CONVERT(VARCHAR(10), b.RR1_date, 120) as RR1_date,  b.RR1_time, b.RR1_technician,
+       CONVERT(VARCHAR(10), b.RR2_date, 120) as RR2_date,  b.RR2_time, b.RR2_technician,
+       CONVERT(VARCHAR(10), b.RR3_date, 120) as RR3_date,  b.RR3_time, b.RR3_technician, 
+      b.RR_expiry,
+
     t.technician_name,
     ISNULL(t.technician_rating, 5) AS technician_rating,
     ISNULL(t.jobsDone, 0) AS jobsDone,
     svc.service_name, ISNULL(svc.amount, 0) AS amount,
     rep.report_summary
+
+ 
+
   FROM [new_jobBooking].[Booking] b
   LEFT JOIN [user3].[technician] t ON t.technician_ID = b.technician_ID
   OUTER APPLY (
@@ -71,11 +82,13 @@ const bookingSelect = (top = 0) => `
      WHERE w.booking_ID = b.booking_ID
   ) rep`;
 
+  //helper method to dunno wat --------------------------------------------------------------
 function shapeBooking(row, customerUnits = []) {
   return {
     booking_ID: row.booking_ID,
     date: row.cleanDate,
     time: formatTime(row.rawTime),
+    timing: row.timing,
     status: row.status || 'Pending',
     location: row.location,
     notes: row.comments,
@@ -87,6 +100,21 @@ function shapeBooking(row, customerUnits = []) {
       ? { name: row.technician_name, rating: Number(row.technician_rating), jobs_done: Number(row.jobsDone) }
       : null,
     report: row.report_summary ? { summary: row.report_summary } : null,
+
+    //the columns returned from db
+    RR1_date: row.RR1_date,
+   RR1_time: row.RR1_time,
+   RR1_technician: row.RR1_technician,
+
+  RR2_date: row.RR2_date,
+   RR2_time: row.RR2_time,
+   RR2_technician: row.RR2_technician,
+
+     RR3_date: row.RR3_date,
+   RR3_time: row.RR3_time,
+   RR3_technician: row.RR3_technician,
+    RR_expiry: row.RR_expiry,
+
   };
 }
 
@@ -133,6 +161,173 @@ async function getCustomerUnits(pool, customerId) {
       health,
     };
   });
+}
+
+//when customer click RR option===============================================================
+const chooseRROption= async(req,res)=> {
+//confirm booking n assign technician to booking, update date n time
+//req is the request body
+console.log(req.booking)
+console.log(req.option);
+const pool = await poolPromise;
+try{
+        const result = await pool.request()
+              .input("bookingId", sql.Int, bookingId)
+              .input("userId", sql.Int, userId)
+              .input("status", sql.VarChar(30), requestedStatus)
+              .query(`
+             
+              `);
+
+          
+            return res.status(200).json({
+              success: true,
+              message: `Booking status updated to ${requestedStatus}. ACCEPTED ALTERNATIVE`,
+              bookingId,
+              status: requestedStatus
+            });
+
+    } catch (err) {
+    console.error(
+      "[Customer] Update rr selectedion booking status error:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to update booking status."
+    });
+  }
+}//end of choose RR controller 
+
+//send updated data to db ========================================================================
+/**
+ * PUT /api/customer/bookings/:bookingId/status
+ * Customer approves an assigned booking or requests rescheduling.
+ */
+const updateIncomingBookingStatus = async (req, res) => {
+  console.log("Booking status request reached controller");
+console.log("Authenticated user:", req.user);
+  try {
+    const bookingId = Number(req.params.bookingId);
+    const userId = Number(req.user?.id);
+    const requestedStatus = String(req.body?.status || "")
+      .trim()
+      .toLowerCase();  //this will make the new status lower case
+
+    // Validate booking ID and authenticated user.
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking ID."
+      });
+    }
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Customer authentication required."
+      });
+    }
+
+    // Only allow statuses intended for this customer action.
+    /** const allowedStatuses = ["confirmed", "request_reschedule", "Pending"];
+console.log("Received status:", req.body?.status);
+console.log("Normalized status:", requestedStatus);
+console.log("Allowed statuses:", allowedStatuses);
+    if (!allowedStatuses.includes(requestedStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking status."
+      });
+    }
+*/
+    
+    const pool = await poolPromise;
+
+    // Update only if this booking belongs to the logged-in customer
+    // and is currently assigned.
+    const result = await pool.request()
+      .input("bookingId", sql.Int, bookingId)
+      .input("userId", sql.Int, userId)
+      .input("status", sql.VarChar(30), requestedStatus)
+      .query(`
+        UPDATE b
+        SET b.[status] = @status
+        FROM [new_jobBooking].[Booking] AS b
+        INNER JOIN [user3].[newCustomer] AS c
+          ON c.customer_ID = b.customer_ID
+        WHERE b.booking_ID = @bookingId
+          AND c.user_ID = @userId
+          ;
+
+        SELECT @@ROWCOUNT AS rowsUpdated;
+      `);
+
+      /**   const rowsUpdated = result.recordset[0].rowsUpdated;
+    if (rowsUpdated === 0) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Booking not found, not owned by this customer, or no longer assigned."
+      });
+    }
+*/
+  
+    return res.status(200).json({
+      success: true,
+      message: `Booking status updated to ${requestedStatus}.`,
+      bookingId,
+      status: requestedStatus
+    });
+
+  } catch (err) {
+    console.error(
+      "[Customer] Update incoming booking status error:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to update booking status."
+    });
+  }
+};
+
+module.exports.updateIncomingBookingStatus =  updateIncomingBookingStatus; //idk wat this does
+module.exports.chooseRROption=chooseRROption;
+
+
+//get customer booking with asssigned status
+const getINCOMING=  async (req,res)=>{
+
+  try{  
+    //taken from getmybookings
+    const pool = await poolPromise;
+    if (!pool) return res.status(200).json({ success: true, bookings: [] }); //return the bookings component of the response
+    const customer = await resolveCustomer(pool, parseInt(req.query.customerId, 10) || 1);
+    if (!customer) return res.status(404).json({ success: false, message: 'Customer profile not found' });
+    
+    const result = await pool.request().input('cid', sql.Int, customer.customer_ID).query(
+    
+      `${bookingSelect()} WHERE b.customer_ID = @cid
+      AND LOWER(b.status) = 'request_reschedule'
+       ORDER BY b.[date] DESC, b.[time] DESC`);
+    
+      const unitList = await getCustomerUnits(pool, customer.customer_ID);
+    console.log(result); //this is actual result
+   
+      res.status(200).json({ success: true, bookings: (result.recordset || []).map((r) => shapeBooking(r, unitList)) });
+   //console.log (res); 
+   //above res is bullshit
+    } catch (err) {
+    console.error('[Cool Fix] GET Customer incoming Error:', err.message);
+    res.status(500).json({ success: false, message: err.message, bookings: [] });
+  
+
+  }
+
+  
 }
 
 /* GET /api/customer/dashboard?customerId=# */
@@ -637,7 +832,7 @@ const createBooking = async (req, res) => {
     if (promoCode) {
       try {
         const promoRes = await pool.request().input('code', sql.VarChar(255), String(promoCode).toUpperCase())
-          .query(`SELECT promo_id FROM [payables].[promotions] WHERE promoCode = @code`);
+          .query(`SELECT promo_id FROM [payables].[promotions] WHERE promoCode = code`);
         if (promoRes.recordset.length) {
           await pool.request()
             .input('customerID', sql.Int, customer.customer_ID)
@@ -831,4 +1026,82 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { getDashboard, getMyBookings, getMyUnits, registerUnit, getServices, getPlans, getMySubscriptions, getPromotions, getAddresses, createBooking, cancelBooking, getProfile, updateProfile };
+//the RR options==========================
+const pickRR1 = async (req,res) =>{
+  console.log("reached rr1 controller")
+    const bookingId = Number(req.params.bookingId);
+     const pool = await poolPromise;
+    const result = await pool.request()
+  .input("bookingId", sql.Int, bookingId)
+.query(`
+      UPDATE [new_jobBooking].[Booking]
+    SET
+    date = RR1_date,
+    timing = RR1_time,
+    technician_ID = RR1_technician,
+
+
+   status = 'confirmed'
+
+    WHERE booking_ID = @bookingId
+  `);
+  return res.status(200).json({
+      success: true,
+      message: "Booking RR1 successfully.",
+    });
+
+}
+
+const pickRR2 = async (req,res) =>{
+  console.log("reached rr2 controller")
+    const bookingId = Number(req.params.bookingId);
+     const pool = await poolPromise;
+    const result = await pool.request()
+  .input("bookingId", sql.Int, bookingId)
+.query(`
+      UPDATE [new_jobBooking].[Booking]
+    SET
+    date = RR2_date,
+    timing = RR2_time,
+    technician_ID = RR2_technician,
+
+
+   status = 'confirmed'
+
+    WHERE booking_ID = @bookingId
+  `);
+  return res.status(200).json({
+      success: true,
+      message: "Booking RR2 successfully.",
+    });
+
+}
+
+const pickRR3 = async (req,res) =>{
+  console.log("reached rr3 controller")
+    const bookingId = Number(req.params.bookingId);
+     const pool = await poolPromise;
+    const result = await pool.request()
+  .input("bookingId", sql.Int, bookingId)
+.query(`
+      UPDATE [new_jobBooking].[Booking]
+    SET
+    date = RR3_date,
+    timing = RR3_time,
+    technician_ID = RR3_technician,
+
+
+   status = 'confirmed'
+
+    WHERE booking_ID = @bookingId
+  `);
+  return res.status(200).json({
+      success: true,
+      message: "Booking RR3 successfully.",
+    });
+
+}
+
+
+
+module.exports = {pickRR1,pickRR2,pickRR3, chooseRROption, getDashboard, getMyBookings, getMyUnits, registerUnit, getServices, getPlans, getMySubscriptions, getPromotions, getAddresses, createBooking, cancelBooking, getProfile, updateProfile,getINCOMING,updateIncomingBookingStatus };

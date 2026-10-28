@@ -422,38 +422,68 @@ const handleChange = (e) => {
           )}
 
 
-          {/* Step 2 —  number units */}
+          {/* Step 2 —  number units ------------------------------------------------*/}
+   {/* Step 2 —  number units, original */}
           {step === 2 && (
             <section className="cust-panel">
               <div className="cust-panel-head">
-              <div>
-  <h2>How many units need attention?</h2>
-  <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-    {[1, 2, 3].map((num) => {
-      const isSelected = Number(numberOfUnits) === num;
-      return (
-        <button
-          type="button"
-          key={num}
-          className={`dash-btn ${isSelected ? "dash-btn-primary" : "dash-btn-outline"}`}
-          style={{ flex: 1, padding: "12px 0" }}
-          onClick={() => setNumOfUnits(num)}
-        >
-          {num} unit{num !== 1 ? "s" : ""}
-        </button>
-      );
-    })}
+                <div>
+                  <h2>How many units need attention?</h2>
+                  <input
+                    id="amount"
+                    type="number"
+                    value={numberOfUnits}
+                    onChange={handleChange}
+                    min="1"
+                    max="6"    
+                    step="1"
+      /><p>You entered: {numberOfUnits}</p>
+      {/**we do a max of 6 first so when overload, just 1 extra technician assisting */}
+
+      {/**now with clause for 3+ units*/}
+      {Number(numberOfUnits) > 3 && (
+  <div className="cust-panel">
+Note: An additional technician will be provided for more than 3 aircons.  
+A maximum of 6 aircons is permitted.  
   </div>
-  
-  <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)" }}>
-    You selected: {numberOfUnits || "None"}
-  </p>
-</div>
+)}
+                </div>
+              </div></section> )}
+
+
+          {/** most recent, replaced with original to allow 3+ aircon
+           *   {step === 2 && (
+            <section className="cust-panel">
+              <div className="cust-panel-head">
+                <div>
+                    <h2>How many units need attention?</h2>
+                    <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                      {[1, 2, 3].map((num) => {
+                        const isSelected = Number(numberOfUnits) === num;
+                        return (
+                          <button
+                            type="button"
+                            key={num}
+                            className={`dash-btn ${isSelected ? "dash-btn-primary" : "dash-btn-outline"}`}
+                            style={{ flex: 1, padding: "12px 0" }}
+                            onClick={() => setNumOfUnits(num)}
+                          >
+                            {num} unit{num !== 1 ? "s" : ""}
+                          </button>
+                        );
+                      })}
+                    </div>
+    
+                  <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)" }}>
+                    You selected: {numberOfUnits || "None"}
+                  </p>
+                </div>
               </div>
-             
-             
             </section>
-          )} {/**end of step 2, select number of units   */}
+          )} 
+           */}
+        
+          {/**end of step 2, select number of units   */}
 
 
 

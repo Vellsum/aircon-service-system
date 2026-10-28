@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "../../styles/shared.css";
 import "../../styles/Home.css"; // Local style import
 
+//the dummy datas all here currently====================================================================
 const trustStats = [
   { value: "500+", label: "Happy Customers" },
   { value: "24", label: "Certified Technicians" },
@@ -35,7 +36,7 @@ const Home = () => {
         </div>
         <div className="site-nav-links">
           <a href="#services">Services</a>
-          <a href="#promotions">Promotions</a>
+        {/** <a href="#promotions">Promotions</a>*/}  
           <a href="#about">About</a>
           <a href="#contact">Contact</a>
         </div>
@@ -76,14 +77,16 @@ const Home = () => {
         </div>
       </section>
 
-      <section className="site-trust">
+{/**removing these dummy */}
+{/**<section className="site-trust">
         {trustStats.map((stat) => (
           <div className="site-trust-item" key={stat.label}>
             <p className="site-trust-value">{stat.value}</p>
             <p className="site-trust-label">{stat.label}</p>
           </div>
         ))}
-      </section>
+      </section> */}
+      
 
       <section className="site-section" id="about">
         <div className="site-about">
@@ -98,8 +101,7 @@ const Home = () => {
             <p>
               Every job is backed by transparent pricing, real-time booking
               tracking, and a satisfaction guarantee — no surprises, just cool air.
-            </p>
-            <button className="dash-btn dash-btn-primary">Learn More About Us</button>
+            </p>{/**            <button className="dash-btn dash-btn-primary">Learn More About Us</button>*/}
           </div>
           <div className="site-about-visual">🧊</div>
         </div>
@@ -116,14 +118,14 @@ const Home = () => {
             <div className="site-service-card" key={service.name}>
               <div className="site-service-icon">{service.icon}</div>
               <h3>{service.name}</h3>
-              <p>{service.desc}</p>
-              <a href="#">Learn More →</a>
+              <p>{service.desc}</p>{/**  <a href="#">Learn More →</a>*/}
             </div>
           ))}
         </div>
       </section>
 
-      <section className="site-section site-promos" id="promotions">
+
+{/*** <section className="site-section site-promos" id="promotions">
         <div className="site-section-head">
           <p className="site-eyebrow">Limited Time</p>
           <h2>Ongoing Promotions</h2>
@@ -139,7 +141,8 @@ const Home = () => {
             </div>
           ))}
         </div>
-      </section>
+      </section>*/}
+      
 
       <div className="site-cta">
         <h2>Ready to book your next service?</h2>
@@ -161,14 +164,17 @@ const Home = () => {
             </div>
             <p>Reliable aircon servicing, repairs, and installation you can trust.</p>
           </div>
-          <div>
+
+{/**  <div>
             <h4>Quick Links</h4>
             <ul>
               <li><a href="#services" style={{ color: "inherit", textDecoration: "none" }}>Services</a></li>
               <li><a href="#promotions" style={{ color: "inherit", textDecoration: "none" }}>Promotions</a></li>
               <li><a href="#about" style={{ color: "inherit", textDecoration: "none" }}>About Us</a></li>
             </ul>
-          </div>
+          </div>*/}
+         
+
           <div>
             <h4>Contact</h4>
             <ul>

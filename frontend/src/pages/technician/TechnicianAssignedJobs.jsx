@@ -1,6 +1,13 @@
 // =============================================================================
 // TechnicianAssignedJobs.jsx
 // -----------------------------------------------------------------------------
+
+/**
+ * firstly, why not use multiline comment?
+ * secondly, changelog 231026 weijie in the middle of the fucking night
+ * i will now start write the code
+ */
+
 // CHANGELOG — 6 Oct 2026:
 //   1. [RULE] Start is gated by utils/jobSchedule.evaluateJobStart — future-
 //      dated (or later-today) jobs show why they're locked instead of starting.
@@ -14,7 +21,7 @@
 // =============================================================================
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
+import { useTechnicianWorkflow, REPORT_REQUIRED_MESSAGE } from '../../context/TechnicianWorkflowContext'
 import { evaluateJobStart } from '../../utils/jobSchedule'   // 6 Oct 2026: shared start gate
 import FilterTabs from '../../components/technician/FilterTabs'
 import JobRow from '../../components/technician/JobRow'
@@ -207,7 +214,8 @@ function TechnicianAssignedJobs() {
       if (selectedJobID === jobID) closeJobDetails()
     } catch (err) {
       console.error('Error updating booking status:', err)
-      setActionError(failureMessage)
+      setActionError(transition === completeService && err?.code === 'REPORT_REQUIRED'
+        ? REPORT_REQUIRED_MESSAGE : failureMessage)
       return
     } finally {
       actionJobIDsRef.current.delete(jobID)
@@ -222,6 +230,7 @@ function TechnicianAssignedJobs() {
     }
   }
 
+  // so this shit is the start the job -======================================================================================================
   /* -------------------------------------------------------------------------
    * 6 Oct 2026 — START GATE (date + time)
    * evaluateJobStart() returns { allowed, reason, kind }. Blocked starts show
@@ -237,6 +246,7 @@ function TechnicianAssignedJobs() {
     await persistJobTransition(jobToStart, startService, 'Service could not be started. Please try again.')
   }
 
+  //let u view details for jobs moving
   const handlePrimaryAction = (job) => {
     const status = (job.status || '').toLowerCase()
     if (status === 'in progress' || status === 'completed') {
@@ -409,7 +419,7 @@ function TechnicianAssignedJobs() {
                   onChange={(event) => setStatusFilter(event.target.value)}
                   aria-label="Filter by job status"
                 >
-                  <option value="ALL">All Statuses</option>
+                  <option value="ALL">All</option>
                   <option value="In Progress">In Progress</option>
                   <option value="Upcoming">Upcoming</option>
                   <option value="Completed">Completed</option>
