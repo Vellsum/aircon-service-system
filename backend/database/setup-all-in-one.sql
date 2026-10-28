@@ -1,5 +1,8 @@
 /* AirCon Care — LOCAL DEV DATABASE (single DB + schemas, matches backend queries)
-   Re-runnable: drops and rebuilds everything. */
+   Re-runnable: drops and rebuilds everything.
+   
+   
+   261026 - weijie made new column for bookings to handle request reschdule loop */
 USE master;
 GO
 IF DB_ID(N'aircon-db') IS NOT NULL
@@ -141,12 +144,36 @@ CREATE TABLE new_jobBooking.Booking (
   estimateTotalCost float,
   reasonOfReassignment VARCHAR(100), --if admin need to reassign technician, need not let customer know
 
+
+  --new data when booking is being rescheduled, for each option, a date n time
+  --n the expiry date, customer dashboard will check this (but idk how to demo)
+
+  RR1_date DATE, RR1_time VARCHAR(50) , RR1_technician int,
+  RR2_date DATE, RR2_time VARCHAR(50) , RR2_technician int,
+RR3_date DATE,RR3_time VARCHAR(50) , RR3_technician int,
+RR_expiry date,
+
+
   CONSTRAINT FK_bk_customer FOREIGN KEY (customer_ID) REFERENCES user3.newCustomer(customer_ID),
   CONSTRAINT FK_bk_tech FOREIGN KEY (technician_ID) REFERENCES user3.technician(technician_ID)
   
  
 
   );
+
+  /*
+  note - careful of casing
+  
+  the booking status:
+  pending      --we standardize all lowercase
+  Assigned
+  confirmed
+  request_reschedule -- admin need to make options
+  RR_pending       --options sent to customer to decide
+  RR_reserved      --status of the mock booking to reserve technician slot, when checking for avialable, these count as busy
+  
+  
+  */
 
 -- the junction table if booking has multiple services
   create table new_jobBooking.bookedServices(
@@ -160,17 +187,21 @@ CREATE TABLE new_jobBooking.work (job_ID INT NOT NULL, booking_ID INT NOT NULL, 
   CONSTRAINT FK_w_booking FOREIGN KEY (booking_ID) REFERENCES new_jobBooking.Booking(booking_ID));
 GO
 
+SET IDENTITY_INSERT inventory.aircon OFF; --turn this off for the whole db
+
+
 /* ==================== SEED DATA (Wei Jie's, adapted) ==================== */
+--password the same for all below common users
 SET IDENTITY_INSERT user3.topUser ON;
 INSERT INTO user3.topUser (user_ID, username, salt, hash, accountType, isDeleted, phoneNumber, email, joined) VALUES
 (1,'admin_sarah','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Admin',0,'+6591234567','sarah.admin@airconcool.com','2024-01-15'),
-(2,'tech_chen','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Technician',0,'+6592345678','chen.wei@airconcool.com','2024-02-01'),
-(3,'tech_raj','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Technician',0,'+6593456789','raj.kumar@airconcool.com','2024-03-10'),
-(4,'tech_alex','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Technician',0,'+6594567890','alex.tan@airconcool.com','2024-05-20'),
-(5,'cust_john','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Customer',0,'+6595678901','john.doe@gmail.com','2024-06-01'),
-(6,'cust_mary','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Customer',0,'+6596789012','mary.lim@yahoo.com','2024-06-15'),
-(7,'cust_david','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Customer',0,'+6597890123','david.wong@outlook.com','2024-07-02'),
-(8,'cust_elena','$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Customer',0,'+6598901234','elena.rodriguez@gmail.com','2024-08-10'),
+(2,'tech_chen',  '$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Technician',0,'+6592345678','chen.wei@airconcool.com','2024-02-01'),
+(3,'tech_raj',   '$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Technician',0,'+6593456789','raj.kumar@airconcool.com','2024-03-10'),
+(4,'tech_alex',  '$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Technician',0,'+6594567890','alex.tan@airconcool.com','2024-05-20'),
+(5,'cust_john',  '$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Customer',0,'+6595678901','john.doe@gmail.com','2024-06-01'),
+(6,'cust_mary',  '$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Customer',0,'+6596789012','mary.lim@yahoo.com','2024-06-15'),
+(7,'cust_david', '$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Customer',0,'+6597890123','david.wong@outlook.com','2024-07-02'),
+(8,'cust_elena', '$2b$10$oKGPsbYCEOhbWiwaE6zM.O','$2b$10$oKGPsbYCEOhbWiwaE6zM.OEvjgpml7NEnae0ZJUeXwYwB6KBGJfze','Customer',0,'+6598901234','elena.rodriguez@gmail.com','2024-08-10'),
 (9,'scott','$2b$10$nf5BZ.T/IASMv.vNEMGlaO','$2b$10$nf5BZ.T/IASMv.vNEMGlaOoeJvdEZM3f2ysNFdEJ8txdp3JjdxeuS','Customer',0,'+6591112222','khar.sum@example.com','2026-01-05');
 SET IDENTITY_INSERT user3.topUser OFF;
 
@@ -199,11 +230,11 @@ INSERT INTO user3.serviceHistory (customerid, bookingid) VALUES (201,1001),(202,
 
 SET IDENTITY_INSERT payables.service ON;
 INSERT INTO payables.service (service_id, service_name, description, price, duration, service_type) VALUES
-(10,'General Servicing (1 Unit)','Standard filter cleaning & inspection',40.00,'30 mins','Maintenance'),
-(11,'General Servicing (3 Units)','Multi-room wall mounted package',100.00,'60 mins','Maintenance'),
-(12,'Chemical Wash (1 Unit)','Deep cleaning for heavy choked fan coil',90.00,'60 mins','Deep Clean'),
-(13,'Chemical Overhaul (1 Unit)','Full dismantling & chemical bath',150.00,'90 mins','Deep Clean'),
-(14,'Gas Top-Up (R410A/R32)','Refrigerant pressure check & refill',60.00,'30 mins','Repair');
+(10,'General Servicing ','Standard filter cleaning & inspection',40.00,'30 mins','Maintenance'),
+(11,'premium Servicing ','Multi-room wall mounted package',100.00,'60 mins','Maintenance'),
+(12,'Chemical Wash ','Deep cleaning for heavy choked fan coil',90.00,'60 mins','Deep Clean'),
+(13,'Chemical Overhaul ','Full dismantling & chemical bath',150.00,'90 mins','Deep Clean'),
+(14,'Gas Top-Up ','Refrigerant pressure check & refill',60.00,'30 mins','Repair');
 SET IDENTITY_INSERT payables.service OFF;
 
 /* discount < 1 = percent fraction; >= 1 = fixed dollars */
@@ -237,13 +268,15 @@ INSERT INTO inventory.aircon (aircon_ID, itemID, aircon_model, aircon_make, airc
 (405,302,'MSZ-GL12','Mitsubishi','Wall Mounted','MIT20250101002',1);
 SET IDENTITY_INSERT inventory.aircon OFF;
 
+SET IDENTITY_INSERT inventory.airconPart on;
 INSERT INTO inventory.airconPart (airconpart_id, itemID, compatibleAircon) VALUES (501,307,401),(502,306,402);
 INSERT INTO inventory.installedAircons (airconID, customerID) VALUES (401,201),(402,202),(403,203),(404,205),(405,205);
 INSERT INTO inventory.partCompatibility (airconID, airconPartID) VALUES (401,501),(402,502);
 INSERT INTO inventory.disposableTools (part_id, itemID) VALUES (601,309);
 INSERT INTO inventory.tools (part_id, itemID, availability) VALUES (701,308,'Assigned to Chen Wei');
+SET IDENTITY_INSERT inventory.airconPart off;
 
-SET IDENTITY_INSERT new_jobBooking.serviceReport ON;
+SET IDENTITY_INSERT new_jobBooking.serviceReport on;
 INSERT INTO new_jobBooking.serviceReport (reportID, description, technicianID, isFollowup, findings, actionsTaken, AC_condition, recommendations, notes, serviceChecklist, completedDateTime) VALUES
 (8001,'General servicing for 3 wall units',101,0,'Filters dirty, gas pressure normal','Cleaned filters, washed coils, tested airflow','Good','Recommend chemical wash in 6 months','Customer satisfied','Filters: OK | Gas: OK | Drainage: Clear','2026-09-20 10:45:00'),
 (8002,'Water leakage repair & chemical wash',102,0,'Drain pipe choked with jelly build-up','Flushed drain pipe with vacuum, chemical wash on fancoil','Fair','Keep room temperature at 24C','Cleared choke completely','Drainage: Fixed | Cleaned: Yes','2026-09-22 15:30:00'),
@@ -259,14 +292,14 @@ INSERT INTO new_jobBooking.job (job_ID, job_status, isFollowup, serviceReport, s
 SET IDENTITY_INSERT new_jobBooking.job OFF;
 
 SET IDENTITY_INSERT new_jobBooking.Booking ON;
-INSERT INTO new_jobBooking.Booking (booking_ID, customer_ID, technician_ID, [date], [time], isFollowup, location, [status], comments) VALUES
-(1001,201,101,'2026-09-20','09:30:00',0,'Blk 123 Ang Mo Kio Ave 3 #08-45','Completed','Master bedroom aircon not cold'),
-(1002,202,102,'2026-09-22','14:00:00',0,'Blk 456 Jurong West St 42 #12-101','Completed','Water leaking from living room unit'),
-(1003,203,101,'2026-09-25','11:00:00',0,'15 Orchard Road #04-12','Completed','Yearly maintenance and gas check'),
-(1004,204,103,DATEADD(DAY,5,GETDATE()),'15:30:00',0,'Blk 789 Tampines Ave 5 #02-18','Confirmed','Squeaking noise when fan operates'),  --used to be scheduled, thats technically wrong we use the word confirmed instead
-(1005,205,101,DATEADD(DAY,-40,GETDATE()),'09:00:00',0,'123 Bukit Timah Road','Completed','Regular servicing.'),
-(1006,205,NULL,DATEADD(DAY,7,GETDATE()),'11:00:00',0,'123 Bukit Timah Road','Pending','Unit not cold at night.'),
-(1007,205,102,DATEADD(DAY,2,GETDATE()),'14:00:00',0,'123 Bukit Timah Road','Assigned','Chemical wash for second unit.');
+INSERT INTO new_jobBooking.Booking (booking_ID, customer_ID, technician_ID, [date], [time], isFollowup, location, [status], comments, timing) VALUES
+(1001,201,101,'2026-09-20','09:30:00',0,'Blk 123 Ang Mo Kio Ave 3 #08-45','Completed','Master bedroom aircon not cold','Morning'),   --added dummy data of the updated columns
+(1002,202,102,'2026-09-22','14:00:00',0,'Blk 456 Jurong West St 42 #12-101','Completed','Water leaking from living room unit','Afternoon'),
+(1003,203,101,'2026-09-25','11:00:00',0,'15 Orchard Road #04-12','Completed','Yearly maintenance and gas check','Afternoon'),
+(1004,204,103,DATEADD(DAY,5,GETDATE()),'15:30:00',0,'Blk 789 Tampines Ave 5 #02-18','confirmed','Squeaking noise when fan operates', 'Afternoon'),  --used to be scheduled, thats technically wrong we use the word confirmed instead
+(1005,205,101,DATEADD(DAY,-40,GETDATE()),'09:00:00',0,'123 Bukit Timah Road','Completed','Regular servicing.','Afternoon'),
+(1006,205,NULL,DATEADD(DAY,7,GETDATE()),'11:00:00',0,'123 Bukit Timah Road','pending','Unit not cold at night.','Afternoon'),
+(1007,205,102,DATEADD(DAY,2,GETDATE()),'14:00:00',0,'123 Bukit Timah Road','Assigned','Chemical wash for second unit.','Morning');
 SET IDENTITY_INSERT new_jobBooking.Booking OFF;
 
 INSERT INTO new_jobBooking.partsUsed (reportID, itemID) VALUES (8002,306),(8003,305),(8003,309);
