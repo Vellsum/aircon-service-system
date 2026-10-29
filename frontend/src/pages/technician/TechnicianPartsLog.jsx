@@ -248,7 +248,8 @@ function TechnicianPartsLog() {
       </header>
 
       {/* ---- Filters ---- */}
-      <section className="parts-log-utility-bar" aria-label="Parts log filters">
+      <section className="parts-log-utility-bar" aria-labelledby="parts-log-filters-title">
+        <h2 id="parts-log-filters-title">Filter linked items</h2>
         <div className="parts-log-toolbar">
           <div className="parts-log-field parts-log-search-field">
             <label htmlFor="parts-log-search">Search parts log</label>
@@ -386,9 +387,7 @@ function TechnicianPartsLog() {
             <section className="parts-log-detail-panel" aria-labelledby="parts-log-selected-report-title">
               <header className="parts-log-detail-header">
                 <div className="parts-log-detail-heading">
-                  <span className="parts-log-relationship-path">
-                    Service Report <b aria-hidden="true">→</b> Linked Inventory Items
-                  </span>
+                  <span className="parts-log-relationship-path">Report overview</span>
                   <div className="parts-log-detail-title-row">
                     <h2 id="parts-log-selected-report-title">Report #{activeReport.reportID}</h2>
                     {activeReport.context.jobStatus && (

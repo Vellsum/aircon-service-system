@@ -179,6 +179,8 @@ const getTechnicianStats = async (req, res) => {
 //   Flow: 🔒 (until date) → Start → Submit Report → Complete
 // =============================================================================
 const updateJobStatus = async (req, res) => {
+  let startTransaction;
+  let startTransactionOpen = false;
   try {
     const { bookingId } = req.params;
     const { status, comments } = req.body;
@@ -237,12 +239,7 @@ const updateJobStatus = async (req, res) => {
       }
     }
 
-    /* -------------------------------------------------------------------------
-     * (c) REPORT GATE v2 — 6 Oct 2026.
-     * submitReport saves reports with serviceReport.job_ID = booking_ID,
-     * so the gate checks that link DIRECTLY, plus both legacy styles:
-     * serviceReport.job_id → job → work → booking, and job.serviceReport FK.
-     * ---------------------------------------------------------------------- */
+    // Completion requires a report linked through this booking's work/job rows.
     if (newStatus.toLowerCase() === 'completed') {
       const check = await pool.request()
       .input('bookingId', sql.Int, Number(bookingId))
@@ -264,13 +261,6 @@ const updateJobStatus = async (req, res) => {
           message: 'A service report must be submitted BEFORE completing this job. Submit the report first, then mark it completed.',
         });
       }
-          // keep [new_jobBooking].[job] rows in sync with the booking lifecycle
-      if (newStatus.toLowerCase() === 'in progress') {
-        await pool.request().input('bid', sql.Int, Number(bookingId)).query(`
-          UPDATE j SET j.job_status = 'In Progress'
-          FROM [new_jobBooking].[job] j JOIN [new_jobBooking].[work] w ON w.job_ID = j.job_ID
-          WHERE w.booking_ID = @bid`);
-      }
       if (newStatus.toLowerCase() === 'completed') {
         await pool.request().input('bid', sql.Int, Number(bookingId)).query(`
           UPDATE j SET j.job_status = 'Finished'
@@ -280,6 +270,18 @@ const updateJobStatus = async (req, res) => {
       console.log(`[Cool Fix] REPORT GATE passed for booking #${bookingId} (report #${check.recordset[0].reportID}).`);
     }
 
+    // Run after the Start gate, independently of the completion-only report gate.
+    if (newStatus.toLowerCase() === 'in progress') {
+      startTransaction = new sql.Transaction(pool);
+      startTransaction.on('rollback', () => { startTransactionOpen = false; });
+      await startTransaction.begin();
+      startTransactionOpen = true;
+      await new sql.Request(startTransaction).input('bid', sql.Int, Number(bookingId)).query(`
+        UPDATE j SET j.job_status = 'In Progress'
+        FROM [new_jobBooking].[job] j JOIN [new_jobBooking].[work] w ON w.job_ID = j.job_ID
+        WHERE w.booking_ID = @bid`);
+    }
+
     const updateQuery = `
       UPDATE [new_jobBooking].[Booking]
       SET status = ISNULL(@statusVal, status),
@@ -287,15 +289,27 @@ const updateJobStatus = async (req, res) => {
       WHERE booking_ID = @bookingId
     `;
 
-    await pool.request()
+    const bookingRequest = startTransaction ? new sql.Request(startTransaction) : pool.request();
+    await bookingRequest
       .input('bookingId', sql.Int, Number(bookingId))
       .input('statusVal', sql.VarChar(100), newStatus || null)
       .input('commentsVal', sql.VarChar(500), comments || null)
       .query(updateQuery);
 
+    if (startTransaction) {
+      await startTransaction.commit();
+      startTransactionOpen = false;
+    }
     console.log(`[Cool Fix] Booking #${bookingId} status set to '${newStatus}'.`);
     res.status(200).json({ success: true, message: 'Status updated successfully!' });
   } catch (err) {
+    if (startTransactionOpen) {
+      try {
+        await startTransaction.rollback();
+      } catch (rollbackError) {
+        console.error('[Cool Fix] Start status rollback failed:', rollbackError.message);
+      }
+    }
     console.error('[Cool Fix] PUT Technician Status Error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
@@ -362,6 +376,8 @@ function parseBookingId(value) {
 }
 
 const submitReport = async (req, res) => {
+  let transaction;
+  let transactionOpen = false;
   try {
     const body = req.body || {};
     const bookingId = parseBookingId(body.job_ID);
@@ -372,18 +388,48 @@ const submitReport = async (req, res) => {
     const pool = await poolPromise;
     if (!pool) return res.status(500).json({ success: false, error: 'Database offline' });
 
-    const b = await pool.request()
+    transaction = new sql.Transaction(pool);
+    transaction.on('rollback', () => { transactionOpen = false; });
+    await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+    transactionOpen = true;
+
+    const b = await new sql.Request(transaction)
       .input('bid', sql.Int, bookingId)
       .query(`
         SELECT booking_ID, customer_ID, technician_ID, location
-        FROM [new_jobBooking].[Booking] WHERE booking_ID = @bid
+        FROM [new_jobBooking].[Booking] WITH (UPDLOCK, HOLDLOCK)
+        WHERE booking_ID = @bid
       `);
     const booking = b.recordset[0];
-    if (!booking) return res.status(404).json({ success: false, error: `Booking #${bookingId} not found.` });
+    if (!booking) {
+      throw Object.assign(new Error(`Booking #${bookingId} not found.`), { statusCode: 404 });
+    }
 
     const techId = Number(booking.technician_ID) || parseInt(req.query.techId, 10) || parseInt(body.technicianID, 10);
     if (!techId) {
-      return res.status(400).json({ success: false, error: 'Cannot save report: no technician assigned to this booking yet.' });
+      throw Object.assign(new Error('Cannot save report: no technician assigned to this booking yet.'), { statusCode: 400 });
+    }
+
+    // Lock the target links before inserting anything. A shared job would also
+    // attach this report to another booking and break report retrieval identity.
+    const linked = await new sql.Request(transaction)
+      .input('bid', sql.Int, bookingId)
+      .query(`
+        SELECT j.job_ID, j.serviceID, s.service_id AS linkedServiceID,
+          (SELECT COUNT(*) FROM [new_jobBooking].[work] otherWork WITH (UPDLOCK, HOLDLOCK)
+           WHERE otherWork.job_ID = w.job_ID AND otherWork.booking_ID <> @bid) AS otherBookingCount
+        FROM [new_jobBooking].[work] w WITH (UPDLOCK, HOLDLOCK)
+        LEFT JOIN [new_jobBooking].[job] j WITH (UPDLOCK, HOLDLOCK) ON j.job_ID = w.job_ID
+        LEFT JOIN [payables].[service] s ON s.service_id = j.serviceID
+        WHERE w.booking_ID = @bid
+        ORDER BY j.job_ID
+      `);
+    const linkedJobs = linked.recordset;
+    if (!linkedJobs.length || linkedJobs.some((job) =>
+      !Number.isSafeInteger(job.job_ID) || job.job_ID <= 0
+      || !Number.isSafeInteger(job.serviceID) || job.serviceID <= 0
+      || job.linkedServiceID !== job.serviceID || job.otherBookingCount !== 0)) {
+      throw Object.assign(new Error('Cannot save report: this booking requires valid, independent service job links.'), { statusCode: 400 });
     }
 
     // Flatten the frontend arrays into report columns
@@ -414,7 +460,7 @@ const submitReport = async (req, res) => {
       completionVal = body.completionDateTime.slice(0, 19).replace('T', ' ');
     }
 
-    const inserted = await pool.request()
+    const inserted = await new sql.Request(transaction)
       .input('tech', sql.Int, techId)
       .input('desc', sql.VarChar(500), descriptionText.slice(0, 500))
       .input('followup', sql.Bit, followUpRequired ? 1 : 0)
@@ -434,54 +480,82 @@ const submitReport = async (req, res) => {
       `);
     const reportID = inserted.recordset[0].reportID;
 
-    // Link the report to this booking's job rows
-    await pool.request()
+    // Verify every locked job accepted the new report; zero/partial attachment
+    // must roll back the report rather than returning an orphaned success.
+    const attached = await new sql.Request(transaction)
       .input('rid', sql.Int, reportID)
       .input('bid', sql.Int, bookingId)
       .query(`
         UPDATE j SET j.serviceReport = @rid
+        OUTPUT INSERTED.job_ID
         FROM [new_jobBooking].[job] j
         JOIN [new_jobBooking].[work] w ON w.job_ID = j.job_ID
         WHERE w.booking_ID = @bid
       `);
+    const attachedJobIDs = new Set(attached.recordset.map((job) => job.job_ID));
+    if (attached.recordset.length !== linkedJobs.length || attachedJobIDs.size !== linkedJobs.length
+      || linkedJobs.some((job) => !attachedJobIDs.has(job.job_ID))) {
+      throw new Error('Service report could not be attached to all of this booking\'s service jobs.');
+    }
 
-    // Log parts used (best effort, non-fatal)
+    // Material links are part of the same report transaction.
     const uniqueItemIds = [...new Set(materialRows.map((m) => parseInt(m.itemID, 10)).filter((n) => Number.isInteger(n) && n > 0))];
     for (const itemId of uniqueItemIds) {
-      try {
-        await pool.request().input('rid', sql.Int, reportID).input('iid', sql.Int, itemId)
-          .query(`INSERT INTO [new_jobBooking].[partsUsed] (reportID, itemID) VALUES (@rid, @iid)`);
-      } catch (e) { console.error('[Cool Fix] partsUsed insert skipped:', e.message); }
+      await new sql.Request(transaction).input('rid', sql.Int, reportID).input('iid', sql.Int, itemId)
+        .query(`INSERT INTO [new_jobBooking].[partsUsed] (reportID, itemID) VALUES (@rid, @iid)`);
     }
 
     // Follow-up → create a Pending follow-up booking so admin + customer see it
     let followUpBookingId = null;
     if (followUpRequired && typeof body.followUpDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.followUpDate)) {
-      try {
-        const fuReasons = join(body.followUpReasons) || body.followUpOtherReason || 'Follow-up visit';
-        const fu = await pool.request()
-          .input('cust', sql.Int, booking.customer_ID)
-          .input('tech', sql.Int, techId)
-          .input('date', sql.Date, body.followUpDate)
-          .input('loc', sql.VarChar(100), booking.location || 'Singapore')
-          .input('comments', sql.VarChar(500),
-            `Follow-up visit (${body.followUpPriority || 'Normal'} priority): ${fuReasons}`.slice(0, 500))
+      const fuReasons = join(body.followUpReasons) || body.followUpOtherReason || 'Follow-up visit';
+      const fu = await new sql.Request(transaction)
+        .input('cust', sql.Int, booking.customer_ID)
+        .input('tech', sql.Int, techId)
+        .input('date', sql.Date, body.followUpDate)
+        .input('loc', sql.VarChar(100), booking.location || 'Singapore')
+        .input('comments', sql.VarChar(500),
+          `Follow-up visit (${body.followUpPriority || 'Normal'} priority): ${fuReasons}`.slice(0, 500))
+        .query(`
+          INSERT INTO [new_jobBooking].[Booking]
+            (customer_ID, technician_ID, [date], [time], isFollowup, location, [status], comments)
+          OUTPUT INSERTED.booking_ID
+          VALUES (@cust, @tech, @date, '09:00:00', 1, @loc, 'Pending', @comments)
+        `);
+      followUpBookingId = fu.recordset[0].booking_ID;
+
+      // Preserve the source booking's service jobs and their multiplicity,
+      // but allocate fresh job IDs with no report for this independent visit.
+      for (const sourceJob of linkedJobs) {
+        const followUpJob = await new sql.Request(transaction)
+          .input('svc', sql.Int, sourceJob.serviceID)
           .query(`
-            INSERT INTO [new_jobBooking].[Booking]
-              (customer_ID, technician_ID, [date], [time], isFollowup, location, [status], comments)
-            OUTPUT INSERTED.booking_ID
-            VALUES (@cust, @tech, @date, '09:00:00', 1, @loc, 'Pending', @comments)
+            INSERT INTO [new_jobBooking].[job] (job_status, isFollowup, serviceReport, serviceID)
+            OUTPUT INSERTED.job_ID
+            VALUES ('Pending', 1, NULL, @svc)
           `);
-        followUpBookingId = fu.recordset[0].booking_ID;
-      } catch (e) { console.error('[Cool Fix] Follow-up booking creation skipped:', e.message); }
+        await new sql.Request(transaction)
+          .input('jid', sql.Int, followUpJob.recordset[0].job_ID)
+          .input('bid', sql.Int, followUpBookingId)
+          .query(`INSERT INTO [new_jobBooking].[work] (job_ID, booking_ID) VALUES (@jid, @bid)`);
+      }
     }
 
+    await transaction.commit();
+    transactionOpen = false;
     console.log(`[Cool Fix] Report #${reportID} saved for booking #${bookingId}` +
       (followUpBookingId ? ` (follow-up booking #${followUpBookingId} created)` : '') + '.');
     return res.status(201).json({ success: true, message: 'Service report submitted!', reportID, followUpBookingId });
   } catch (err) {
+    if (transactionOpen) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error('[Cool Fix] Submit Report rollback failed:', rollbackError.message);
+      }
+    }
     console.error('[Cool Fix] Submit Report Error:', err.message);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(err.statusCode || 500).json({ success: false, error: err.message });
   }
 };
 
