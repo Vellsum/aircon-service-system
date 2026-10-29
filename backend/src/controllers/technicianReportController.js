@@ -194,6 +194,27 @@ var submitReport = async (req, res) => {
   }
 };
 
+// A report can be linked through several service jobs for the same booking.
+// Collapse those links, but never choose between distinct booking identities.
+const REPORT_BOOKING_CTE = `WITH ReportBookings AS (
+  SELECT j.serviceReport AS reportID,
+         COUNT(DISTINCT w.booking_ID) AS bookingCount,
+         CASE WHEN COUNT(DISTINCT w.booking_ID) = 1
+              THEN MIN(w.booking_ID) END AS bookingID
+  FROM [new_jobBooking].[job] j
+  LEFT JOIN [new_jobBooking].[work] w ON w.job_ID = j.job_ID
+  WHERE j.serviceReport IS NOT NULL
+  GROUP BY j.serviceReport
+) `;
+
+function verifiedBookingRows(rows, bookingField) {
+  if (rows.some(row => row._bookingCount !== 1
+    || !Number.isSafeInteger(row[bookingField]) || row[bookingField] <= 0)) {
+    throw new Error('Report booking mapping is unavailable or ambiguous.');
+  }
+  return rows.map(({ _bookingCount, ...row }) => row);
+}
+
 var getReports = async (req, res) => {
   try {
     var pool = await poolPromise;
@@ -203,9 +224,9 @@ var getReports = async (req, res) => {
 
     var result = await pool.request()
       .input('techId', sql.Int, techId)
-      .query('SELECT sr.*, b.status AS jobStatus FROM ' + REPORT_TABLE + ' sr LEFT JOIN [new_jobBooking].[Booking] b ON sr.job_ID = b.booking_ID WHERE sr.technicianID = @techId ORDER BY sr.reportID DESC');
+      .query(REPORT_BOOKING_CTE + 'SELECT sr.*, b.booking_ID AS job_ID, b.status AS jobStatus, rb.bookingCount AS _bookingCount FROM ' + REPORT_TABLE + ' sr LEFT JOIN ReportBookings rb ON rb.reportID = sr.reportID LEFT JOIN [new_jobBooking].[Booking] b ON b.booking_ID = rb.bookingID WHERE sr.technicianID = @techId ORDER BY sr.reportID DESC');
 
-    res.json({ success: true, reports: result.recordset });
+    res.json({ success: true, reports: verifiedBookingRows(result.recordset, 'job_ID') });
 
   } catch (err) {
     console.error('[Cool Fix] GET Reports Error:', err.message);
@@ -220,13 +241,13 @@ var getReportById = async (req, res) => {
 
     var result = await pool.request()
       .input('reportId', sql.Int, parseInt(req.params.id))
-      .query('SELECT sr.*, b.status AS jobStatus, c.customer_name FROM ' + REPORT_TABLE + ' sr LEFT JOIN [new_jobBooking].[Booking] b ON sr.job_ID = b.booking_ID LEFT JOIN [user3].[newCustomer] c ON b.customer_ID = c.customer_ID WHERE sr.reportID = @reportId');
+      .query(REPORT_BOOKING_CTE + 'SELECT sr.*, b.booking_ID AS job_ID, b.status AS jobStatus, c.customer_name, rb.bookingCount AS _bookingCount FROM ' + REPORT_TABLE + ' sr LEFT JOIN ReportBookings rb ON rb.reportID = sr.reportID LEFT JOIN [new_jobBooking].[Booking] b ON b.booking_ID = rb.bookingID LEFT JOIN [user3].[newCustomer] c ON b.customer_ID = c.customer_ID WHERE sr.reportID = @reportId');
 
     if (result.recordset.length === 0) {
       return res.status(404).json({ error: 'Report not found' });
     }
 
-    res.json({ success: true, report: result.recordset[0] });
+    res.json({ success: true, report: verifiedBookingRows(result.recordset, 'job_ID')[0] });
 
   } catch (err) {
     console.error('[Cool Fix] GET Report Error:', err.message);
@@ -241,34 +262,21 @@ var getPartsLog = async (req, res) => {
 
     var techId = parseInt(req.query.techId, 10) || 1;
 
-    var query = 'SELECT sr.reportID, pu.itemID, ii.itemName, ii.price, 1 AS quantity_used, ISNULL(ii.stock, 0) AS currentStock, ii.itemType, ii.description AS itemDesc, sr.technicianID, sr.job_ID AS bookingID, b.booking_ID AS jobID, b.status AS jobStatus, ISNULL(c.customer_name, \'Guest Customer\') AS customerName, \'Aircon Servicing\' AS serviceName, CONVERT(VARCHAR(10), b.[date], 120) AS bookingDate, b.location, b.[time] AS bookingTime FROM [new_jobBooking].[serviceReport] sr INNER JOIN [new_jobBooking].[partsUsed] pu ON sr.reportID = pu.reportID INNER JOIN [inventory].[inventoryItem] ii ON pu.itemID = ii.itemID LEFT JOIN [new_jobBooking].[Booking] b ON sr.job_ID = b.booking_ID LEFT JOIN [user3].[newCustomer] c ON b.customer_ID = c.customer_ID WHERE sr.technicianID = @techId ORDER BY sr.reportID DESC, ii.itemName ASC';
+    var query = REPORT_BOOKING_CTE + 'SELECT sr.reportID, pu.itemID, ii.itemName, ii.price, 1 AS quantity_used, ISNULL(ii.stock, 0) AS currentStock, ii.itemType, ii.description AS itemDesc, sr.technicianID, b.booking_ID AS bookingID, b.booking_ID AS jobID, rb.bookingCount AS _bookingCount, b.status AS jobStatus, ISNULL(c.customer_name, \'Guest Customer\') AS customerName, \'Aircon Servicing\' AS serviceName, CONVERT(VARCHAR(10), b.[date], 120) AS bookingDate, b.location, CONVERT(varchar(8), b.[time], 108) AS bookingTime FROM [new_jobBooking].[serviceReport] sr INNER JOIN [new_jobBooking].[partsUsed] pu ON sr.reportID = pu.reportID INNER JOIN [inventory].[inventoryItem] ii ON pu.itemID = ii.itemID LEFT JOIN ReportBookings rb ON rb.reportID = sr.reportID LEFT JOIN [new_jobBooking].[Booking] b ON b.booking_ID = rb.bookingID LEFT JOIN [user3].[newCustomer] c ON b.customer_ID = c.customer_ID WHERE sr.technicianID = @techId ORDER BY sr.reportID DESC, ii.itemName ASC';
 
     var result = await pool.request()
       .input('techId', sql.Int, techId)
       .query(query);
 
-    var records = result.recordset.map(function(row) {
+    var records = verifiedBookingRows(result.recordset, 'bookingID').map(function(row) {
       var displayTime = '-';
-      if (row.bookingTime) {
-        var timeStr = String(row.bookingTime);
-        if (timeStr.indexOf('T') !== -1) {
-          var timePart = timeStr.split('T')[1].substring(0, 5);
-          var h = parseInt(timePart.split(':')[0]);
-          var m = parseInt(timePart.split(':')[1]);
-          var ampm = h >= 12 ? 'PM' : 'AM';
-          var hour12 = h % 12 || 12;
-          displayTime = hour12 + ':' + String(m).padStart(2, '0') + ' ' + ampm;
-        } else if (timeStr.indexOf(':') !== -1) {
-          if (timeStr.indexOf('AM') === -1 && timeStr.indexOf('PM') === -1) {
-            var h2 = parseInt(timeStr.split(':')[0]);
-            var m2 = parseInt(timeStr.split(':')[1]);
-            var ampm2 = h2 >= 12 ? 'PM' : 'AM';
-            var hour12b = h2 % 12 || 12;
-            displayTime = hour12b + ':' + String(m2).padStart(2, '0') + ' ' + ampm2;
-          } else {
-            displayTime = timeStr;
-          }
-        }
+      // SQL TIME is a wall-clock value, not an instant to convert between timezones.
+      var clock = typeof row.bookingTime === 'string'
+        ? /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/.exec(row.bookingTime)
+        : null;
+      if (clock) {
+        var hour = Number(clock[1]);
+        displayTime = (hour % 12 || 12) + ':' + clock[2] + (hour >= 12 ? ' PM' : ' AM');
       }
 
       return {

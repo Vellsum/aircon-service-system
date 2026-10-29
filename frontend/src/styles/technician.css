@@ -3079,50 +3079,49 @@
   font-size: 0.74rem;
 }
 
-.cf-history-detail-grid {
+.technician-job-history-detail .cf-history-detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.7fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 1rem;
 }
 
-.cf-history-information-grid {
+.technician-job-history-detail .cf-history-information-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 1.5rem;
   margin: 0;
   padding: 0.25rem 1.25rem 1.25rem;
 }
 
-.cf-history-information-grid > div {
-  min-height: 90px;
-  padding: 1rem;
-  border-right: 1px solid var(--cf-border);
+.technician-job-history-detail .cf-history-information-grid > div {
+  min-width: 0;
+  padding: 1rem 0;
   border-bottom: 1px solid var(--cf-border);
 }
 
-.cf-history-information-grid > div:nth-child(3n) {
-  border-right: 0;
+.technician-job-history-detail .cf-history-field-wide {
+  grid-column: 1 / -1;
 }
 
-.cf-history-information-grid > div:nth-last-child(-n + 3) {
-  border-bottom: 0;
-}
-
-.cf-history-information-grid dt {
-  color: var(--cf-muted);
-  font-size: 0.66rem;
+.technician-job-history-detail .cf-history-information-grid dt {
+  color: var(--cf-heading);
+  font-size: 0.875rem;
   font-weight: 600;
+  line-height: 1.5;
 }
 
-.cf-history-information-grid dd {
-  margin: 0.35rem 0 0;
+.technician-job-history-detail .cf-history-information-grid dd {
+  margin: 0.5rem 0 0;
   color: var(--cf-text);
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
 }
 
-.cf-history-feedback-card {
-  overflow: hidden;
+.technician-job-history-detail .cf-history-feedback-card {
+  overflow: visible;
 }
 
 .cf-history-rating-placeholder {
@@ -3456,9 +3455,6 @@
     grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(135px, 0.55fr)) auto;
   }
 
-  .cf-history-detail-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 767.98px) {
@@ -3624,24 +3620,8 @@
     justify-self: start;
   }
 
-  .cf-history-information-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .cf-history-information-grid > div:nth-child(3n) {
-    border-right: 1px solid var(--cf-border);
-  }
-
-  .cf-history-information-grid > div:nth-child(2n) {
-    border-right: 0;
-  }
-
-  .cf-history-information-grid > div:nth-last-child(-n + 3) {
-    border-bottom: 1px solid var(--cf-border);
-  }
-
-  .cf-history-information-grid > div:nth-last-child(-n + 2) {
-    border-bottom: 0;
+  .technician-job-history-detail .cf-history-information-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -3762,22 +3742,6 @@
   .cf-history-filter-grid .job-history-search-field,
   .cf-history-reset {
     grid-column: 1;
-  }
-
-  .cf-history-information-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .cf-history-information-grid > div,
-  .cf-history-information-grid > div:nth-child(2n),
-  .cf-history-information-grid > div:nth-child(3n),
-  .cf-history-information-grid > div:nth-last-child(-n + 2) {
-    border-right: 0;
-    border-bottom: 1px solid var(--cf-border);
-  }
-
-  .cf-history-information-grid > div:last-child {
-    border-bottom: 0;
   }
 
   .cf-modal-detail-grid {
@@ -11228,15 +11192,16 @@ textarea.report-control {
 .parts-log-field > label {
   display: block;
   margin-bottom: 0.38rem;
-  color: #60706c;
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--cf-heading);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .parts-log-field > input,
 .parts-log-field > select,
 .parts-log-search-control {
   width: 100%;
+  height: 44px;
   min-height: 44px;
   border: 1px solid var(--cf-border-strong);
   border-radius: 8px;
@@ -11278,6 +11243,8 @@ textarea.report-control {
 
 /* The search wrapper owns the sole visible boundary and focus ring. */
 .technician-content-area .technician-parts-log-page .parts-log-search-control input[type="search"] {
+  min-height: 0;
+  height: 42px;
   border: 0;
   border-radius: 0;
   outline: 0;
@@ -11601,6 +11568,8 @@ textarea.report-control {
 
 .parts-log-modal-body {
   display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 0.85rem;
   padding: 1rem !important;
   background: #f7f9f8;
@@ -11674,16 +11643,16 @@ textarea.report-control {
 }
 
 .parts-log-modal-grid dt {
-  color: var(--cf-muted);
-  font-size: 12px;
+  color: var(--cf-heading);
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
 .parts-log-modal-grid dd {
   margin: 0.25rem 0 0;
   color: var(--cf-text);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.875rem;
+  font-weight: 400;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -11869,8 +11838,8 @@ textarea.report-control {
 }
 
 .parts-log-inline-metrics dt {
-  color: var(--cf-muted);
-  font-size: 12px;
+  color: var(--cf-heading);
+  font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.3;
 }
@@ -11879,7 +11848,7 @@ textarea.report-control {
   margin: 0.18rem 0 0;
   color: var(--cf-heading);
   font-size: 1.08rem;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1;
 }
 
@@ -11933,9 +11902,8 @@ textarea.report-control {
 .parts-log-date-range .parts-log-date-field {
   display: grid;
   min-width: 0;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 0.4rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.38rem;
 }
 
 .parts-log-date-range .parts-log-date-field label {
@@ -11949,7 +11917,8 @@ textarea.report-control {
 
 .parts-log-toolbar-actions {
   display: flex;
-  min-height: 44px;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.6rem;
@@ -11957,13 +11926,13 @@ textarea.report-control {
 
 .parts-log-filter-result {
   display: flex;
-  min-width: max-content;
+  min-width: 0;
   align-items: baseline;
   gap: 0.3rem;
   color: var(--cf-muted);
   font-size: 12px;
   line-height: 1.25;
-  white-space: nowrap;
+  flex-wrap: wrap;
 }
 
 .parts-log-filter-result strong {
@@ -11975,7 +11944,6 @@ textarea.report-control {
 .parts-log-ledger {
   display: grid;
   min-width: 0;
-  min-height: 470px;
   grid-template-columns: minmax(290px, 36%) minmax(0, 64%);
   overflow: hidden;
   border: 0;
@@ -12037,7 +12005,6 @@ textarea.report-control {
   position: relative;
   display: grid;
   width: 100%;
-  min-height: 100px;
   gap: 0.18rem;
   padding: 0.62rem 1rem;
   border: 0;
@@ -12085,7 +12052,7 @@ textarea.report-control {
 .parts-log-report-row-topline strong {
   color: var(--cf-heading);
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .parts-log-report-row-topline > span:last-child {
@@ -12106,7 +12073,8 @@ textarea.report-control {
   margin-top: 0.04rem;
   color: var(--cf-text);
   font-size: 0.82rem;
-  font-weight: 700;
+  font-weight: 400;
+  overflow-wrap: anywhere;
 }
 
 .parts-log-report-customer,
@@ -12122,7 +12090,6 @@ textarea.report-control {
 
 .parts-log-detail-panel {
   display: flex;
-  min-height: 470px;
   flex-direction: column;
   background: #ffffff;
 }
@@ -12168,7 +12135,8 @@ textarea.report-control {
   margin: 0.22rem 0 0;
   color: var(--cf-text);
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 400;
+  overflow-wrap: anywhere;
   line-height: 1.4;
 }
 
@@ -12187,27 +12155,27 @@ textarea.report-control {
 .parts-log-detail-context dt,
 .parts-log-detail-context dd {
   margin: 0;
-  font-size: 12px;
+  font-size: 0.8125rem;
   line-height: 1.4;
 }
 
 .parts-log-detail-context dt {
-  color: var(--cf-muted);
+  color: var(--cf-heading);
   font-weight: 600;
 }
 
 .parts-log-detail-context dd {
   margin-top: 0.14rem;
   color: var(--cf-text);
-  font-weight: 600;
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 
 .parts-log-item-type span,
 .parts-log-item-stock span {
   display: block;
-  color: var(--cf-muted);
-  font-size: 12px;
+  color: var(--cf-heading);
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
@@ -12237,9 +12205,8 @@ textarea.report-control {
 .parts-log-item-row {
   display: grid;
   min-width: 0;
-  min-height: 96px;
-  grid-template-columns: minmax(240px, 1.45fr) minmax(92px, 0.34fr) minmax(118px, 0.4fr) auto;
-  align-items: center;
+  grid-template-columns: minmax(0, 1.5fr) minmax(75px, 0.6fr) minmax(100px, 0.7fr) auto;
+  align-items: start;
   gap: 0.9rem;
   padding: 0.82rem 0;
   border-top: 1px solid #edf1ef;
@@ -12265,18 +12232,16 @@ textarea.report-control {
   margin: 0;
   color: var(--cf-heading);
   font-size: 0.9rem;
-  font-weight: 700;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .parts-log-item-identity p {
-  display: -webkit-box;
   margin: 0.18rem 0 0;
-  overflow: hidden;
   color: var(--cf-muted);
   font-size: 12px;
   line-height: 1.4;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
 }
 
 .parts-log-item-type,
@@ -12291,7 +12256,7 @@ textarea.report-control {
   margin-top: 0.22rem;
   color: var(--cf-text);
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -12330,7 +12295,7 @@ textarea.report-control {
 
 .parts-log-detail-footer {
   min-height: 0;
-  margin-top: auto;
+  margin-top: 0;
   margin-inline: 1.2rem;
   padding: 0.78rem 0 0.92rem;
   border-top: 1px solid #edf1ef;
@@ -12374,7 +12339,11 @@ textarea.report-control {
   }
 
   .parts-log-item-row {
-    grid-template-columns: minmax(210px, 1.25fr) minmax(92px, 0.32fr) minmax(112px, 0.36fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .parts-log-item-identity {
+    grid-column: 1 / -1;
   }
 }
 
@@ -12399,7 +12368,7 @@ textarea.report-control {
   }
 
   .parts-log-report-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   }
 
   .parts-log-report-row:nth-child(odd) {
@@ -12415,7 +12384,11 @@ textarea.report-control {
   }
 
   .parts-log-item-row {
-    grid-template-columns: minmax(250px, 1.35fr) minmax(100px, 0.32fr) minmax(120px, 0.35fr) auto;
+    grid-template-columns: minmax(0, 1.5fr) minmax(75px, 0.6fr) minmax(100px, 0.7fr) auto;
+  }
+
+  .parts-log-item-identity {
+    grid-column: auto;
   }
 }
 
@@ -12496,10 +12469,7 @@ textarea.report-control {
   }
 
   .parts-log-item-identity p {
-    display: -webkit-box;
     margin-top: 0.28rem;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
   }
 
   .parts-log-item-type,

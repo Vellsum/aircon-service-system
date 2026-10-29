@@ -221,9 +221,9 @@ function TechnicianPartsLog() {
   }
 
   const summaryItems = [
-    { label: 'Usage Records', value: dataAvailable ? metrics.usageRecords : '—' },
-    { label: 'Reports With Parts', value: dataAvailable ? metrics.reportsWithParts : '—' },
-    { label: 'Unique Items', value: dataAvailable ? metrics.uniqueItems : '—' },
+    { label: 'Linked Item Records', value: dataAvailable ? metrics.usageRecords : '—' },
+    { label: 'Reports With Linked Items', value: dataAvailable ? metrics.reportsWithParts : '—' },
+    { label: 'Distinct Items', value: dataAvailable ? metrics.uniqueItems : '—' },
   ]
 
   // ====================================================================
@@ -237,7 +237,7 @@ function TechnicianPartsLog() {
           <h1>Parts Log</h1>
           <p>Review inventory items linked to service reports.</p>
         </div>
-        <dl className="parts-log-inline-metrics" aria-label="Parts usage summary">
+        <dl className="parts-log-inline-metrics" aria-label="Linked inventory summary">
           {summaryItems.map((item) => (
             <div key={item.label}>
               <dt>{item.label}</dt>
@@ -287,7 +287,7 @@ function TechnicianPartsLog() {
           </div>
 
           <fieldset className="parts-log-date-range">
-            <legend>Date range</legend>
+            <legend className="visually-hidden">Date range</legend>
             <div className="parts-log-date-range-controls">
               <div className="parts-log-field parts-log-date-field">
                 <label htmlFor="parts-log-date-from">From</label>
@@ -303,7 +303,7 @@ function TechnicianPartsLog() {
           <div className="parts-log-toolbar-actions">
             <div className="parts-log-filter-result" aria-live="polite">
               <strong>{dataAvailable ? filteredRecords.length : '—'}</strong>
-              <span>{dataAvailable ? `of ${records.length} usage records` : loading ? 'Loading usage records' : 'Usage records unavailable'}</span>
+              <span>{dataAvailable ? `of ${records.length} linked item records` : loading ? 'Loading linked item records' : 'Linked item records unavailable'}</span>
             </div>
             {hasActiveFilters && (
               <button type="button" className="cf-button cf-button-quiet parts-log-reset-button" onClick={resetFilters}>
@@ -411,7 +411,7 @@ function TechnicianPartsLog() {
               <div className="parts-log-items-heading">
                 <div>
                   <span className="cf-widget-kicker">Linked inventory</span>
-                  <h3>Parts used in this report</h3>
+                  <h3>Linked inventory items</h3>
                 </div>
                 <span>{activeReport.records.length} inventory {activeReport.records.length === 1 ? 'record' : 'records'}</span>
               </div>
@@ -435,11 +435,11 @@ function TechnicianPartsLog() {
                     <button
                       type="button"
                       className="parts-log-record-details"
-                      aria-label={`View record details for ${record.itemName} in report ${record.reportID}`}
+                      aria-label={`View item details for ${record.itemName} in report ${record.reportID}`}
                       onClick={() => setSelectedRecord(record)}
                     >
                       <ViewDetailsIcon />
-                      <span>Record details</span>
+                      <span>View item details</span>
                     </button>
                   </article>
                 ))}
@@ -481,8 +481,8 @@ function TechnicianPartsLog() {
                   <div><dt>Item name</dt><dd>{selectedRecord.itemName}</dd></div>
                   <div><dt>Item ID</dt><dd>{selectedRecord.itemID}</dd></div>
                   <div><dt>Item type</dt><dd>{selectedRecord.itemType || '—'}</dd></div>
-                  <div><dt>Qty used</dt><dd>{selectedRecord.quantityUsed ?? '—'}</dd></div>
-                  <div><dt>Unit cost</dt><dd>{formatUnitCost(selectedRecord.unitCost)}</dd></div>
+                  <div><dt>Historical quantity used</dt><dd>Unavailable</dd></div>
+                  <div><dt>Current inventory unit price</dt><dd>{formatUnitCost(selectedRecord.unitCost)} <small>Service-time cost unavailable</small></dd></div>
                   <div><dt>Current stock</dt><dd>{selectedRecord.currentStock ?? '—'} <small>current inventory</small></dd></div>
                   <div className="parts-log-modal-wide"><dt>Description</dt><dd>{selectedRecord.itemDescription || '—'}</dd></div>
                 </dl>
@@ -495,8 +495,7 @@ function TechnicianPartsLog() {
                 </header>
                 <dl className="parts-log-modal-grid">
                   <div><dt>Report ID</dt><dd><ReferenceValue value={selectedRecord.reportID} /></dd></div>
-                  <div><dt>Job</dt><dd>{selectedRecord.displayJobCode || <ReferenceValue value={selectedRecord.jobID} />}</dd></div>
-                  <div><dt>Job ID</dt><dd><ReferenceValue value={selectedRecord.jobID} /></dd></div>
+                  <div><dt>Booking reference</dt><dd>{selectedRecord.displayJobCode || <ReferenceValue value={selectedRecord.jobID} />}</dd></div>
                   <div><dt>Booking ID</dt><dd><ReferenceValue value={selectedRecord.bookingID} /></dd></div>
                   <div><dt>Technician ID</dt><dd><ReferenceValue value={selectedRecord.technicianID} /></dd></div>
                   <div><dt>Job status</dt><dd>{selectedRecord.jobStatus ? <JobStatusBadge status={selectedRecord.jobStatus} /> : '—'}</dd></div>
