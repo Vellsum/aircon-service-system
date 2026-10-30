@@ -477,7 +477,7 @@ function TechnicianPartsLog() {
                   <div><span>Inventory reference</span><h3 id="parts-log-inventory-title">Item Information</h3></div>
                 </header>
                 <dl className="parts-log-modal-grid">
-                  <div><dt>Item name</dt><dd>{selectedRecord.itemName}</dd></div>
+                  <div className="parts-log-modal-wide"><dt>Item name</dt><dd>{selectedRecord.itemName}</dd></div>
                   <div><dt>Item ID</dt><dd>{selectedRecord.itemID}</dd></div>
                   <div><dt>Item type</dt><dd>{selectedRecord.itemType || '—'}</dd></div>
                   <div><dt>Historical quantity used</dt><dd>Unavailable</dd></div>

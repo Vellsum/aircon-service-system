@@ -11553,6 +11553,17 @@ textarea.report-control {
 }
 
 .parts-log-details-modal {
+  --cf-surface: #ffffff;
+  --cf-surface-soft: #f7f9fc;
+  --cf-primary: #2e6ff2;
+  --cf-primary-strong: #255dcc;
+  --cf-primary-soft: #edf3ff;
+  --cf-text: #101828;
+  --cf-heading: #101828;
+  --cf-muted: #5d6b7e;
+  --cf-border: #d8dee6;
+  --cf-border-strong: #c7d0dd;
+  --cf-shadow-raised: 0 16px 40px rgba(16, 24, 40, 0.16);
   overflow: hidden;
   border: 1px solid var(--cf-border);
   border-radius: 15px;
@@ -11574,6 +11585,7 @@ textarea.report-control {
   color: var(--cf-heading);
   font-size: 1.2rem;
   font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 .parts-log-modal-header p {
@@ -11602,8 +11614,9 @@ textarea.report-control {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  padding: 0.8rem 0.9rem;
+  padding: 0.65rem 0.9rem;
   border-bottom: 1px solid var(--cf-border);
+  background: var(--cf-surface-soft);
 }
 
 .parts-log-modal-section-icon {
@@ -11626,50 +11639,41 @@ textarea.report-control {
 
 .parts-log-modal-section h3 {
   margin: 0.1rem 0 0;
-  color: var(--cf-heading);
-  font-size: 0.9rem;
+  color: var(--cf-primary-strong);
+  font-size: 16px;
   font-weight: 500;
+  line-height: 1.35;
 }
 
 .parts-log-modal-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 0.9rem;
   margin: 0;
 }
 
 .parts-log-modal-grid > div {
   min-width: 0;
-  min-height: 74px;
-  padding: 0.78rem 0.9rem;
-  border-right: 1px solid var(--cf-border);
-  border-bottom: 1px solid var(--cf-border);
-}
-
-.parts-log-modal-grid > div:nth-child(2n) {
-  border-right: 0;
-}
-
-.parts-log-modal-grid > div:nth-last-child(-n + 2) {
-  border-bottom: 0;
 }
 
 .parts-log-modal-grid > .parts-log-modal-wide {
   grid-column: 1 / -1;
-  border-right: 0;
 }
 
 .parts-log-modal-grid dt {
-  color: var(--cf-heading);
-  font-size: 0.8125rem;
+  color: var(--cf-muted);
+  font-size: 13px;
   font-weight: 500;
+  line-height: 1.4;
 }
 
 .parts-log-modal-grid dd {
-  margin: 0.25rem 0 0;
+  margin: 5px 0 0;
   color: var(--cf-text);
-  font-size: 0.875rem;
+  font-size: 14px;
   font-weight: 400;
-  line-height: 1.4;
+  line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
@@ -11796,16 +11800,6 @@ textarea.report-control {
   .parts-log-mobile-card dl,
   .parts-log-modal-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .parts-log-modal-grid > div,
-  .parts-log-modal-grid > div:nth-child(2n) {
-    border-right: 0;
-    border-bottom: 1px solid var(--cf-border);
-  }
-
-  .parts-log-modal-grid > div:last-child {
-    border-bottom: 0;
   }
 
   .parts-log-workspace-footer {
