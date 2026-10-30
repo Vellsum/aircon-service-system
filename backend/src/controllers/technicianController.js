@@ -274,8 +274,30 @@ const updateJobStatus = async (req, res) => {
     if (newStatus.toLowerCase() === 'in progress') {
       startTransaction = new sql.Transaction(pool);
       startTransaction.on('rollback', () => { startTransactionOpen = false; });
-      await startTransaction.begin();
+      await startTransaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
       startTransactionOpen = true;
+      const lockedBooking = await new sql.Request(startTransaction)
+        .input('bid', sql.Int, Number(bookingId))
+        .query(`SELECT booking_ID FROM [new_jobBooking].[Booking] WITH (UPDLOCK, HOLDLOCK)
+                WHERE booking_ID = @bid`);
+      if (!lockedBooking.recordset.length) {
+        throw Object.assign(new Error('Booking not found'), { statusCode: 404 });
+      }
+      const startLinks = await new sql.Request(startTransaction)
+        .input('bid', sql.Int, Number(bookingId))
+        .query(`
+          SELECT j.job_ID,
+            (SELECT COUNT(*) FROM [new_jobBooking].[work] otherWork WITH (UPDLOCK, HOLDLOCK)
+             WHERE otherWork.job_ID = w.job_ID AND otherWork.booking_ID <> @bid) AS otherBookingCount
+          FROM [new_jobBooking].[work] w WITH (UPDLOCK, HOLDLOCK)
+          LEFT JOIN [new_jobBooking].[job] j WITH (UPDLOCK, HOLDLOCK) ON j.job_ID = w.job_ID
+          WHERE w.booking_ID = @bid
+          ORDER BY j.job_ID
+        `);
+      if (!startLinks.recordset.length || startLinks.recordset.some((job) =>
+        !Number.isSafeInteger(job.job_ID) || job.job_ID <= 0 || job.otherBookingCount !== 0)) {
+        throw Object.assign(new Error('Cannot start service: this booking requires valid, independent service job links.'), { statusCode: 400 });
+      }
       await new sql.Request(startTransaction).input('bid', sql.Int, Number(bookingId)).query(`
         UPDATE j SET j.job_status = 'In Progress'
         FROM [new_jobBooking].[job] j JOIN [new_jobBooking].[work] w ON w.job_ID = j.job_ID
@@ -311,7 +333,7 @@ const updateJobStatus = async (req, res) => {
       }
     }
     console.error('[Cool Fix] PUT Technician Status Error:', err.message);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
   }
 };
 
@@ -415,7 +437,7 @@ const submitReport = async (req, res) => {
     const linked = await new sql.Request(transaction)
       .input('bid', sql.Int, bookingId)
       .query(`
-        SELECT j.job_ID, j.serviceID, s.service_id AS linkedServiceID,
+        SELECT j.job_ID, j.serviceID, j.serviceReport, s.service_id AS linkedServiceID,
           (SELECT COUNT(*) FROM [new_jobBooking].[work] otherWork WITH (UPDLOCK, HOLDLOCK)
            WHERE otherWork.job_ID = w.job_ID AND otherWork.booking_ID <> @bid) AS otherBookingCount
         FROM [new_jobBooking].[work] w WITH (UPDLOCK, HOLDLOCK)
@@ -430,6 +452,9 @@ const submitReport = async (req, res) => {
       || !Number.isSafeInteger(job.serviceID) || job.serviceID <= 0
       || job.linkedServiceID !== job.serviceID || job.otherBookingCount !== 0)) {
       throw Object.assign(new Error('Cannot save report: this booking requires valid, independent service job links.'), { statusCode: 400 });
+    }
+    if (linkedJobs.some((job) => job.serviceReport != null)) {
+      throw Object.assign(new Error('Cannot save report: a service report is already linked to this booking.'), { statusCode: 409 });
     }
 
     // Flatten the frontend arrays into report columns
