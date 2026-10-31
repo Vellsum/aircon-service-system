@@ -61,13 +61,29 @@ const validTechnicianID = (value) => {
 const profileText = (value) =>
   typeof value === 'string' && value.trim() ? value.trim() : 'Not available';
 
-// The API returns a numeric rating; only an explicit zero means unrated.
-const ratingDisplay = (rating) => {
-  if (typeof rating !== 'number' || !Number.isFinite(rating) || rating < 0 || rating > 5) {
-    return 'Unavailable';
+function customerRatingDisplay(status, average, count) {
+  const display = (value, note = '', available = false, text = value) => ({ value, note, available, text });
+  if (status === 'loading') return display('Loading customer ratings…');
+  if (status === 'error') return display('Rating unavailable.', 'Customer ratings could not be loaded.');
+  if (status === 'success' && count === 0 && average === null) {
+    return display('No customer ratings yet.', '', true);
   }
-  return rating === 0 ? 'Not rated yet' : `${rating.toFixed(1)} ★`;
-};
+  if (status !== 'success' || !Number.isSafeInteger(count) || count <= 0
+    || typeof average !== 'number' || !Number.isFinite(average) || average < 1 || average > 5) {
+    return display('Rating unavailable.', 'Customer rating data is unavailable.');
+  }
+  const value = (
+    <span className="cf-customer-rating-value">
+      {average.toFixed(1)}
+      <svg className="cf-customer-rating-star" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 3.4l2.7 5.6 6.1.85-4.45 4.3 1.1 6.05L12 17.4l-5.45 2.8 1.1-6.05L3.2 9.85l6.1-.85Z" />
+      </svg>
+      <span className="visually-hidden">out of 5</span>
+    </span>
+  );
+  const reviews = `${count} ${count === 1 ? 'review' : 'reviews'}`;
+  return display(value, reviews, true, <>{value} · {reviews}</>);
+}
 
 const assignmentCount = (value, available) =>
   available && Number.isSafeInteger(value) && value >= 0 ? value : '—';
@@ -243,7 +259,7 @@ function TechnicianProfile() {
     : status === 'error' ? 'Request failed' : 'Unavailable';
   const technicianName = profile ? profileText(profile.technicianName) : missingValue;
   const specialty = profile ? profileText(profile.specialty) : missingValue;
-  const rating = profile ? ratingDisplay(profile.technicianRating) : missingValue;
+  const rating = customerRatingDisplay(status, profile?.customerRatingAverage, profile?.customerReviewCount);
   const assignmentsAvailable = Boolean(technicianID && token && !loading && !error && dataAvailable);
   const profileMessage = status === 'loading' ? 'Loading technician profile…'
     : status === 'identity' ? 'Technician identity is unavailable. No profile has been requested.'
@@ -330,7 +346,9 @@ function TechnicianProfile() {
               <dl className="tech-profile-information-list">
                 <InformationRow label="Technician Name" value={technicianName} />
                 <InformationRow label="Technician ID" value={technicianID ?? 'Unavailable'} />
-                <InformationRow label="Rating" value={rating} />
+                <InformationRow label="Customer rating" unavailable={!rating.available && status !== 'loading'} value={
+                  <>{rating.text}{!rating.available && rating.note && <small className="d-block">{rating.note}</small>}</>
+                } />
                 <InformationRow label="Specialty" value={specialty} />
               </dl>
             </section>

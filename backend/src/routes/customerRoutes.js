@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 
 const customerController = require('../controllers/customerController');
+const authenticateCustomer = require('../middleware/authenticateCustomer');
 
 // Diagnostic check: Fallback inline handlers prevent server crash if a controller method is missing
 const getDashboard = customerController.getDashboard || ((req, res) => res.status(500).json({ error: 'getDashboard missing in controller' }));
@@ -27,7 +28,8 @@ router.get('/profile', customerController.getProfile);
 router.put('/profile', customerController.updateProfile);
 
 router.get('/dashboard', getDashboard);
-router.get('/bookings', getMyBookings);
+router.get('/bookings', authenticateCustomer, getMyBookings);
+router.post('/bookings/:bookingId/rate', authenticateCustomer, customerController.rateBooking);
 router.get('/units', getMyUnits);
 router.post('/units', registerUnit);
 router.get('/subscriptions', getMySubscriptions);

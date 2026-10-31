@@ -55,13 +55,28 @@ function formatDate(dateStr) {
   }
 }
 
-function storedRatingDisplay(status, value) {
-  if (status === 'loading') return { value: 'Loading…', note: 'Loading stored profile rating', available: false }
-  if (status === 'error') return { value: 'Request failed', note: 'Stored profile rating could not be loaded', available: false }
-  if (status !== 'success' || typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 5) {
-    return { value: 'Unavailable', note: 'Stored profile rating unavailable', available: false }
+function customerRatingDisplay(status, average, count) {
+  const display = (value, note = '', available = false, text = value) => ({ value, note, available, text })
+  if (status === 'loading') return display('Loading customer ratings…')
+  if (status === 'error') return display('Rating unavailable.', 'Customer ratings could not be loaded.')
+  if (status === 'success' && count === 0 && average === null) {
+    return display('No customer ratings yet.', '', true)
   }
-  return { value: value === 0 ? 'Not rated yet' : `${value.toFixed(1)} ★`, note: 'Stored profile rating', available: value > 0 }
+  if (status !== 'success' || !Number.isSafeInteger(count) || count <= 0
+    || typeof average !== 'number' || !Number.isFinite(average) || average < 1 || average > 5) {
+    return display('Rating unavailable.', 'Customer rating data is unavailable.')
+  }
+  const value = (
+    <span className="cf-customer-rating-value">
+      {average.toFixed(1)}
+      <svg className="cf-customer-rating-star" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 3.4l2.7 5.6 6.1.85-4.45 4.3 1.1 6.05L12 17.4l-5.45 2.8 1.1-6.05L3.2 9.85l6.1-.85Z" />
+      </svg>
+      <span className="visually-hidden">out of 5</span>
+    </span>
+  )
+  const reviews = `${count} ${count === 1 ? 'review' : 'reviews'}`
+  return display(value, reviews, true, <>{value} · {reviews}</>)
 }
 
 function TechnicianPerformance() {
@@ -118,7 +133,7 @@ function TechnicianPerformance() {
   var profileName = profileStatus === 'loading' ? 'Loading…'
     : typeof profile?.technicianName === 'string' && profile.technicianName.trim()
       ? profile.technicianName.trim() : 'Unavailable'
-  var rating = storedRatingDisplay(profileStatus, profile?.technicianRating)
+  var rating = customerRatingDisplay(profileStatus, profile?.customerRatingAverage, profile?.customerReviewCount)
 
   var completedWork = useMemo(function () {
     var completedJobs = assignedJobs.filter(function (j) {
@@ -162,9 +177,9 @@ function TechnicianPerformance() {
 
   var availabilityItems = [
     {
-      label: 'Rating',
-      value: rating.value,
-      note: rating.note,
+      label: 'Customer rating',
+      value: rating.text,
+      note: rating.available ? 'Customer-submitted booking feedback' : rating.note,
       available: rating.available,
     },
     {
@@ -175,8 +190,8 @@ function TechnicianPerformance() {
     },
     {
       label: 'Customer satisfaction',
-      value: 'Awaiting rating data',
-      note: 'No per-job customer ratings are currently available',
+      value: 'Unavailable',
+      note: 'Detailed customer-feedback analytics are not supplied by this summary.',
       available: false,
     },
     {
@@ -193,7 +208,7 @@ function TechnicianPerformance() {
         <div className="cf-page-heading">
           <span className="cf-eyebrow">Technician Performance</span>
           <h1>Performance</h1>
-          <p>Current returned assignments and stored profile rating; not lifetime performance history.</p>
+          <p>Current returned assignments and customer-submitted booking feedback; not lifetime performance history.</p>
         </div>
         <div className="tech-performance-technician">
           <span className="tech-performance-technician-icon" aria-hidden="true">

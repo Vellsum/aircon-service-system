@@ -359,6 +359,20 @@
   color: var(--primary-600);
 }
 
+.technician-portal-wrapper .cf-customer-rating-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.technician-portal-wrapper .cf-customer-rating-star {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  fill: #f5b301;
+  stroke: #f5b301;
+}
+
 .kpi-stat-value {
   font-size: 1.3rem;
   font-weight: 700;

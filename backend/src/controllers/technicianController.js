@@ -344,7 +344,7 @@ const updateJobStatus = async (req, res) => {
 const getTechnicianProfile = async (req, res) => {
   try {
     const pool = await poolPromise;
-    if (!pool) return res.status(200).json({ success: true, profile: null });
+    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
 
     const techId = parseInt(req.query.techId, 10) || 1;
 
@@ -352,13 +352,21 @@ const getTechnicianProfile = async (req, res) => {
       .input('techId', sql.Int, techId)
       .query(`
         SELECT
-          technician_ID,
-          technician_name,
-          technician_rating,
-          specialty,
-          jobsDone
-        FROM [user3].[technician]
-        WHERE technician_ID = @techId
+          t.technician_ID,
+          t.technician_name,
+          t.technician_rating,
+          t.specialty,
+          t.jobsDone,
+          ratings.customerRatingAverage,
+          ratings.customerReviewCount
+        FROM [user3].[technician] t
+        OUTER APPLY (
+          SELECT AVG(CAST(r.stars AS DECIMAL(10, 4))) AS customerRatingAverage,
+                 COUNT(*) AS customerReviewCount
+          FROM [new_jobBooking].[bookingRating] r
+          WHERE r.technician_ID = t.technician_ID AND r.stars BETWEEN 1 AND 5
+        ) ratings
+        WHERE t.technician_ID = @techId
       `);
 
     if (result.recordset.length === 0) {
@@ -372,6 +380,8 @@ const getTechnicianProfile = async (req, res) => {
         technicianID: row.technician_ID,
         technicianName: row.technician_name,
         technicianRating: row.technician_rating,
+        customerRatingAverage: row.customerRatingAverage,
+        customerReviewCount: row.customerReviewCount,
         specialty: row.specialty || '',
         jobsDone: row.jobsDone || 0,
       },

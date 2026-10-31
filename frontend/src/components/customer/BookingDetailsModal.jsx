@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId, useState } from "react";
 import BookingStatusBadge from "./BookingStatusBadge";
 import { Icon } from "./CustomerIcons";
 import {
@@ -16,16 +16,126 @@ const getInitials = (name = "") =>
     .slice(0, 2)
     .toUpperCase();
 
+export function formatCustomerTechnicianRating(technician) {
+  const average = technician?.customerRatingAverage;
+  const count = technician?.customerReviewCount;
+  if (!Number.isSafeInteger(count) || count < 0) return "Rating unavailable.";
+  if (count === 0 && average === null) return "No customer ratings yet.";
+  if (count > 0 && typeof average === "number" && Number.isFinite(average)
+    && average >= 1 && average <= 5) {
+    return (
+      <span className="cust-customer-rating">
+        {average.toFixed(1)} <Icon name="star" size={16} />
+        <span className="visually-hidden">out of 5</span>
+        <span>· {count} {count === 1 ? "review" : "reviews"}</span>
+      </span>
+    );
+  }
+  return "Rating unavailable.";
+}
+
+const BookingRating = ({ booking, allowRating, onRateBooking, onRefreshRating, state }) => {
+  const [stars, setStars] = useState("");
+  const [hoverStars, setHoverStars] = useState(null);
+  const [focusStars, setFocusStars] = useState(null);
+  const controlId = useId();
+  const hasRating = Object.prototype.hasOwnProperty.call(booking, "rating");
+  const savedStars = booking.rating?.stars;
+  const validSaved = Number.isInteger(savedStars) && savedStars >= 1 && savedStars <= 5;
+  const busy = Boolean(state.pending || state.refreshing);
+  const isCompletedForRating = String(booking.status).trim().toLowerCase() === "completed";
+  const eligible = allowRating && typeof onRateBooking === "function"
+    && isCompletedForRating && hasRating && booking.rating === null
+    && !state.saved && !state.uncertain;
+  const displayedStars = !busy && eligible
+    ? hoverStars ?? focusStars ?? Number(stars)
+    : Number(stars);
+  if (!isCompletedForRating && !booking.rating) return null;
+
+  return (
+    <section aria-labelledby={`${controlId}-heading`} style={{ marginBottom: 18 }}>
+      <h4 id={`${controlId}-heading`} style={{ fontSize: 14 }}>Your service rating</h4>
+      {validSaved ? (
+        <p>You rated this visit <strong>{savedStars} / 5</strong>.</p>
+      ) : state.saved ? null : !hasRating || booking.rating !== null ? (
+        <p>Rating unavailable.</p>
+      ) : !eligible && !state.uncertain ? (
+        <p>Rating entry is available in My Bookings.</p>
+      ) : null}
+      {state.saved && (
+        <p role="status" aria-live="polite">
+          {state.refreshError
+            ? "Rating saved. Booking details could not be refreshed. Do not submit again."
+            : state.refreshing ? "Rating saved. Refreshing booking details…" : "Rating saved."}
+        </p>
+      )}
+      {state.error && <p id={`${controlId}-error`} role="alert">{state.error}</p>}
+      {state.uncertain && !state.error && (
+        <p role="alert">The save outcome could not be confirmed. Refresh booking details before trying again.</p>
+      )}
+      {state.refreshError && !state.saved && (
+        <p role="alert">Booking details could not be refreshed. Please try refreshing again.</p>
+      )}
+      {(eligible || state.pending || state.uncertain) && !state.saved && (
+        <form onSubmit={(event) => {
+          event.preventDefault();
+          if (eligible && !busy && stars !== "") onRateBooking(Number(stars));
+        }}>
+          <fieldset className="cust-rating-picker" disabled={busy || !eligible}
+            aria-describedby={`${controlId}-selection${state.error ? ` ${controlId}-error` : ""}`}>
+            <legend style={{ fontSize: 13 }}>Choose your rating (1–5)</legend>
+            <div className="cust-rating-stars" onPointerLeave={() => setHoverStars(null)}>
+              {[1, 2, 3, 4, 5].map((value) => (
+                <label key={value} className="cust-rating-star-option"
+                  onPointerEnter={(event) => {
+                    if (event.pointerType !== "touch" && !busy && eligible) setHoverStars(value);
+                  }}>
+                  <input type="radio" name={`${controlId}-stars`} value={value} required
+                    aria-label={`${value} out of 5 stars`}
+                    checked={stars === String(value)} onChange={() => setStars(String(value))}
+                    onFocus={() => {
+                      setHoverStars(null);
+                      if (!busy && eligible) setFocusStars(value);
+                    }}
+                    onBlur={() => setFocusStars(null)} />
+                  <span className={`cust-rating-star-icon${value <= displayedStars ? " is-filled" : ""}`}>
+                    <Icon name="star" size={28} />
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p id={`${controlId}-selection`} className="cust-rating-selection" aria-live="polite">
+              {displayedStars ? `${displayedStars} out of 5.` : "Select a rating"}
+            </p>
+            <button type="submit" className="dash-btn dash-btn-primary" disabled={busy || !eligible || stars === ""}>
+              {state.pending ? "Saving rating…" : "Submit rating"}
+            </button>
+          </fieldset>
+          {state.pending && <p role="status" aria-live="polite">Saving your rating…</p>}
+        </form>
+      )}
+      {(state.refreshError || state.uncertain || state.error) && typeof onRefreshRating === "function" && (
+        <button type="button" className="dash-btn dash-btn-outline" disabled={busy} onClick={onRefreshRating}>
+          {state.refreshing ? "Refreshing…" : "Refresh booking details"}
+        </button>
+      )}
+    </section>
+  );
+};
+
 /**
  * Full detail view for one booking, including the technician's service
  * report once the visit is done. Reuses the dash-modal shell from shared.css
  * so it matches the admin record modals.
  */
-const BookingDetailsModal = ({ booking, onClose, onCancelBooking }) => {
+const BookingDetailsModal = ({ booking, onClose, onCancelBooking, allowRating = false,
+  onRateBooking, onRefreshRating, ratingState = {} }) => {
   if (!booking) return null;
 
   const report = booking.report;
-  const partsTotal = (report?.parts_used || []).reduce(
+  const parts = Array.isArray(report?.parts_used) ? report.parts_used : [];
+  const phone = typeof booking.technician?.phone === "string" ? booking.technician.phone.trim() : "";
+  const partsTotal = parts.reduce(
     (sum, part) => sum + part.price * part.qty,
     0
   );
@@ -94,16 +204,15 @@ const BookingDetailsModal = ({ booking, onClose, onCancelBooking }) => {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p className="cust-tech-name">{booking.technician.name}</p>
                 <p className="cust-tech-meta">
-                  <Icon name="star" size={13} />
-                  {booking.technician.rating} · {booking.technician.jobs_done} jobs completed
+                  {formatCustomerTechnicianRating(booking.technician)} · {booking.technician.jobs_done} jobs completed
                 </p>
               </div>
-              <a
+              {phone ? <a
                 className="dash-btn dash-btn-outline"
-                href={`tel:${booking.technician.phone.replace(/\s/g, "")}`}
+                href={`tel:${phone.replace(/\s/g, "")}`}
               >
                 Call
-              </a>
+              </a> : <button className="dash-btn dash-btn-outline" disabled title="Phone unavailable">Call</button>}
             </div>
           ) : (
             <div className="cust-tech-unassigned" style={{ marginTop: 0, marginBottom: 18 }}>
@@ -144,10 +253,10 @@ const BookingDetailsModal = ({ booking, onClose, onCancelBooking }) => {
                 {report.summary}
               </p>
 
-              {report.parts_used.length > 0 && (
+              {parts.length > 0 && (
                 <>
                   <p className="cust-meta-label">Parts used</p>
-                  {report.parts_used.map((part) => (
+                  {parts.map((part) => (
                     <div className="cust-summary-row" key={part.part_name}>
                       <span className="cust-summary-label">
                         {part.part_name} × {part.qty}
@@ -166,14 +275,11 @@ const BookingDetailsModal = ({ booking, onClose, onCancelBooking }) => {
                 </>
               )}
 
-              {report.rating_given > 0 && (
-                <p style={{ margin: "10px 0 0", fontSize: 12.5 }}>
-                  You rated this visit{" "}
-                  <strong>{report.rating_given} / 5</strong>
-                </p>
-              )}
             </div>
           )}
+
+          <BookingRating key={booking.booking_ID} booking={booking} allowRating={allowRating}
+            onRateBooking={onRateBooking} onRefreshRating={onRefreshRating} state={ratingState} />
 
           <div className="cust-summary-row" style={{ borderTop: "1px solid var(--border)" }}>
             <span className="cust-summary-label">Total</span>

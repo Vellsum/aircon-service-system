@@ -1,7 +1,7 @@
 const API_BASE = 'http://localhost:5000/api';
 
 function getAuthHeaders() {
-  const token = localStorage.getItem('token') || '';
+  const token = localStorage.getItem('token') || localStorage.getItem('aircon_token') || '';
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 }
 
@@ -25,6 +25,34 @@ async function request(path) {
 export const getDashboard = () => request(`/customer/dashboard?customerId=${getCurrentCustomerId()}`);
 export const getMyBookings = () => request(`/customer/bookings?customerId=${getCurrentCustomerId()}`);
 export const getMyUnits = () => request(`/customer/units?customerId=${getCurrentCustomerId()}`);
+
+export async function rateBooking(bookingId, stars) {
+  if (!Number.isSafeInteger(bookingId) || bookingId <= 0 || bookingId > 2147483647
+    || !Number.isInteger(stars) || stars < 1 || stars > 5) {
+    throw new Error('Choose a rating from 1 to 5 for a valid booking.');
+  }
+  const headers = getAuthHeaders();
+  if (headers.Authorization === 'Bearer ') {
+    throw new Error('Please sign in again before rating this booking.');
+  }
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/customer/bookings/${bookingId}/rate`, {
+      method: 'POST', headers, body: JSON.stringify({ stars }),
+    });
+  } catch {
+    throw Object.assign(new Error('The save outcome could not be confirmed. Refresh the booking before trying again.'), { uncertain: true });
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.message || `Rating request failed (${res.status}).`);
+  const rating = body?.rating;
+  if (body?.success !== true || rating?.booking_ID !== bookingId || rating?.stars !== stars
+    || !Number.isSafeInteger(rating?.technicianID) || rating.technicianID <= 0
+    || typeof rating.submittedAt !== 'string' || !Number.isFinite(Date.parse(rating.submittedAt))) {
+    throw Object.assign(new Error('The save outcome could not be confirmed. Refresh the booking before trying again.'), { uncertain: true });
+  }
+  return body;
+}
 export const getMySubscriptions = () => request(`/customer/subscriptions?customerId=${getCurrentCustomerId()}`);
 
 export const getServices = () => request(`/customer/services`);
