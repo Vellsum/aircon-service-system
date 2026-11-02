@@ -14,7 +14,7 @@ import {
   getAddresses,
   getMyUnits,
   getPromotions,
-  getServices,helpMyID,
+  getServices,helpMyID,getOtherAddresses,
 } from "../../api/customerApi"; // WE CALL CUSTOMER API EXPORTED METHODS
 
 const STEPS = [ //steps to do here
@@ -97,28 +97,80 @@ const CustomerBookService = () => {
 
       setcustomerid(my_id);
       
-    let alive = true;
-    Promise.all([getServices(), getMyUnits(), getPromotions(), getAddresses()])
-      .then(([svcRes, unitRes, promoRes, addrRes]) => {
-        if (!alive) return;
-        setServices(svcRes.services || []);
-        setUnits(unitRes.units || []);
-        setPromotions(promoRes.promotions || []);
-        setAddresses(addrRes.addresses || []);
-        const defaultAddr = (addrRes.addresses || []).find((a) => a.isDefault) || (addrRes.addresses || [])[0];
-        if (defaultAddr) setAddressId(defaultAddr.address_ID);
-      })
-      .catch((err) => alive && setLoadError(err.message))
-      .finally(() => alive && setLoading(false));
-    return () => { alive = false; };
+ let alive = true;
 
+Promise.all([
+  getServices(),
+  getMyUnits(),
+  getPromotions(),
+  getAddresses(),
+  getOtherAddresses(),
+])
+  .then(([svcRes, unitRes, promoRes, addrRes, extraAddrRes]) => {
+    if (!alive) return;
+
+    setServices(svcRes.services || []);
+    setUnits(unitRes.units || []);
+    setPromotions(promoRes.promotions || []);
+
+    // Main addresses
+    const mainAddresses = (addrRes.addresses || []).map((entry) => ({
+      ...entry,
+      selectionId: `main-${entry.address_ID}`,
+      type: "main",
+    }));
+
+    // Extra addresses
+    const extraAddresses = (extraAddrRes.addresses || []).map((entry) => ({
+      ...entry,
+      selectionId: `extra-${entry.address_ID}`,
+      label: entry.label || "Extra Address",
+      line:
+        entry.customer_address ||
+        entry.extra_address ||
+        entry.address ||
+        entry.line ||
+        "",
+      postal: entry.postal || "",
+      type: "extra",
+    }));
+
+    // Combine both lists
+    const combinedAddresses = [
+      ...mainAddresses,
+      ...extraAddresses,
+    ];
+
+    setAddresses(combinedAddresses);
+
+    // Select default main address, or first available address
+    const defaultAddr =
+      mainAddresses.find((entry) => entry.isDefault) ||
+      mainAddresses[0] ||
+      extraAddresses[0];
+
+    if (defaultAddr) {
+      setAddressId(defaultAddr.selectionId);
+    }
+  })
+  .catch((err) => alive && setLoadError(err.message))
+  .finally(() => alive && setLoading(false));
+
+return () => {
+  alive = false;
+};
       
   }, []);
 
   const service = useMemo(() => findService(serviceId, services), [serviceId, services]);
   //const slot = TIME_SLOTS.find((entry) => entry.id === slotId) || null;
   const slot = slotId || null;
-  const address = addresses.find((entry) => entry.address_ID === addressId) || null;
+
+
+const address =
+  addresses.find((entry) => entry.selectionId === addressId) || null;
+
+
   const selectedUnits = units.filter((unit) => unitIds.includes(unit.installed_ID));
   
   //we have this pricing method?
@@ -516,7 +568,7 @@ A maximum of 6 aircons is permitted.
                   <p className="cust-slot-period">Time</p>
                   <div className="cust-slots">
                     {["Morning", "Afternoon"].map((period) => {
-                      const isAfternoonDisabled = period === "Afternoon" && Number(numberOfUnits) === 3;
+                      const isAfternoonDisabled = period === "Afternoon" && Number(numberOfUnits) >= 3;
                       return (
                         <button
                           type="button"
@@ -543,7 +595,7 @@ A maximum of 6 aircons is permitted.
 
 
 
-          {/* Step 4 — address and notes */}
+          {/* Step 4 — address and notes-------------------------------------------------------- */}
           {step === 4 && (
             <section className="cust-panel">
               <div className="cust-panel-head">
@@ -554,15 +606,20 @@ A maximum of 6 aircons is permitted.
               </div>
 
               <div className="cust-choice-grid" style={{ marginBottom: 18 }}>
-                {addresses.map((entry) => (
-                  <button
-                    type="button"
-                    key={entry.address_ID}
-                    className={`cust-choice${
-                      addressId === entry.address_ID ? " is-selected" : ""
-                    }`}
-                    onClick={() => setAddressId(entry.address_ID)}
-                  >
+              {addresses.map((entry) => (
+  <button
+    type="button"
+    key={entry.selectionId}
+    className={`cust-choice${
+      addressId === entry.selectionId ? " is-selected" : ""
+    }`}
+    onClick={() => setAddressId(entry.selectionId)}
+  >
+    {addressId === entry.selectionId && (
+      <span className="cust-choice-tick">
+        <Icon name="check" size={12} strokeWidth={3} />
+      </span>
+    )}
                     {addressId === entry.address_ID && (
                       <span className="cust-choice-tick">
                         <Icon name="check" size={12} strokeWidth={3} />

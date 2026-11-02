@@ -43,6 +43,9 @@ router.get('/addresses', getAddresses);
 router.post('/bookings', createBooking);  //to make booking
 router.put('/bookings/:bookingId/cancel', cancelBooking);
 
+router.get('/otherAddresses', customerController.getOtherAddresses); ///for the other address
+router.put("/editExtraAddress", customerController.updateOtherAddress)
+router.put("/makeNewExtraAddress",customerController.makeNewExtraAddress)
 
 //customer approve/reject
 //const validateBooking = customerController. updateIncomingBookingStatus;
@@ -52,7 +55,9 @@ const authenticateToken = require('./authMiddleware');
 router.put("/bookings/:bookingId/RR1",authenticateToken, customerController.pickRR1)
 router.put("/bookings/:bookingId/RR2",authenticateToken, customerController.pickRR2)
 router.put("/bookings/:bookingId/RR3",authenticateToken, customerController.pickRR3)
-
+router.put("/bookings/:bookingId/clone",authenticateToken, customerController.cloneBooking)
+router.put("/bookings/:bookingId/clone2",authenticateToken, customerController.clone2)
+router.put("/bookings/:bookingId/clone3",authenticateToken, customerController.clone3)
 
 router.put("/bookings/:bookingId/status",authenticateToken, customerController.updateIncomingBookingStatus);   // <--- doesnt work
 router.put("/bookings/:bookingId/choose/:option", authenticateToken,customerController.chooseRROption)

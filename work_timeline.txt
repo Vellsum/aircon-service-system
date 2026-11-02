@@ -210,29 +210,165 @@ things left;
 decided for a max of 6 aircons so that 1 technician max 3 aircon, which means the assisting technciian is 1 more
 then that one is another tech for their reserved n cloned booking
 
+--making more columns for assisting technicians , inclusive of rr dates
+--taht means controller also return it
+
+4.30 - fixed  a merge issue with billies latest
+fixed the sql so all user have same password
+(1,'admin_sarah','$2b$10$SoAZkvhZWYHMtFdYAwWOYO','$2b$10$SoAZkvhZWYHMtFdYAwWOYORxpAXLRoaWSu14.NzBwPYoNtdnGBobG','Technician',0,'+6592345678','chen.wei@airconcool.com','2024-02-01'),
+tech_raj
+(4,'tech_alex',  '$2b$10$SoAZkvhZWYHMtFdYAwWOYO','$2b$10$SoAZkvhZWYHMtFdYAwWOYORxpAXLRoaWSu14.NzBwPYoNtdnGBobG','Technician',0,'+6594567890','alex.tan@airconcool.com','2024-05-20'),
+cust_john
+cust_mary
+cust_david
+cust_elena
+scott
+
+password: 000
+
+4.48, sum have class with billie n henrick, billie no task atm so its best me n sum setttle
+after my git merging sum will pull mine, so me n sum will have latest
+
+//wat was i doing again?
+-- when booking service, with multiple services, data goes nowhere, make a string column so those services name can be put together in there
+
+5pm - frontend works for assiting technciian on confirmaable booking
+ -backend of this - 5.18 - done
+
+-- now do for alternative dates. - 5.36 - done
+//im feeling giddy
+
+--> make mock booking  for alternative
+--> make mock booking for RR assistance
+>> when customer confirm, assisting technician get job (for normal n aternative)
+
+//halt, im confused now
+less than 3 aircon;
+- there is no clone booking for assisting
+- there is no mock booking for RR technicians
+
+3+ aircon;
+- there is no clone booking for assisting
+- there is no mock booking for RR technicians
+
+///for above cases, only need to make booking, can be done in controller since original booking has all the data
+
+//wait, restart
+less than 3 unit;
+got slot - confirmed straight away into booking  [nothing to add]
+no slot - make RR choices. when customer pick, RR choices become final [nohing to add]
+  - but before customer pick, those slots r made into RR resered mock booking
+
+  do this now: - make mock booking for RR- lesss than 3 aircon
+-- can call the create booking method in admin controller, do this in frontend
 
 
+3+ aircon - need the clone booking
+
+
+pause for dinner 6.30pm
+
+8.13 - continued
+i decided to start on the clone booking for assisting techniicians first
+
+- clone booking for 3+ aircon
+9.30pm - now when customer book 3+ aircon, if got time available, make clone booking
+
+>>> make clone when customer confirm RR
+//customer when accepting RR option alr have methods to controller, try that
+
+1044 - sum finished the admin dashboard to show revenue n available technicians, i havent pull yet
+billie is free but he should be doing the log parts, but this need backend
+
+
+//just pulled from sum, FUCKING OHYEA();;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; *explode*
+I FUCKIN LOVE SUM I WANNA SUCK HIS HUGE DICK
+
+--> now trying to debug when customer pick rr1 make the clone booking
+1130pm - got it to work
+
+//sum has the very good dashboard but the live selector for the dropdown not yet, i will do it
+--> nvm let sum do since his ai knows wat im talking about
+--> nvm i have to do cuz its in managebooking.jsx
+
+12am - the cloned bookings work for both slot avaialble n RR
+
+next; mock booking from propoed alternatives, for both less than 3 n 3+ unit
+
+//end of day========================================================================================
+
+//301026
+4pm - im getting  a headache from the amount of work ive been doing + work life imbalance, no life at this point
+
+- [done] when admin propose alternative to a booking with 3 less unit, those technicians from each option have a RR reserved booking
+im a genius it went throughout
+//dont need to chagne anything in dsahboard it selected by completed instead of reserved
+
+-- now make reseerve booking for the assiting technician [done]
+im a genius - 5.18pm
+
+
+next: -> special dropdown that filters busy tehcnicians per date n time (technician in booking with status confirmed n reserved r removed from list) when admin process booking
+that drop down when admin select alternatives technicians
+
+
+6PM - working
+now we have to use claude cus shit is too big for chatgpt
+
+pause - 6.20pm
+next: >>customer can have multiple addresses
+-> frontend to crud, lik admin management tables
+-> backend to manage
+
+
+8.45pm - continue ....
+ customer having multiple address;
+    - made a new table for 1-many relationship [done]
+    - have it so that address in register page goes to the new db [done]
+    - customer profile can crud this
+    - the addresses r selected in book service (just send the string of the address to the booking table)
+
+//also did some edits to customer profile
+
+//i notice this not fixed yet-
+- change password in customer profile
+-loyatly points feature (when they book service,add to their stat)
+
+
+
+11pm - now user can edit their extra addresses but cannot make any XD
+1130pm - now user can make n edit, cannot delete atm
+//need to refresh page to see changes
+next: make it so that when customer make address, their prompted the sepearate parts such as postal code, unit
+
+1145 - end-------------------------------------------------------------------
+
+
+2/11/26
+- on register page, split address inputs to the parts [done, forntend n backend works]
+- works too on profile page, front n backend ends too
+- works when customer book service, can pick the multiple addresses
 
 
 
 
 
 pending;===========================================================
-frontend for customer to accept incoming (status as request reschddule) 
+frontend for customer to accept incoming (status as request reschddule) [DONE DONE DONE]
  reject another date (status return to assigned) [done[]]
 -- [backedn done] when customer receive the incoming, it take the 3 alternatives n present them, customer choose 1 or reject all [fronentd done]
 
 
---> then have to make mock booking for proposed alternatives
+--> then have to make mock booking for proposed alternatives [DONE DONE DONE]
 
 
 //idk this section can last how outdated
 //extras
 >> customer cancel logic, can only cancel 5 days before confirmed date (just change booking status to cancel)
 
->> customer side change approve words to accept
+>> customer side change approve words to accept  [DONE DONE DONE]
 
->>remove homepage dummy datas
+>>remove homepage dummy datas  [DONE DONE DONE]
 >> when customer book, promocodes below
 
 
@@ -353,6 +489,13 @@ tech123
 //can or cannto?
 
 
+//make new ones, their salt n hash
+
+password: 000
+salt: $2b$10$SoAZkvhZWYHMtFdYAwWOYO
+hsh: $2b$10$SoAZkvhZWYHMtFdYAwWOYORxpAXLRoaWSu14.NzBwPYoNtdnGBobG
+
+//NOW ALL USERS SHARE SAME PASSWORD
 
 //setting up===========================
 cd backend

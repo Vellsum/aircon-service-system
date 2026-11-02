@@ -38,6 +38,12 @@ CREATE TABLE user3.newCustomer (
   user_ID INT NOT NULL, totalBookings INT NULL, totalSpent FLOAT NULL,
   CONSTRAINT FK_nc_user FOREIGN KEY (user_ID) REFERENCES user3.topUser(user_ID));
 
+create table user3.customerAddresses(
+  address_ID INT IDENTITY(1,1) PRIMARY KEY,
+  customer_ID int,
+  customer_address VARCHAR(200) 
+)
+
 CREATE TABLE user3.technician (
   technician_ID INT IDENTITY PRIMARY KEY, technician_name VARCHAR(100) NOT NULL,
   technician_rating INT NOT NULL DEFAULT 5, user_ID INT NOT NULL,

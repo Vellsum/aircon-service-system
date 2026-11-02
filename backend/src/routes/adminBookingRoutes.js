@@ -11,7 +11,7 @@ const express = require('express');
 //app.use(express.json());
 const router = express.Router();
 const adminBookingController = require('../controllers/adminBookingController');
-
+router.put('/:bookingId/clone',adminBookingController.cloneBooking);
 // GET all bookings
 router.get('/', adminBookingController.getAllBookings);
 
@@ -34,5 +34,5 @@ router.put(
 );
 
 router.put('/:bookingId/alternatives',adminBookingController.submitBookingAlternatives);
-
+router.put('/:bookingId/reserve',adminBookingController.makeReservedSlots)
 module.exports = router;

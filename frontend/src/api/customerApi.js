@@ -173,6 +173,23 @@ export const getPromotions = () => request(`/customer/promotions`);
 export const getPlans = () => request(`/customer/plans`);
 export const getAddresses = () => request(`/customer/addresses?customerId=${getCurrentCustomerId()}`);
 
+export const getOtherAddresses=()=>request(`/customer/otherAddresses?customerId=${getCurrentCustomerId()}`);
+
+export const makeNewExtraAddress_=(input,id)=>{
+ request(`/customer/makeNewExtraAddress?customerId=${getCurrentCustomerId()}`, {
+    method: "PUT",
+    body: JSON.stringify({input,id} ),
+  });
+}
+
+export const updateOtherAddress = (input,address_ID) =>{ // console.log(input)
+ //console.log(address_ID)
+
+  request(`/customer/editExtraAddress`, {
+    method: "PUT",
+    body: JSON.stringify({input, address_ID} ),
+  });}
+
 
 //the 3 picks for RR
 export const pickRR1 = (bookingId) =>  {
@@ -206,8 +223,33 @@ export const pickRR3 = (bookingId) =>  {
    );
   };
 
-
-
+export const clone=(bookingId)=>{
+      console.log("reached cloning api")
+return request(`/customer/bookings/${encodeURIComponent(bookingId)}/clone`,
+     {
+      method: "PUT",
+      body: JSON.stringify({bookingId}),
+    }
+   );
+}
+export const clone2=(bookingId)=>{
+      console.log("reached cloning2 api")
+return request(`/customer/bookings/${encodeURIComponent(bookingId)}/clone2`,
+     {
+      method: "PUT",
+      body: JSON.stringify({bookingId}),
+    }
+   );
+}
+export const clone3=(bookingId)=>{
+      console.log("reached cloning2 api")
+return request(`/customer/bookings/${encodeURIComponent(bookingId)}/clone3`,
+     {
+      method: "PUT",
+      body: JSON.stringify({bookingId}),
+    }
+   );
+}
 //export const pickRR2 = () => request(`/customer/bookings?customerId=${getCurrentCustomerId()}/RR2`);
 //export const pickRR3 = () => request(`/customer/bookings?customerId=${getCurrentCustomerId()}/RR3`);
 

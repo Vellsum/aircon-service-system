@@ -231,18 +231,7 @@ console.log("Authenticated user:", req.user);
     }
 
     // Only allow statuses intended for this customer action.
-    /** const allowedStatuses = ["confirmed", "request_reschedule", "Pending"];
-console.log("Received status:", req.body?.status);
-console.log("Normalized status:", requestedStatus);
-console.log("Allowed statuses:", allowedStatuses);
-    if (!allowedStatuses.includes(requestedStatus)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid booking status."
-      });
-    }
-*/
-    
+
     const pool = await poolPromise;
 
     // Update only if this booking belongs to the logged-in customer
@@ -264,15 +253,7 @@ console.log("Allowed statuses:", allowedStatuses);
         SELECT @@ROWCOUNT AS rowsUpdated;
       `);
 
-      /**   const rowsUpdated = result.recordset[0].rowsUpdated;
-    if (rowsUpdated === 0) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Booking not found, not owned by this customer, or no longer assigned."
-      });
-    }
-*/
+   
   
     return res.status(200).json({
       success: true,
@@ -580,6 +561,75 @@ const getPromotions = async (req, res) => {
   }
 };
 
+
+//get the other addresses=================================
+const getOtherAddresses = async(req,res)=>{
+  const customerId = req.query.customerId
+  console.log(customerId)
+      const pool = await poolPromise;
+   const result = await pool.request()
+      .input('custId', sql.Int, customerId)
+      .query(`
+        SELECT
+         * from user3.customerAddresses where 
+        customer_ID = @custId
+      `);
+
+      console.log(result.recordset)
+      res.status(200).json({
+      success: true,
+      addresses: result.recordset,
+    });
+}
+
+const updateOtherAddress = async (req, res) => {
+        const{input, address_ID} = req.body;
+    const pool = await poolPromise;
+     console.log(input)
+          console.log(address_ID)
+          console.log("pool:", pool);
+console.log("request:", pool.request());
+console.log("sql:", sql);
+      const result = await pool.request()
+
+     
+
+    .input('input', sql.VarChar(200), input)
+    .input('address_ID', sql.Int, address_ID)
+
+          .query(`
+          update [user3].[customerAddresses]
+            set customer_address = @input
+            
+            
+            where 
+            address_ID = @address_ID
+          `);
+};
+
+const makeNewExtraAddress =async(req,res)=>{
+     const{input, id} = req.body;
+    const pool = await poolPromise;
+     console.log(input)
+          console.log(id)
+          console.log("pool:", pool);
+console.log("request:", pool.request());
+console.log("sql:", sql);
+      const result = await pool.request()
+
+     
+
+    .input('input', sql.VarChar(200), input)
+    .input('id', sql.Int, id)
+
+          .query(`insert into user3.customerAddresses (customer_ID,customer_address ) values
+            (@id, @input)
+
+
+         
+          `);
+}
+
 /* GET /api/customer/addresses?customerId=# */
 const getAddresses = async (req, res) => {
   try {
@@ -641,7 +691,7 @@ const createBooking = async (req, res) => {
                 message: 'Please provide customer_ID, date, time, and location.' 
             });
         }
-
+dfssd
                  */
 
         const pool = await poolPromise;
@@ -1102,6 +1152,170 @@ const pickRR3 = async (req,res) =>{
 
 }
 
+//this is stuck as rr1
+const cloneBooking= async (req,res) =>{
+const { booking, customer_ID } = req.body.bookingId;
+
+const {
+  RR1_technician,
+  RR1_date,
+  RR1_time,
+  location,
+  numberOfUnits
+} = booking;
+
+const id = customer_ID;
+
+console.log({
+  customer_ID: id,
+  RR1_technician,
+  RR1_date,
+  RR1_time,
+  location,
+  numberOfUnits
+});
+        const pool = await poolPromise;
+const result = await pool.request()
+ .input('customer_ID', sql.Int, id)
+            .input('technician_ID', sql.Int, RR1_technician) 
+            .input('booking_date', sql.Date, RR1_date)
+.input('timing', sql.VarChar(50), RR1_time)
+  .input('location', sql.VarChar(100), location)
+  .input('status',sql.VarChar(100), 'confirmed' )
+  .input('comments',sql.VarChar(500),'Assisting another technician, through an RR')       
+        .input('time',sql.VarChar(8), '12:00:00')
+        .input('numberOfUnits',sql.Int,numberOfUnits)
+//clone RR1 data
+.query(`
+ INSERT INTO [new_jobBooking].[Booking]
+ (
+ customer_ID,
+date,
+    timing,
+      location,
+      comments,
+       technician_ID,   
+       status,
+       time,numberOfUnits
+       
+ )
+  OUTPUT INSERTED.booking_ID
+                VALUES (
+                @customer_ID,
+                @booking_date,
+                @timing,
+                @location,
+               @comments,
+                @technician_ID,
+               @status,
+               @time,
+               @numberOfUnits) `)}
+
+//clone rr2
+const clone2= async (req,res) =>{
+const { booking, customer_ID } = req.body.bookingId;
+const {
+  RR2_technician,
+  RR2_date,
+  RR2_time,
+  location,
+  numberOfUnits
+} = booking;
+
+const id = customer_ID;
 
 
-module.exports = {pickRR1,pickRR2,pickRR3, chooseRROption, getDashboard, getMyBookings, getMyUnits, registerUnit, getServices, getPlans, getMySubscriptions, getPromotions, getAddresses, createBooking, cancelBooking, getProfile, updateProfile,getINCOMING,updateIncomingBookingStatus };
+        const pool = await poolPromise;
+const result = await pool.request()
+ .input('customer_ID', sql.Int, id)
+            .input('technician_ID', sql.Int, RR2_technician) 
+            .input('booking_date', sql.Date, RR2_date)
+.input('timing', sql.VarChar(50), RR2_time)
+  .input('location', sql.VarChar(100), location)
+  .input('status',sql.VarChar(100), 'confirmed' )
+  .input('comments',sql.VarChar(500),'Assisting another technician, through an RR')       
+        .input('time',sql.VarChar(8), '12:00:00')
+        .input('numberOfUnits',sql.Int,numberOfUnits)
+.query(`
+ INSERT INTO [new_jobBooking].[Booking]
+ (
+ customer_ID,
+date,
+    timing,
+      location,
+      comments,
+       technician_ID,   
+       status,
+       time,numberOfUnits
+       
+ )
+  OUTPUT INSERTED.booking_ID
+                VALUES (
+                @customer_ID,
+                @booking_date,
+                @timing,
+                @location,
+               @comments,
+                @technician_ID,
+               @status,
+               @time,
+               @numberOfUnits) `)
+              console.log("finish clone rr2")}
+
+//clone3
+const clone3= async (req,res) =>{
+const { booking, customer_ID } = req.body.bookingId;
+const {
+  RR3_technician,
+  RR3_date,
+  RR3_time,
+  location,
+  numberOfUnits
+} = booking;
+
+const id = customer_ID;
+
+
+        const pool = await poolPromise;
+const result = await pool.request()
+ .input('customer_ID', sql.Int, id)
+            .input('technician_ID', sql.Int, RR3_technician) 
+            .input('booking_date', sql.Date, RR3_date)
+.input('timing', sql.VarChar(50), RR3_time)
+  .input('location', sql.VarChar(100), location)
+  .input('status',sql.VarChar(100), 'confirmed' )
+  .input('comments',sql.VarChar(500),'Assisting another technician, through an RR')       
+        .input('time',sql.VarChar(8), '12:00:00')
+        .input('numberOfUnits',sql.Int,numberOfUnits)
+.query(`
+ INSERT INTO [new_jobBooking].[Booking]
+ (
+ customer_ID,
+date,
+    timing,
+      location,
+      comments,
+       technician_ID,   
+       status,
+       time,numberOfUnits
+       
+ )
+  OUTPUT INSERTED.booking_ID
+                VALUES (
+                @customer_ID,
+                @booking_date,
+                @timing,
+                @location,
+               @comments,
+                @technician_ID,
+               @status,
+               @time,
+               @numberOfUnits) `)
+              console.log("finish clone rr2")}
+
+
+
+module.exports = {clone2,clone3,cloneBooking, pickRR1,pickRR2,pickRR3, chooseRROption, getDashboard, getMyBookings, getMyUnits, registerUnit, 
+  getServices, getPlans, getMySubscriptions, getPromotions, getAddresses, createBooking, cancelBooking, getProfile,
+   updateProfile,getINCOMING,updateIncomingBookingStatus,
+  getOtherAddresses,updateOtherAddress ,makeNewExtraAddress};

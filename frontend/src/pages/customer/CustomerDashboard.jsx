@@ -9,7 +9,7 @@ import {
   SnowfieldBackdrop,
 } from "../../components/customer/CustomerIcons";
 import { getDashboard, getMySubscriptions, getIncomingBookings,helpMyID
-  ,updateIncomingBookingStatus,chooseRROption, pickRR1,pickRR2, pickRR3
+  ,updateIncomingBookingStatus,chooseRROption, pickRR1,pickRR2, pickRR3, clone,clone2,clone3
  } from "../../api/customerApi";  //NOTE GET METHODS FROM CUSTOMER API
 import {
   describeBookingUnits,
@@ -20,6 +20,7 @@ import {
   statusTone,
 } from "../../data/customer/customerSelectors";
 import { useAuth } from "../../context/AuthContext";     //various watever imports ===============================================================================
+//import { clone2 } from "../../../../backend/src/controllers/customerController";
 //import { chooseRROption } from "../../../../backend/src/controllers/customerController";
 
 const getInitials = (name = "") =>
@@ -59,6 +60,7 @@ const [bookingActionError, setBookingActionError] = useState("");
   const [subsLoading, setSubsLoading] = useState(true);
   const [subsError, setSubsError] = useState("");
 
+  const [myID,setID]=useState(null)
 // get the proper incomings============================================================================================================
 
 useEffect(() => {
@@ -71,7 +73,7 @@ useEffect(() => {
 
       // Use the logged-in customer's actual ID.
       const customerId = user?.customer_ID ?? user?.customerId;
-
+      setID(customerId)
       if (!customerId) {
         throw new Error("Customer ID is missing from the logged-in user.");
       }
@@ -253,6 +255,11 @@ console.log("customer pick rr1 option");
     setProcessingId(null);
   }
 
+  console.log(booking)
+  //then call api method
+await clone({booking: booking,
+          customer_ID:helpMyID(),})
+  
 
 }
 
@@ -283,7 +290,8 @@ const pick_RR2 = async(booking)=>{
   } finally {
     setProcessingId(null);
   }
-
+await clone2({booking: booking,
+          customer_ID:helpMyID(),})
 
 }
 
@@ -313,7 +321,8 @@ const pick_RR3 = async(booking)=>{
     );
   } finally {
     setProcessingId(null);
-  }
+  }await clone3({booking: booking,
+          customer_ID:helpMyID(),})
 
 
 
@@ -322,6 +331,7 @@ const pick_RR3 = async(booking)=>{
 
 
 //merge into 1 method that take in the diff arguments
+//this method unused
 const pick_RR=async(booking,option)=>{
     console.log("clicked on merge method");
 
@@ -498,7 +508,7 @@ try {
       className="dash-btn dash-btn-ghost"
       style={{ color: "var(--danger, #c0392b)" }}
      
-      onClick={() => RR_redo(booking, "Pending")}
+      onClick={() => RR_redo(booking, "pending")}
     >
       
      Request another date
