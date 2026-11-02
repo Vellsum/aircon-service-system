@@ -349,6 +349,22 @@ next: make it so that when customer make address, their prompted the sepearate p
 - works too on profile page, front n backend ends too
 - works when customer book service, can pick the multiple addresses
 
+remaining backlog;
+services names in booking table for technician to see, in their dashboard
+
+parts used full functionalities
+job/service histories full functionality 
+
+admin crud promo n subscriptions
+customer subscription full functonality
+
+
+lets do this next - booking to show the services booked (combine string of services n put in a new column)
+- its gone into the db, now can show out in managebooking table
+- now admin can see it
+
+2.24pm, im distracted by youtube shorts
+- now thought of making technician side show it [done]
 
 
 
@@ -370,6 +386,9 @@ frontend for customer to accept incoming (status as request reschddule) [DONE DO
 
 >>remove homepage dummy datas  [DONE DONE DONE]
 >> when customer book, promocodes below
+
+1pm - pulled billie's branch,he gonna continue test reports
+now its me n sum with latest build
 
 
 

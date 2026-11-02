@@ -446,8 +446,9 @@ function TechnicianAssignedJobs() {
                     <tr>
                       <th scope="col" className="ps-4">JOB ID</th>
                       <th scope="col">CUSTOMER</th>
-                      <th scope="col">SERVICE &amp; EQUIPMENT</th>
+                {/**<th scope="col">SERVICE &amp; EQUIPMENT</th> */}      
                       <th scope="col">DATE &amp; TIME</th>
+    {/**new part */}                  <th scope="col">services booked</th>
                       <th scope="col">STATUS</th>
                       <th scope="col" className="text-end pe-4">ACTIONS</th>
                     </tr>

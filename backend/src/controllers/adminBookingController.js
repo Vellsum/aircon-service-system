@@ -102,7 +102,7 @@ exports.getAllBookings = async (req, res) => {
         b.estimateTotalTime_minutes,
         b.estimateTotalCost,
         b.reasonOfReassignment,
-        
+        b.servicesBooked,
 
         ISNULL(c.customer_name, 'Guest Customer') AS customer_name,
         ISNULL(tech.technician_name, 'Unassigned') AS technician_name

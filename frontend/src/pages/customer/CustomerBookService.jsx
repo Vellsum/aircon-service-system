@@ -250,11 +250,16 @@ const submitBooking = async () => {
           // Save the final calculated values
   //  setEstimatedTotalTime(totalEstimatedTime);
     //setEstimatedTotalCost(pricing.total); 
-
+const selectedServiceNames = services
+  .filter((service) => serviceIds.includes(service.service_id))
+  .map((service) => service.service_name)
+  .join(", ");
 
       const res = await createBooking({
         customer_ID: helpMyID(),//it should be customer id, not service id
        // serviceIds: serviceIds,     
+         services: selectedServiceNames, // ADD THIS
+
         numberOfUnits: numberOfUnits,  //number of units to update in controller
         date,
         time: slot,  //morning or afternooon thats going into timing column

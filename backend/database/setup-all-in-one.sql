@@ -159,6 +159,8 @@ CREATE TABLE new_jobBooking.Booking (
 RR3_date DATE,RR3_time VARCHAR(50) , RR3_technician int,
 RR_expiry date,
 
+servicesBooked VARCHAR(300),
+
 
   CONSTRAINT FK_bk_customer FOREIGN KEY (customer_ID) REFERENCES user3.newCustomer(customer_ID),
   CONSTRAINT FK_bk_tech FOREIGN KEY (technician_ID) REFERENCES user3.technician(technician_ID)
@@ -186,6 +188,19 @@ RR_expiry date,
     booking_ID INT,
     service_id int --wat services is in the booking
   );
+
+-- One customer-submitted rating per booking; technician attribution is frozen at submission.
+CREATE TABLE new_jobBooking.bookingRating (
+  booking_ID INT NOT NULL,
+  customer_ID INT NOT NULL,
+  technician_ID INT NOT NULL,
+  stars INT NOT NULL,
+  submittedAt DATETIME2(7) NOT NULL CONSTRAINT DF_bookingRating_submittedAt DEFAULT (SYSUTCDATETIME()),
+  CONSTRAINT PK_bookingRating PRIMARY KEY (booking_ID),
+  CONSTRAINT FK_bookingRating_booking FOREIGN KEY (booking_ID) REFERENCES new_jobBooking.Booking(booking_ID),
+  CONSTRAINT FK_bookingRating_customer FOREIGN KEY (customer_ID) REFERENCES user3.newCustomer(customer_ID),
+  CONSTRAINT FK_bookingRating_technician FOREIGN KEY (technician_ID) REFERENCES user3.technician(technician_ID),
+  CONSTRAINT CK_bookingRating_stars CHECK (stars BETWEEN 1 AND 5));
 
 CREATE TABLE new_jobBooking.partsUsed (reportID INT NOT NULL, itemID INT NOT NULL, PRIMARY KEY (reportID, itemID));
 CREATE TABLE new_jobBooking.work (job_ID INT NOT NULL, booking_ID INT NOT NULL, PRIMARY KEY (job_ID, booking_ID),

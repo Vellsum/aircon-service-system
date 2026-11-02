@@ -43,6 +43,7 @@ const columns = [
   {key: "totalTime", label: "total time"},
   {key: "totalCost", label: "total cost"},
   {key: "reassignmentReason", label: "reason for reassignment"},
+  {key: "servicesBooked",label:"Services Booked"},
   //the html gets key from here
 ];
 
@@ -128,6 +129,7 @@ const AssignTechnician = () => {
                 totalTime: b.estimateTotalTime_minutes,
                 totalCost: b.estimateTotalCost,
                 reassignmentReason: b.reasonOfReassignment,
+                servicesBooked: b.servicesBooked,
 
                 customer_ID: b.customer_ID,
                 assisting: b.assisting,
@@ -1028,7 +1030,8 @@ console.log("able to call method")
                         {/**number of units */} <td> {booking.NO_U}</td> {/**not showing properly */}
                         {/**total time */} <td> {booking.totalTime}</td>
                         {/**total cost */} <td> { booking.totalCost} </td>
-                        {/**reason for reassignment */} <td> {booking.reassignmentReason} </td>                   
+                        {/**reason for reassignment */} <td> {booking.reassignmentReason} </td>    
+                        <td>{booking.servicesBooked}</td>               
                         
 
 

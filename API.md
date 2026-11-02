@@ -49,6 +49,15 @@ POST /api/auth/reset-password
 
 2. Customer — /api/customer (all take ?customerId= where noted)
 
+Customer ratings: `GET /customer/bookings` and `POST /customer/bookings/:bookingId/rate`
+require the existing login JWT in `Authorization: Bearer <token>`. The server verifies
+signature/expiry and resolves an active Customer from its signed user ID. Query/body
+customer IDs do not authorize these two routes; `/bookings` returns the authenticated
+customer's bookings. Other existing Customer routes retain their current contracts.
+Apply `backend/database/migrations/add-booking-ratings.sql` in a separately approved
+database phase before starting the updated backend. Missing storage is an error, not
+an unrated result. Do not run the destructive all-in-one setup against existing data.
+
 Method	         Path	                                 Purpose
 GET     	/customer/dashboard	                  Everything for the dashboard in one call
 GET	      /customer/bookings	                  All bookings (wizard shape: unit_ids, technician, report)
@@ -85,8 +94,39 @@ Only Pending/Confirmed/Scheduled/Assigned. 400: A Completed booking can no longe
 
 POST /customer/bookings/:bookingId/rate
 { "stars": 4 }
-Completed-only, once per booking; recomputes technician average.400: You already rated this service.
-/ You can only rate completed services.
+201: { "success": true, "rating": { "booking_ID": 1014, "stars": 4,
+  "technicianID": 104, "submittedAt": "<server UTC timestamp>" } }
+Completed-only; `stars` must be a JSON integer 1–5. One immutable rating per booking,
+enforced by the bookingRating primary key and transactional validation. No edit route.
+400: You already rated this service. / You can only rate completed services.
+400 also covers invalid input and missing/shared/conflicting work/job/report attribution.
+401: missing, invalid or expired login JWT. 403: non-Customer/inactive/ambiguous account.
+404: booking absent or not owned by the authenticated customer. 500: storage/database failure.
+
+The performed technician comes from the booking's exclusive work/job/report links:
+every target job requires a valid report, reports must not link to other bookings,
+and all reports must identify one technician. That ID is frozen in bookingRating;
+later assignment changes do not move the rating. Current Booking.technician_ID and
+client-supplied technician IDs are not attribution fallbacks.
+
+GET /customer/bookings readback preserves existing booking fields and adds:
+`rating: { stars, technicianID, submittedAt }`, or `rating: null` after successful
+retrieval confirms no rating for that owned booking. Feedback is independent of
+the report-summary field. Database failure returns an error, never success/empty.
+
+When a booking has a technician, `booking.technician` also includes
+`customerRatingAverage` (number or null) and `customerReviewCount` (non-negative integer).
+For example: `{ "customerRatingAverage": 4.0, "customerReviewCount": 3 }`.
+The aggregate is calculated directly from valid bookingRating rows attributed to that
+technician's frozen ID, independently of work/job joins. Successful no-review values
+are null / 0; missing or malformed fields mean unavailable, not zero reviews.
+Existing technician fields, including legacy `rating` and `jobs_done`, are retained.
+My Bookings cards and the shared details modal use only the aggregate fields for the
+technician's overall rating. Top-level `booking.rating` remains the customer's own
+feedback for that visit, labelled "Your service rating"; it is not an average.
+Rating entry is implemented only in My Bookings for completed, confirmed-unrated
+bookings. Other shared-modal callers cannot enable submission merely by omitting
+`rating`. The standalone Customer Dashboard rating card remains a legacy display.
 
 POST /customer/units?customerId=205
 { "brand": "Daikin", "model": "FTKM50", "type": "Split", "serialNumber": "SN-001" }
@@ -123,6 +163,19 @@ GET /technician/jobs?techId=104
 "formattedDate": "Tue, 13 Oct 2026", "time": "9:00 AM", "time24": "09:00",    
 "estimatedDuration": "60 mins", "timeframe": "this-week",  
 "status": "Scheduled", "address": "...", "isFollowup": false, "notes": "..." } ] }
+
+GET /technician/profile?techId=104 preserves existing profile fields and adds
+`customerRatingAverage` (decimal number or null) and `customerReviewCount` (integer).
+Example: average 4.5 / count 2. Successful no-review result: null / 0.
+These aggregates come only from valid bookingRating rows, once per rated booking,
+without joining job/work rows. `technicianRating` remains the legacy stored score
+for compatibility; it is not customer feedback and is excluded from the aggregate.
+Database/missing-table/query failures return HTTP 500, not a successful zero-review result.
+This profile GET retains its existing identity/access contract; it has not gained
+server-side owner authorization in this phase. Technician Dashboard, Performance and
+Profile now display the genuine customer average/review count, distinguish loading,
+no reviews and unavailable data, and never substitute the stored profile score.
+Rating edits and detailed customer-feedback analytics are not provided by this flow.
 
 PUT /technician/jobs/:bookingId/status
 { "status": "In Progress" }
@@ -247,7 +300,7 @@ Candidate for removal at cleanup — confirm nothing imports them first.
 3	Report gate — Complete requires a service report (any link style)	   PUT technician status	        400
 4	Report timing — reports only while In Progress	                     POST reports  	                400
 5	Follow-up auto-booking — flagging creates the return visit	         POST reports	               automatic
-6	Rating — Completed only, once, avg → technician_rating               POST rate	                    400
+6	Rating — owned Completed booking, once; bookingRating average/count   POST rate	                    400
 7	Cancel — open bookings only, owner-only	                             PUT cancel	                    400
 8	Double-booking — same tech + same date AND time	                     PUT admin status	              409
 9	Job-link guarantee — every booking gets job+work rows	admin          POST/PUT, customer POST	    automatic

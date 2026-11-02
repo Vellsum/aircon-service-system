@@ -59,6 +59,7 @@ const bookingSelect = (top = 0) => `
     t.technician_name,
     ISNULL(t.technician_rating, 5) AS technician_rating,
     ISNULL(t.jobsDone, 0) AS jobsDone,
+    ratings.customerRatingAverage, ratings.customerReviewCount,
     svc.service_name, ISNULL(svc.amount, 0) AS amount,
     rep.report_summary
 
@@ -66,6 +67,12 @@ const bookingSelect = (top = 0) => `
 
   FROM [new_jobBooking].[Booking] b
   LEFT JOIN [user3].[technician] t ON t.technician_ID = b.technician_ID
+  OUTER APPLY (
+    SELECT AVG(CAST(r.stars AS DECIMAL(10, 4))) AS customerRatingAverage,
+           COUNT(*) AS customerReviewCount
+      FROM [new_jobBooking].[bookingRating] r
+     WHERE r.technician_ID = t.technician_ID AND r.stars BETWEEN 1 AND 5
+  ) ratings
   OUTER APPLY (
     SELECT STRING_AGG(ISNULL(s.service_name, 'Aircon Service'), ', ') AS service_name,
            SUM(ISNULL(s.price, 0)) AS amount
@@ -97,7 +104,8 @@ function shapeBooking(row, customerUnits = []) {
     unit_ids: customerUnits.map((u) => u.installed_ID),
     units: customerUnits.map((u) => u.nickname),
     technician: row.technician_name
-      ? { name: row.technician_name, rating: Number(row.technician_rating), jobs_done: Number(row.jobsDone) }
+      ? { name: row.technician_name, rating: Number(row.technician_rating), jobs_done: Number(row.jobsDone),
+          customerRatingAverage: row.customerRatingAverage, customerReviewCount: row.customerReviewCount }
       : null,
     report: row.report_summary ? { summary: row.report_summary } : null,
 
@@ -355,20 +363,133 @@ const getDashboard = async (req, res) => {
   }
 };
 
-/* GET /api/customer/bookings?customerId=# */
+/* GET /api/customer/bookings — identity comes from the verified login token. */
 const getMyBookings = async (req, res) => {
   try {
+    const customerID = req.ratingCustomer?.customerID;
+    if (!Number.isSafeInteger(customerID) || customerID <= 0) {
+      return res.status(401).json({ success: false, message: 'Customer authentication is required.' });
+    }
     const pool = await poolPromise;
-    if (!pool) return res.status(200).json({ success: true, bookings: [] });
-    const customer = await resolveCustomer(pool, parseInt(req.query.customerId, 10) || 1);
-    if (!customer) return res.status(404).json({ success: false, message: 'Customer profile not found' });
-    const result = await pool.request().input('cid', sql.Int, customer.customer_ID).query(
+    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
+    const result = await pool.request().input('cid', sql.Int, customerID).query(
       `${bookingSelect()} WHERE b.customer_ID = @cid ORDER BY b.[date] DESC, b.[time] DESC`);
-    const unitList = await getCustomerUnits(pool, customer.customer_ID);
-    res.status(200).json({ success: true, bookings: (result.recordset || []).map((r) => shapeBooking(r, unitList)) });
+    const ratings = await pool.request().input('cid', sql.Int, customerID).query(`
+      SELECT r.booking_ID, r.stars, r.technician_ID AS technicianID, r.submittedAt
+      FROM [new_jobBooking].[bookingRating] r
+      JOIN [new_jobBooking].[Booking] b ON b.booking_ID = r.booking_ID
+      WHERE b.customer_ID = @cid AND r.customer_ID = @cid
+    `);
+    const ratingByBooking = new Map(ratings.recordset.map(({ booking_ID, ...rating }) => [booking_ID, rating]));
+    const unitList = await getCustomerUnits(pool, customerID);
+    res.status(200).json({ success: true, bookings: (result.recordset || []).map((r) => ({
+      ...shapeBooking(r, unitList), rating: ratingByBooking.get(r.booking_ID) || null,
+    })) });
   } catch (err) {
     console.error('[Cool Fix] GET Customer Bookings Error:', err.message);
     res.status(500).json({ success: false, message: err.message, bookings: [] });
+  }
+};
+
+/* POST /api/customer/bookings/:bookingId/rate — once per completed booking. */
+const rateBooking = async (req, res) => {
+  let transaction;
+  let transactionOpen = false;
+  try {
+    const customerID = req.ratingCustomer?.customerID;
+    if (!Number.isSafeInteger(customerID) || customerID <= 0) {
+      return res.status(401).json({ success: false, message: 'Customer authentication is required.' });
+    }
+    const reference = String(req.params.bookingId || '');
+    const bookingID = /^\d+$/.test(reference) ? Number(reference) : NaN;
+    const stars = req.body?.stars;
+    if (!Number.isSafeInteger(bookingID) || bookingID <= 0 || bookingID > 2147483647) {
+      return res.status(400).json({ success: false, message: 'A valid booking ID is required.' });
+    }
+    if (!Number.isInteger(stars) || stars < 1 || stars > 5) {
+      return res.status(400).json({ success: false, message: 'Stars must be an integer from 1 to 5.' });
+    }
+    const pool = await poolPromise;
+    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
+    transaction = new sql.Transaction(pool);
+    transaction.on('rollback', () => { transactionOpen = false; });
+    await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+    transactionOpen = true;
+
+    const bookingResult = await new sql.Request(transaction).input('bid', sql.Int, bookingID).query(`
+      SELECT booking_ID, customer_ID, [status]
+      FROM [new_jobBooking].[Booking] WITH (UPDLOCK, HOLDLOCK)
+      WHERE booking_ID = @bid
+    `);
+    const booking = bookingResult.recordset[0];
+    if (!booking || booking.customer_ID !== customerID) {
+      throw Object.assign(new Error('Booking not found for this customer.'), { statusCode: 404 });
+    }
+    if (String(booking.status).trim().toLowerCase() !== 'completed') {
+      throw Object.assign(new Error('You can only rate completed services.'), { statusCode: 400 });
+    }
+    const existing = await new sql.Request(transaction).input('bid', sql.Int, bookingID).query(`
+      SELECT booking_ID FROM [new_jobBooking].[bookingRating] WITH (UPDLOCK, HOLDLOCK)
+      WHERE booking_ID = @bid
+    `);
+    if (existing.recordset.length) {
+      throw Object.assign(new Error('You already rated this service.'), { statusCode: 400 });
+    }
+
+    // Every target job must have an exclusive, valid report relationship.
+    // Attribute the visit to its report technician, never to a later reassignment.
+    const links = await new sql.Request(transaction).input('bid', sql.Int, bookingID).query(`
+      SELECT j.job_ID, j.serviceReport, sr.reportID, sr.technicianID,
+        t.technician_ID AS performedTechnicianID,
+        (SELECT COUNT(*) FROM [new_jobBooking].[work] ow WITH (UPDLOCK, HOLDLOCK)
+         WHERE ow.job_ID = w.job_ID AND ow.booking_ID <> @bid) AS otherBookingCount,
+        (SELECT COUNT(*) FROM [new_jobBooking].[job] rj WITH (UPDLOCK, HOLDLOCK)
+         JOIN [new_jobBooking].[work] rw WITH (UPDLOCK, HOLDLOCK) ON rw.job_ID = rj.job_ID
+         WHERE rj.serviceReport = sr.reportID AND rw.booking_ID <> @bid) AS otherReportBookingCount
+      FROM [new_jobBooking].[work] w WITH (UPDLOCK, HOLDLOCK)
+      LEFT JOIN [new_jobBooking].[job] j WITH (UPDLOCK, HOLDLOCK) ON j.job_ID = w.job_ID
+      LEFT JOIN [new_jobBooking].[serviceReport] sr WITH (UPDLOCK, HOLDLOCK) ON sr.reportID = j.serviceReport
+      LEFT JOIN [user3].[technician] t WITH (HOLDLOCK) ON t.technician_ID = sr.technicianID
+      WHERE w.booking_ID = @bid
+      ORDER BY j.job_ID
+    `);
+    const jobs = links.recordset;
+    if (!jobs.length || new Set(jobs.map(j => j.job_ID)).size !== jobs.length
+      || jobs.some(j => !Number.isSafeInteger(j.job_ID) || j.job_ID <= 0
+        || !Number.isSafeInteger(j.reportID) || j.reportID <= 0 || j.reportID !== j.serviceReport
+        || !Number.isSafeInteger(j.technicianID) || j.technicianID <= 0
+        || j.technicianID !== j.performedTechnicianID
+        || j.otherBookingCount !== 0 || j.otherReportBookingCount !== 0)
+      || new Set(jobs.map(j => j.technicianID)).size !== 1) {
+      throw Object.assign(new Error('Performed technician attribution is unavailable or ambiguous.'), { statusCode: 400 });
+    }
+    const technicianID = jobs[0].technicianID;
+    const inserted = await new sql.Request(transaction)
+      .input('bid', sql.Int, bookingID).input('cid', sql.Int, customerID)
+      .input('tid', sql.Int, technicianID).input('stars', sql.Int, stars)
+      .query(`
+        INSERT INTO [new_jobBooking].[bookingRating] (booking_ID, customer_ID, technician_ID, stars)
+        OUTPUT INSERTED.booking_ID, INSERTED.stars, INSERTED.technician_ID AS technicianID, INSERTED.submittedAt
+        VALUES (@bid, @cid, @tid, @stars)
+      `);
+    const rating = inserted.recordset[0];
+    if (inserted.recordset.length !== 1 || rating.booking_ID !== bookingID
+      || rating.stars !== stars || rating.technicianID !== technicianID || !rating.submittedAt) {
+      throw new Error('Rating insertion could not be verified.');
+    }
+    await transaction.commit();
+    transactionOpen = false;
+    return res.status(201).json({ success: true, rating });
+  } catch (err) {
+    if (transactionOpen) {
+      try { await transaction.rollback(); }
+      catch { return res.status(500).json({ success: false, message: 'Rating transaction could not be rolled back.' }); }
+    }
+    const duplicate = [2601, 2627].includes(err.number || err.originalError?.info?.number);
+    return res.status(duplicate ? 400 : err.statusCode || 500).json({
+      success: false,
+      message: duplicate ? 'You already rated this service.' : err.statusCode ? err.message : 'Rating could not be saved.',
+    });
   }
 };
 
@@ -677,7 +798,7 @@ const createBooking = async (req, res) => {
                 comments,
                 //promocode cannot really, its a frontend calculation thing
                 estimatedtotalcost, 
-                estimatedtotaltime} = req.body; //these things take name from frontend 
+                estimatedtotaltime,services} = req.body; //these things take name from frontend 
                 /**
                  * console.log("Required booking fields:", {
     customer_ID,
@@ -699,6 +820,7 @@ dfssd
         // technician_ID is set to NULL until assigned by Admin
         const result = await pool.request() //prepare the inputs
             .input('customer_ID', sql.Int, customer_ID)
+            .input('services', sql.VarChar(300),services)
             //no service id here
             .input('numberOfUnits', sql.Int,numberOfUnits) //number of units column
             .input('date', sql.Date, date)
@@ -725,7 +847,7 @@ dfssd
                                                         technician_ID,      
                                                            isFollowup, 
                                                             status,
-                                                            time)
+                                                            time,servicesBooked)
                
                 OUTPUT INSERTED.booking_ID
                 VALUES (@customer_ID,
@@ -739,7 +861,7 @@ dfssd
                  @technician_ID, 
                   @isFollowup,
                     @status,
-                    @time)
+                    @time, @services)
             `); //these @ ones refer to the input method on top
 
         const newBookingId = result.recordset[0].booking_ID;
@@ -1315,7 +1437,7 @@ date,
 
 
 
-module.exports = {clone2,clone3,cloneBooking, pickRR1,pickRR2,pickRR3, chooseRROption, getDashboard, getMyBookings, getMyUnits, registerUnit, 
+module.exports = {clone2,clone3,cloneBooking, pickRR1,pickRR2,pickRR3, chooseRROption, getDashboard, getMyBookings, rateBooking, getMyUnits, registerUnit, 
   getServices, getPlans, getMySubscriptions, getPromotions, getAddresses, createBooking, cancelBooking, getProfile,
    updateProfile,getINCOMING,updateIncomingBookingStatus,
   getOtherAddresses,updateOtherAddress ,makeNewExtraAddress};

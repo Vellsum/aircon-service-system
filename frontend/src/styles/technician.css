@@ -359,6 +359,20 @@
   color: var(--primary-600);
 }
 
+.technician-portal-wrapper .cf-customer-rating-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.technician-portal-wrapper .cf-customer-rating-star {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  fill: #f5b301;
+  stroke: #f5b301;
+}
+
 .kpi-stat-value {
   font-size: 1.3rem;
   font-weight: 700;
@@ -2742,7 +2756,8 @@
 
 /* Keep native controls; reserve text space for one inset, non-interactive chevron. */
 .technician-submit-report-page select.report-control,
-.technician-follow-up-page .follow-up-status-field select {
+.technician-follow-up-page .follow-up-status-field select,
+.technician-parts-log-page .parts-log-type-field > select {
   appearance: none;
   padding-right: 48px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%23666666' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -3079,50 +3094,49 @@
   font-size: 0.74rem;
 }
 
-.cf-history-detail-grid {
+.technician-job-history-detail .cf-history-detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.7fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 1rem;
 }
 
-.cf-history-information-grid {
+.technician-job-history-detail .cf-history-information-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 1.5rem;
   margin: 0;
   padding: 0.25rem 1.25rem 1.25rem;
 }
 
-.cf-history-information-grid > div {
-  min-height: 90px;
-  padding: 1rem;
-  border-right: 1px solid var(--cf-border);
+.technician-job-history-detail .cf-history-information-grid > div {
+  min-width: 0;
+  padding: 1rem 0;
   border-bottom: 1px solid var(--cf-border);
 }
 
-.cf-history-information-grid > div:nth-child(3n) {
-  border-right: 0;
+.technician-job-history-detail .cf-history-field-wide {
+  grid-column: 1 / -1;
 }
 
-.cf-history-information-grid > div:nth-last-child(-n + 3) {
-  border-bottom: 0;
-}
-
-.cf-history-information-grid dt {
-  color: var(--cf-muted);
-  font-size: 0.66rem;
+.technician-job-history-detail .cf-history-information-grid dt {
+  color: var(--cf-heading);
+  font-size: 0.875rem;
   font-weight: 600;
+  line-height: 1.5;
 }
 
-.cf-history-information-grid dd {
-  margin: 0.35rem 0 0;
+.technician-job-history-detail .cf-history-information-grid dd {
+  margin: 0.5rem 0 0;
   color: var(--cf-text);
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
 }
 
-.cf-history-feedback-card {
-  overflow: hidden;
+.technician-job-history-detail .cf-history-feedback-card {
+  overflow: visible;
 }
 
 .cf-history-rating-placeholder {
@@ -3456,9 +3470,6 @@
     grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(135px, 0.55fr)) auto;
   }
 
-  .cf-history-detail-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 767.98px) {
@@ -3624,24 +3635,8 @@
     justify-self: start;
   }
 
-  .cf-history-information-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .cf-history-information-grid > div:nth-child(3n) {
-    border-right: 1px solid var(--cf-border);
-  }
-
-  .cf-history-information-grid > div:nth-child(2n) {
-    border-right: 0;
-  }
-
-  .cf-history-information-grid > div:nth-last-child(-n + 3) {
-    border-bottom: 1px solid var(--cf-border);
-  }
-
-  .cf-history-information-grid > div:nth-last-child(-n + 2) {
-    border-bottom: 0;
+  .technician-job-history-detail .cf-history-information-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -3762,22 +3757,6 @@
   .cf-history-filter-grid .job-history-search-field,
   .cf-history-reset {
     grid-column: 1;
-  }
-
-  .cf-history-information-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .cf-history-information-grid > div,
-  .cf-history-information-grid > div:nth-child(2n),
-  .cf-history-information-grid > div:nth-child(3n),
-  .cf-history-information-grid > div:nth-last-child(-n + 2) {
-    border-right: 0;
-    border-bottom: 1px solid var(--cf-border);
-  }
-
-  .cf-history-information-grid > div:last-child {
-    border-bottom: 0;
   }
 
   .cf-modal-detail-grid {
@@ -11059,6 +11038,20 @@ textarea.report-control {
 .technician-parts-log-page {
   min-width: 0;
   color: var(--cf-text);
+  font-weight: 400;
+}
+
+.parts-log-page-header h1 {
+  font-weight: 600;
+}
+
+.technician-parts-log-page .cf-eyebrow,
+.technician-parts-log-page .cf-widget-kicker,
+.technician-parts-log-page .job-status-badge,
+.technician-parts-log-page .cf-button,
+.parts-log-details-modal .cf-eyebrow,
+.parts-log-details-modal .job-status-badge {
+  font-weight: 500;
 }
 
 .parts-log-page-header {
@@ -11228,19 +11221,20 @@ textarea.report-control {
 .parts-log-field > label {
   display: block;
   margin-bottom: 0.38rem;
-  color: #60706c;
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--cf-heading);
+  font-size: 0.8125rem;
+  font-weight: 500;
 }
 
 .parts-log-field > input,
 .parts-log-field > select,
 .parts-log-search-control {
   width: 100%;
+  height: 44px;
   min-height: 44px;
   border: 1px solid var(--cf-border-strong);
   border-radius: 8px;
-  background: #ffffff;
+  background-color: #ffffff;
   color: var(--cf-text);
 }
 
@@ -11278,6 +11272,8 @@ textarea.report-control {
 
 /* The search wrapper owns the sole visible boundary and focus ring. */
 .technician-content-area .technician-parts-log-page .parts-log-search-control input[type="search"] {
+  min-height: 0;
+  height: 42px;
   border: 0;
   border-radius: 0;
   outline: 0;
@@ -11320,6 +11316,7 @@ textarea.report-control {
 .parts-log-reset-button {
   min-width: 104px;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .parts-log-table-view {
@@ -11541,7 +11538,7 @@ textarea.report-control {
   margin: 0;
   color: var(--cf-heading);
   font-size: 0.95rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .parts-log-empty-state p {
@@ -11570,6 +11567,17 @@ textarea.report-control {
 }
 
 .parts-log-details-modal {
+  --cf-surface: #ffffff;
+  --cf-surface-soft: #f7f9fc;
+  --cf-primary: #2e6ff2;
+  --cf-primary-strong: #255dcc;
+  --cf-primary-soft: #edf3ff;
+  --cf-text: #101828;
+  --cf-heading: #101828;
+  --cf-muted: #5d6b7e;
+  --cf-border: #d8dee6;
+  --cf-border-strong: #c7d0dd;
+  --cf-shadow-raised: 0 16px 40px rgba(16, 24, 40, 0.16);
   overflow: hidden;
   border: 1px solid var(--cf-border);
   border-radius: 15px;
@@ -11590,7 +11598,8 @@ textarea.report-control {
 .parts-log-modal-header .modal-title {
   color: var(--cf-heading);
   font-size: 1.2rem;
-  font-weight: 700;
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 .parts-log-modal-header p {
@@ -11601,6 +11610,8 @@ textarea.report-control {
 
 .parts-log-modal-body {
   display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 0.85rem;
   padding: 1rem !important;
   background: #f7f9f8;
@@ -11617,8 +11628,9 @@ textarea.report-control {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  padding: 0.8rem 0.9rem;
+  padding: 0.65rem 0.9rem;
   border-bottom: 1px solid var(--cf-border);
+  background: var(--cf-surface-soft);
 }
 
 .parts-log-modal-section-icon {
@@ -11636,55 +11648,46 @@ textarea.report-control {
 .parts-log-modal-section header span:not(.parts-log-modal-section-icon) {
   color: var(--cf-muted);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .parts-log-modal-section h3 {
   margin: 0.1rem 0 0;
-  color: var(--cf-heading);
-  font-size: 0.9rem;
-  font-weight: 700;
+  color: var(--cf-primary-strong);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .parts-log-modal-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 0.9rem;
   margin: 0;
 }
 
 .parts-log-modal-grid > div {
   min-width: 0;
-  min-height: 74px;
-  padding: 0.78rem 0.9rem;
-  border-right: 1px solid var(--cf-border);
-  border-bottom: 1px solid var(--cf-border);
-}
-
-.parts-log-modal-grid > div:nth-child(2n) {
-  border-right: 0;
-}
-
-.parts-log-modal-grid > div:nth-last-child(-n + 2) {
-  border-bottom: 0;
 }
 
 .parts-log-modal-grid > .parts-log-modal-wide {
   grid-column: 1 / -1;
-  border-right: 0;
 }
 
 .parts-log-modal-grid dt {
   color: var(--cf-muted);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .parts-log-modal-grid dd {
-  margin: 0.25rem 0 0;
+  margin: 5px 0 0;
   color: var(--cf-text);
-  font-size: 0.78rem;
-  font-weight: 700;
-  line-height: 1.4;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
@@ -11693,7 +11696,7 @@ textarea.report-control {
   margin-top: 0.12rem;
   color: var(--cf-muted);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .parts-log-modal-footer {
@@ -11704,6 +11707,7 @@ textarea.report-control {
 
 .parts-log-modal-footer .cf-button {
   min-width: 96px;
+  font-weight: 500;
 }
 
 .technician-parts-log-page :is(input, select):focus-visible {
@@ -11812,16 +11816,6 @@ textarea.report-control {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .parts-log-modal-grid > div,
-  .parts-log-modal-grid > div:nth-child(2n) {
-    border-right: 0;
-    border-bottom: 1px solid var(--cf-border);
-  }
-
-  .parts-log-modal-grid > div:last-child {
-    border-bottom: 0;
-  }
-
   .parts-log-workspace-footer {
     align-items: flex-start;
     flex-direction: column;
@@ -11855,12 +11849,14 @@ textarea.report-control {
   min-width: min(100%, 430px);
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0;
-  border-block: 1px solid #e9eeec;
+  border: 1px solid var(--cf-border);
+  border-radius: 6px;
+  background: #ffffff;
 }
 
 .parts-log-inline-metrics > div {
   min-width: 0;
-  padding: 0.55rem 0.9rem;
+  padding: 0.75rem 0.9rem;
   border-left: 1px solid #e9eeec;
 }
 
@@ -11869,40 +11865,44 @@ textarea.report-control {
 }
 
 .parts-log-inline-metrics dt {
-  color: var(--cf-muted);
-  font-size: 12px;
-  font-weight: 600;
+  color: var(--cf-heading);
+  font-size: 0.8125rem;
+  font-weight: 500;
   line-height: 1.3;
 }
 
 .parts-log-inline-metrics dd {
-  margin: 0.18rem 0 0;
+  margin: 0.4rem 0 0;
   color: var(--cf-heading);
-  font-size: 1.08rem;
-  font-weight: 700;
+  font-size: 1.25rem;
+  font-weight: 400;
   line-height: 1;
 }
 
 .parts-log-utility-bar {
-  margin-bottom: 0;
-  padding: 0.78rem 1.2rem;
-  border-bottom: 1px solid #e9eeec;
-  background: #f8fafc;
+  margin-bottom: 1rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--cf-border);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.parts-log-utility-bar > h2 {
+  margin: 0 0 1rem;
+  color: var(--cf-heading);
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 .parts-log-utility-bar .parts-log-toolbar {
   display: grid;
   width: 100%;
-  grid-template-columns: minmax(280px, 1fr) 160px minmax(300px, 0.82fr);
+  grid-template-columns: minmax(0, 1.4fr) minmax(180px, 0.65fr) minmax(300px, 1fr);
   align-items: end;
   gap: 0.75rem;
   padding: 0;
   border: 0;
   background: transparent;
-}
-
-.parts-log-utility-bar .parts-log-toolbar.has-reset {
-  grid-template-columns: minmax(280px, 1fr) 160px minmax(300px, 0.82fr) auto;
 }
 
 .parts-log-date-range {
@@ -11919,7 +11919,7 @@ textarea.report-control {
   padding: 0;
   color: var(--cf-muted);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.25;
 }
 
@@ -11933,9 +11933,8 @@ textarea.report-control {
 .parts-log-date-range .parts-log-date-field {
   display: grid;
   min-width: 0;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 0.4rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.38rem;
 }
 
 .parts-log-date-range .parts-log-date-field label {
@@ -11949,48 +11948,53 @@ textarea.report-control {
 
 .parts-log-toolbar-actions {
   display: flex;
-  min-height: 44px;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.6rem;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--cf-border);
 }
 
 .parts-log-filter-result {
   display: flex;
-  min-width: max-content;
+  min-width: 0;
   align-items: baseline;
   gap: 0.3rem;
   color: var(--cf-muted);
   font-size: 12px;
   line-height: 1.25;
-  white-space: nowrap;
+  flex-wrap: wrap;
 }
 
 .parts-log-filter-result strong {
   color: var(--cf-heading);
   font-size: 0.9rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .parts-log-ledger {
   display: grid;
   min-width: 0;
-  min-height: 470px;
-  grid-template-columns: minmax(290px, 36%) minmax(0, 64%);
-  overflow: hidden;
+  grid-template-columns: minmax(260px, 3fr) minmax(0, 7fr);
+  align-items: start;
+  gap: 16px;
   border: 0;
   border-radius: 0;
-  background: #ffffff;
+  background: transparent;
   box-shadow: none;
 }
 
 .parts-log-report-panel,
 .parts-log-detail-panel {
   min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--cf-border);
+  border-radius: 6px;
 }
 
 .parts-log-report-panel {
-  border-right: 1px solid var(--cf-border);
   background: #ffffff;
 }
 
@@ -12001,11 +12005,11 @@ textarea.report-control {
 
 .parts-log-panel-header {
   display: flex;
-  min-height: 70px;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.82rem 1rem;
+  padding: 1rem;
+  background: var(--cf-surface-soft);
 }
 
 .parts-log-panel-header h2,
@@ -12013,7 +12017,7 @@ textarea.report-control {
 .parts-log-items-heading h3 {
   margin: 0;
   color: var(--cf-heading);
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.018em;
 }
 
@@ -12026,7 +12030,7 @@ textarea.report-control {
   flex: 0 0 auto;
   color: var(--cf-muted);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .parts-log-report-list {
@@ -12037,15 +12041,17 @@ textarea.report-control {
   position: relative;
   display: grid;
   width: 100%;
-  min-height: 100px;
   gap: 0.18rem;
-  padding: 0.62rem 1rem;
+  min-width: 0;
+  padding: 0.85rem 1rem;
+  overflow-wrap: anywhere;
   border: 0;
   border-bottom: 1px solid var(--cf-border);
   background: transparent;
   color: var(--cf-text);
   text-align: left;
   transition: background-color 150ms ease, box-shadow 150ms ease;
+  font-weight: 400;
 }
 
 .parts-log-report-row:last-child {
@@ -12070,6 +12076,7 @@ textarea.report-control {
 .parts-log-report-row-topline,
 .parts-log-report-row-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.55rem;
 }
@@ -12085,7 +12092,7 @@ textarea.report-control {
 .parts-log-report-row-topline strong {
   color: var(--cf-heading);
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .parts-log-report-row-topline > span:last-child {
@@ -12094,7 +12101,7 @@ textarea.report-control {
   background: rgba(255, 255, 255, 0.76);
   color: var(--cf-primary-strong);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .parts-log-report-service,
@@ -12106,7 +12113,8 @@ textarea.report-control {
   margin-top: 0.04rem;
   color: var(--cf-text);
   font-size: 0.82rem;
-  font-weight: 700;
+  font-weight: 400;
+  overflow-wrap: anywhere;
 }
 
 .parts-log-report-customer,
@@ -12122,14 +12130,13 @@ textarea.report-control {
 
 .parts-log-detail-panel {
   display: flex;
-  min-height: 470px;
   flex-direction: column;
   background: #ffffff;
 }
 
 .parts-log-detail-header {
-  padding: 1rem 1.2rem 1.05rem;
-  background: #ffffff;
+  padding: 1.2rem;
+  background: var(--cf-surface-soft);
 }
 
 .parts-log-detail-heading {
@@ -12138,18 +12145,10 @@ textarea.report-control {
 }
 
 .parts-log-relationship-path {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
+  display: block;
   color: var(--cf-primary-strong);
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.025em;
-}
-
-.parts-log-relationship-path b {
-  color: #8ebbb0;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .parts-log-detail-header h2 {
@@ -12158,6 +12157,7 @@ textarea.report-control {
 
 .parts-log-detail-title-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -12168,7 +12168,8 @@ textarea.report-control {
   margin: 0.22rem 0 0;
   color: var(--cf-text);
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 400;
+  overflow-wrap: anywhere;
   line-height: 1.4;
 }
 
@@ -12176,7 +12177,9 @@ textarea.report-control {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(118px, 0.62fr) minmax(0, 1.35fr);
   gap: 0.8rem 1.25rem;
-  margin: 0.72rem 0 0;
+  margin: 1rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--cf-border);
 }
 
 .parts-log-detail-context > div {
@@ -12187,28 +12190,28 @@ textarea.report-control {
 .parts-log-detail-context dt,
 .parts-log-detail-context dd {
   margin: 0;
-  font-size: 12px;
+  font-size: 0.8125rem;
   line-height: 1.4;
 }
 
 .parts-log-detail-context dt {
-  color: var(--cf-muted);
-  font-weight: 600;
+  color: var(--cf-heading);
+  font-weight: 500;
 }
 
 .parts-log-detail-context dd {
   margin-top: 0.14rem;
   color: var(--cf-text);
-  font-weight: 600;
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 
 .parts-log-item-type span,
 .parts-log-item-stock span {
   display: block;
-  color: var(--cf-muted);
-  font-size: 12px;
-  font-weight: 600;
+  color: var(--cf-heading);
+  font-size: 0.8125rem;
+  font-weight: 500;
 }
 
 .parts-log-items-heading {
@@ -12216,7 +12219,7 @@ textarea.report-control {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.95rem 1.2rem 0.6rem;
+  padding: 1.2rem 1.2rem 0.75rem;
 }
 
 .parts-log-items-heading h3 {
@@ -12227,7 +12230,7 @@ textarea.report-control {
 .parts-log-items-heading > span:last-child {
   color: var(--cf-muted);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .parts-log-item-ledger {
@@ -12237,11 +12240,10 @@ textarea.report-control {
 .parts-log-item-row {
   display: grid;
   min-width: 0;
-  min-height: 96px;
-  grid-template-columns: minmax(240px, 1.45fr) minmax(92px, 0.34fr) minmax(118px, 0.4fr) auto;
-  align-items: center;
+  grid-template-columns: minmax(0, 1.8fr) minmax(80px, 0.65fr) minmax(100px, 0.8fr) minmax(120px, 0.9fr);
+  align-items: start;
   gap: 0.9rem;
-  padding: 0.82rem 0;
+  padding: 1rem 0;
   border-top: 1px solid #edf1ef;
 }
 
@@ -12258,25 +12260,23 @@ textarea.report-control {
 .parts-log-item-identity > span {
   color: var(--cf-muted);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .parts-log-item-identity h4 {
   margin: 0;
   color: var(--cf-heading);
   font-size: 0.9rem;
-  font-weight: 700;
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 .parts-log-item-identity p {
-  display: -webkit-box;
   margin: 0.18rem 0 0;
-  overflow: hidden;
   color: var(--cf-muted);
   font-size: 12px;
   line-height: 1.4;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
 }
 
 .parts-log-item-type,
@@ -12291,7 +12291,7 @@ textarea.report-control {
   margin-top: 0.22rem;
   color: var(--cf-text);
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -12314,8 +12314,9 @@ textarea.report-control {
   background: transparent;
   color: var(--cf-primary-strong);
   font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .parts-log-record-details svg {
@@ -12330,7 +12331,7 @@ textarea.report-control {
 
 .parts-log-detail-footer {
   min-height: 0;
-  margin-top: auto;
+  margin-top: 0;
   margin-inline: 1.2rem;
   padding: 0.78rem 0 0.92rem;
   border-top: 1px solid #edf1ef;
@@ -12356,9 +12357,8 @@ textarea.report-control {
 }
 
 @media (max-width: 1199.98px) {
-  .parts-log-utility-bar .parts-log-toolbar,
-  .parts-log-utility-bar .parts-log-toolbar.has-reset {
-    grid-template-columns: minmax(160px, 0.35fr) minmax(0, 1fr) auto;
+  .parts-log-utility-bar .parts-log-toolbar {
+    grid-template-columns: minmax(180px, 0.65fr) minmax(0, 1fr);
   }
 
   .parts-log-utility-bar .parts-log-search-field {
@@ -12369,12 +12369,12 @@ textarea.report-control {
     grid-column: 2;
   }
 
-  .parts-log-utility-bar .parts-log-toolbar:not(.has-reset) .parts-log-date-range {
-    grid-column: 2 / -1;
+  .parts-log-item-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
-  .parts-log-item-row {
-    grid-template-columns: minmax(210px, 1.25fr) minmax(92px, 0.32fr) minmax(112px, 0.36fr) auto;
+  .parts-log-item-identity {
+    grid-column: 1 / -1;
   }
 }
 
@@ -12393,21 +12393,8 @@ textarea.report-control {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .parts-log-report-panel {
-    border-right: 0;
-    border-bottom: 1px solid var(--cf-border);
-  }
-
   .parts-log-report-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .parts-log-report-row:nth-child(odd) {
-    border-right: 1px solid var(--cf-border);
-  }
-
-  .parts-log-report-row:nth-last-child(-n + 2) {
-    border-bottom: 0;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .parts-log-detail-panel {
@@ -12415,7 +12402,11 @@ textarea.report-control {
   }
 
   .parts-log-item-row {
-    grid-template-columns: minmax(250px, 1.35fr) minmax(100px, 0.32fr) minmax(120px, 0.35fr) auto;
+    grid-template-columns: minmax(0, 1.8fr) minmax(80px, 0.65fr) minmax(100px, 0.8fr) minmax(120px, 0.9fr);
+  }
+
+  .parts-log-item-identity {
+    grid-column: auto;
   }
 }
 
@@ -12428,14 +12419,12 @@ textarea.report-control {
     padding: 0.68rem 0.65rem;
   }
 
-  .parts-log-utility-bar .parts-log-toolbar,
-  .parts-log-utility-bar .parts-log-toolbar.has-reset {
+  .parts-log-utility-bar .parts-log-toolbar {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .parts-log-utility-bar .parts-log-search-field,
   .parts-log-utility-bar .parts-log-date-range,
-  .parts-log-utility-bar .parts-log-toolbar:not(.has-reset) .parts-log-date-range,
   .parts-log-toolbar-actions {
     grid-column: 1;
   }
@@ -12446,14 +12435,6 @@ textarea.report-control {
 
   .parts-log-report-list {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .parts-log-report-row:nth-child(odd) {
-    border-right: 0;
-  }
-
-  .parts-log-report-row:nth-last-child(2) {
-    border-bottom: 1px solid var(--cf-border);
   }
 
   .parts-log-items-heading {
@@ -12496,10 +12477,7 @@ textarea.report-control {
   }
 
   .parts-log-item-identity p {
-    display: -webkit-box;
     margin-top: 0.28rem;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
   }
 
   .parts-log-item-type,
@@ -14311,7 +14289,6 @@ textarea.report-control {
 .cf-kpi-card,
 .cf-job-stat-card,
 .follow-up-assignment-status,
-.parts-log-ledger,
 .tech-performance-overview,
 .tech-performance-completed,
 .tech-performance-availability,
@@ -14526,7 +14503,6 @@ textarea.report-control {
   .cf-report-side-card,
   .cf-kpi-card,
   .cf-job-stat-card,
-  .parts-log-ledger,
   .tech-performance-overview,
   .tech-performance-completed,
   .tech-performance-availability,

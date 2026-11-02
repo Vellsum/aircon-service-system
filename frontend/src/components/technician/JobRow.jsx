@@ -67,7 +67,7 @@ function JobRow({ job, onView, onPrimaryAction, isActionPending = false, actionR
       </td>
 
       {/* SERVICE & EQUIPMENT */}
-      <td>
+      {/**<td>
         <div className="d-flex align-items-center gap-2 mb-1">
           <span className="fw-semibold text-dark">{job.serviceType || 'Service unavailable'}</span>
           {job.serviceCategory && (
@@ -77,7 +77,8 @@ function JobRow({ job, onView, onPrimaryAction, isActionPending = false, actionR
         <div className="text-muted small text-truncate" style={{ maxWidth: '240px' }}>
           {job.unitType || 'Equipment unavailable'}
         </div>
-      </td>
+      </td> */}
+      
 
       {/* DATE & TIME */}
       <td>
@@ -90,6 +91,9 @@ function JobRow({ job, onView, onPrimaryAction, isActionPending = false, actionR
           <span>{job.time || '—'}</span>
         </div>
       </td>
+
+      {/**services booked */}
+      <td>{job.servicesBooked}</td>
 
       {/* STATUS */}
       <td>
