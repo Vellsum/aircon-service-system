@@ -225,7 +225,7 @@ export default function ManageTechnicians() {
             <p className="dash-stat-value">{technicians.length}</p>
             <p className="dash-stat-delta">Registered on the platform</p>
           </div>
-          <div className="dash-stat dash-stat-cyan">
+          {/** <div className="dash-stat dash-stat-cyan">
             <p className="dash-stat-label">Available Now</p>
             <p className="dash-stat-value">{technicians.filter((t) => t.status === "Available").length}</p>
             <p className="dash-stat-delta">Ready for new jobs</p>
@@ -234,7 +234,8 @@ export default function ManageTechnicians() {
             <p className="dash-stat-label">On Job</p>
             <p className="dash-stat-value">{technicians.filter((t) => t.status === "On Job").length}</p>
             <p className="dash-stat-delta">Currently servicing</p>
-          </div>
+          </div> */}
+         
         </section>
 
         <section className="dash-panel">
@@ -247,7 +248,7 @@ export default function ManageTechnicians() {
               onChange={(e) => setSearch(e.target.value)}
             />
 
-            <div className="dash-chips">
+{/**   <div className="dash-chips">
               {statusFilters.map((status) => (
                 <button
                   key={status}
@@ -257,7 +258,8 @@ export default function ManageTechnicians() {
                   {status}
                 </button>
               ))}
-            </div>
+            </div>*/}
+          
           </div>
 
           <div className="dash-table-wrap">
@@ -297,8 +299,8 @@ export default function ManageTechnicians() {
                       <td>
                         <div className="dash-row-actions">
                           <button className="dash-row-btn" onClick={() => setModal({ mode: "view", record: tech })}>View</button>
-                          <button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: tech })}>Edit</button>
-                          <button className="dash-row-btn is-danger" onClick={() => handleRemove(tech)}>Remove</button>
+          {/**<button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: tech })}>Edit</button>
+                          <button className="dash-row-btn is-danger" onClick={() => handleRemove(tech)}>Remove</button> */}                
                         </div>
                       </td>
                     </tr>

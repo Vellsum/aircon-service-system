@@ -430,7 +430,7 @@ const fieldsToDisplay = isProposingAlternatives
       ? "Update Booking Time"
       : mode === "create"
         ? "Create"
-        : "Assign Technician"}
+        : "Confirm"}
                   
                  
           </button>

@@ -159,6 +159,11 @@ CREATE TABLE new_jobBooking.Booking (
 RR3_date DATE,RR3_time VARCHAR(50) , RR3_technician int,
 RR_expiry date,
 
+assisting int,
+RR1_assisting int,
+RR2_assisting int,
+RR3_assisting int,
+
 servicesBooked VARCHAR(300),
 
 

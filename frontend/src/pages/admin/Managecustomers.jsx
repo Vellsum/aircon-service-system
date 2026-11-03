@@ -150,9 +150,10 @@ const Managecustomers = () => {
             <h1>Manage Customers</h1>
             <p>View and manage all registered clients</p>
           </div>
-          <button className="dash-btn dash-btn-primary" onClick={() => setModal({ mode: "create", record: {} })}>
+          {/**  <button className="dash-btn dash-btn-primary" onClick={() => setModal({ mode: "create", record: {} })}>
             + Add Customer
-          </button>
+          </button>*/}
+         
         </header>
 
         <section className="dash-panel">
@@ -194,8 +195,8 @@ const Managecustomers = () => {
                       <td>
                         <div className="dash-row-actions">
                           <button className="dash-row-btn" onClick={() => setModal({ mode: "view", record: c })}>View</button>
-                          <button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: c })}>Edit</button>
-                          <button className="dash-row-btn is-danger" onClick={() => handleRemove(c)}>Remove</button>
+                   {/**   <button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: c })}>Edit</button>
+                          <button className="dash-row-btn is-danger" onClick={() => handleRemove(c)}>Remove</button> */}    
                         </div>
                       </td>
                     </tr>

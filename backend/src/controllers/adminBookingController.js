@@ -77,6 +77,36 @@ async function ensureJobLink(pool, bookingId, serviceId = null) {
     .query(`INSERT INTO [new_jobBooking].[work] (job_ID, booking_ID) VALUES (@jid, @bid)`);
 }
 
+//=============================================================================================================
+//get all promo
+/*** const customerId = req.query.customerId
+  console.log(customerId)
+      const pool = await poolPromise;
+   const result = await pool.request()
+      .input('custId', sql.Int, customerId)
+      .query(`
+        SELECT
+         * from user3.customerAddresses where 
+        customer_ID = custId
+      `);
+
+      console.log(result.recordset)
+      res.status(200).json({
+      success: true,
+      addresses: result.recordset,
+    }); */
+exports.getPromotions = async (req, res) => {
+   const pool = await poolPromise;
+   const result = await pool.request()
+   .query(`select * from payables.promotions`)
+       console.log(result.recordset)
+      res.status(200).json({
+      success: true,
+      addresses: result.recordset})
+}
+
+
+
 
 /**
  * GET /api/admin/bookings

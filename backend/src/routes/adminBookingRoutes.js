@@ -35,4 +35,10 @@ router.put(
 
 router.put('/:bookingId/alternatives',adminBookingController.submitBookingAlternatives);
 router.put('/:bookingId/reserve',adminBookingController.makeReservedSlots)
+
+
+//promos--------------------
+router.get('/promo',adminBookingController.getPromotions)
+
+
 module.exports = router;

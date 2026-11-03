@@ -353,7 +353,13 @@ remaining backlog;
 services names in booking table for technician to see, in their dashboard
 
 parts used full functionalities
-job/service histories full functionality 
+dfdsfs
+
+
+fsd
+
+i
+iiofhadwadadaswdassadadassasasadsasadassasd dsaaaadsddasdddasddadadaasdaddjob/service histories full functionality 
 
 admin crud promo n subscriptions
 customer subscription full functonality
@@ -365,6 +371,35 @@ lets do this next - booking to show the services booked (combine string of servi
 
 2.24pm, im distracted by youtube shorts
 - now thought of making technician side show it [done]
+
+3.10 - pushed to my branch
+followup booking kinda works
+
+3.30pm - i think of making manage admins so admin can add admin
+5.30... didnt do as much as i could have. frontend can show the admins. now need to make the crud
+will also touchup any other things eventually
+
+6pm - now can make new admins
+
+>>> admin can only view, cannot edit ppl data nor remove [done[
+
+]]d
+
+6.12pm - paused. maybe we could clean some shitty stuff before cruding promo
+
+
+asd
+
+
+d
+
+/=========================
+
+3-11-26
+1230pm
+
+im cleaning the manage promo
+my second screen doesnt wanna work today
 
 
 
