@@ -4,6 +4,8 @@ import { AirconUnitArt, Icon, SnowfieldBackdrop } from "../../components/custome
 import { formatMoney } from "../../data/customer/customerSelectors";
 import { getPlans, getPromotions, getServices } from "../../api/customerApi";
 
+//I AM NOW THE PURCHASE SUBSCRIPTION PAGE=======================================================
+
 const PROMO_TONES = ["accent", "success", "warning"];
 
 /* Perks built from REAL plan fields (visits, interval, covered service) */
@@ -89,11 +91,11 @@ const CustomerServiceCatalog = () => {
 
   return (
     <>
-      {/* Banner Section */}
+      {/* Banner Section -----------------------------------------------------------------------------------------*/}
       <section className="cust-banner">
         <SnowfieldBackdrop />
         <div className="cust-banner-text">
-          <p className="cust-banner-eyebrow">Services &amp; packages</p>
+          <p className="cust-banner-eyebrow">Subscriptions and Promotions</p>
           <h1>Everything we can do for your aircon.</h1>
           <p>
             Transparent pricing, certified technicians and a 30-day workmanship guarantee on every
@@ -105,7 +107,7 @@ const CustomerServiceCatalog = () => {
         </div>
       </section>
 
-      {/* Individual services — real data from payables.service 
+      {/* Individual services — real data from payables.service ---------------------------------------------------------------------------------------------------------------------
       <section className="cust-panel">
         <div className="cust-panel-head">
           <div>
@@ -167,7 +169,8 @@ const CustomerServiceCatalog = () => {
       
       </section>*/}
       
-            {/* Maintenance plans — real data from payables.subscription */}
+            {/* Maintenance plans — real data from payables.subscription
+            USES REAL DATA ------------------------------------------------------------------------------------------------------------------------------------ */}
       <section className="cust-panel">
         <div className="cust-panel-head">
           <div>
@@ -233,8 +236,8 @@ const CustomerServiceCatalog = () => {
         </div>
       </section>
 
-      {/* Promotions — real data from payables.promotions */}
-      <section className="cust-panel">
+      {/* Promotions — real data from payables.promotions ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/}
+     {/**ITS NOW REAL DATA, actually always was */} <section className="cust-panel">
         <div className="cust-panel-head">
           <div>
             <h2>Current promotions</h2>

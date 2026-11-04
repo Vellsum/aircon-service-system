@@ -77,6 +77,178 @@ async function ensureJobLink(pool, bookingId, serviceId = null) {
     .query(`INSERT INTO [new_jobBooking].[work] (job_ID, booking_ID) VALUES (@jid, @bid)`);
 }
 
+//subscriptopms ============================================================
+
+//const { poolPromise, sql } = require('../config/db');
+
+// GET all subscriptions
+exports.getSubscriptions = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    const result = await pool.request().query(`
+      SELECT
+        subscriptionID,
+        name,
+        description,
+        recurringServiceID,
+        timeTillNextService,
+        numberOfBookings
+      FROM payables.subscription
+      ORDER BY subscriptionID DESC
+    `);
+
+    res.status(200).json({
+      success: true,
+      subscriptions: result.recordset
+    });
+
+  } catch (err) {
+    console.error('Error fetching subscriptions:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch subscriptions'
+    });
+  }
+};
+
+
+// POST create a subscription
+exports.addSubscription = async (req, res) => {
+  try {
+    const {
+      name,
+      description,
+      recurringServiceID,
+      timeTillNextService,
+      numberOfBookings
+    } = req.body;
+
+    const pool = await poolPromise;
+
+    const result = await pool.request()
+      .input('name', sql.VarChar(255), name)
+      .input('description', sql.VarChar(sql.MAX), description)
+      .input('recurringServiceID', sql.Int, recurringServiceID)
+      .input('timeTillNextService', sql.Int, timeTillNextService)
+      .input('numberOfBookings', sql.Int, numberOfBookings)
+      .query(`
+        INSERT INTO payables.subscription (
+          name,
+          description,
+          recurringServiceID,
+          timeTillNextService,
+          numberOfBookings
+        )
+        OUTPUT INSERTED.*
+        VALUES (
+          @name,
+          @description,
+          @recurringServiceID,
+          @timeTillNextService,
+          @numberOfBookings
+        )
+      `);
+
+    res.status(201).json({
+      success: true,
+      message: 'Subscription created successfully',
+      subscription: result.recordset[0]
+    });
+
+  } catch (err) {
+    console.error('Error creating subscription:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create subscription'
+    });
+  }
+};
+
+
+// PUT edit a subscription
+exports.editSubscription = async (req, res) => {
+  try {
+    const { subscriptionID } = req.params;
+
+    const {
+      name,
+      description,
+      recurringServiceID,
+      timeTillNextService,
+      numberOfBookings
+    } = req.body;
+
+    const pool = await poolPromise;
+
+    const result = await pool.request()
+      .input('subscriptionID', sql.Int, subscriptionID)
+      .input('name', sql.VarChar(255), name)
+      .input('description', sql.VarChar(sql.MAX), description)
+      .input('recurringServiceID', sql.Int, recurringServiceID)
+      .input('timeTillNextService', sql.Int, timeTillNextService)
+      .input('numberOfBookings', sql.Int, numberOfBookings)
+      .query(`
+        UPDATE payables.subscription
+        SET
+          name = @name,
+          description = @description,
+          recurringServiceID = @recurringServiceID,
+          timeTillNextService = @timeTillNextService,
+          numberOfBookings = @numberOfBookings
+        WHERE subscriptionID = @subscriptionID;
+
+        SELECT @@ROWCOUNT AS affectedRows;
+      `);
+
+    if (result.recordset[0].affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Subscription updated successfully'
+    });
+
+  } catch (err) {
+    console.error('Error updating subscription:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update subscription'
+    });
+  }
+};
+// GET existing services for subscription dropdown
+exports.getServices = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    const result = await pool.request().query(`
+      SELECT
+        service_id,
+        service_name
+      FROM payables.service
+    `);
+
+    res.status(200).json({
+      success: true,
+      services: result.recordset
+    });
+
+  } catch (err) {
+    console.error('Error fetching services:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch services'
+    });
+  }
+};
+
+
+
 //=============================================================================================================
 //get all promo
 /*** const customerId = req.query.customerId
@@ -102,11 +274,57 @@ exports.getPromotions = async (req, res) => {
        console.log(result.recordset)
       res.status(200).json({
       success: true,
-      addresses: result.recordset})
+      promotions: result.recordset})
 }
 
+exports.newPromo = async (req, res) =>{
+  const{code,description,discount,validFrom,validTo,promo_name}=req.body
+const pool = await poolPromise;
+   const result = await pool.request()
+ .input('promo_name', sql.VarChar(255), promo_name)
+ .input('validFrom',sql.Date,validFrom)
+.input('validTo',sql.Date,validTo) 
+.input('description', sql.VarChar(255), description)
+.input('code', sql.VarChar(255), code)
+.input('discount', sql.Float,discount)
+.query(`
+  INSERT INTO payables.promotions (promo_name, promo_start, promo_end, description, promoCode, discount) VALUES
+(@promo_name,@validFrom,@validTo,@description,@code,@discount)  
+  
+  
+  `)
+      res.status(201).json({ success: true, message: 'promo created successfully!' });
 
 
+}
+exports.editPromo= async (req, res) =>{
+   // const { promoID } = req.params;
+  const{code,description,discount,validFrom,validTo,promo_name,promo_id}=req.body
+const pool = await poolPromise;
+   const result = await pool.request()
+ .input('promo_name', sql.VarChar(255), promo_name)
+ .input('validFrom',sql.Date,validFrom)
+.input('validTo',sql.Date,validTo) 
+.input('description', sql.VarChar(255), description)
+.input('code', sql.VarChar(255), code)
+.input('discount', sql.Float,discount)
+.input('promoID',sql.Int,promo_id)
+  .query(`
+        UPDATE payables.promotions
+        SET
+          promo_name = @promo_name,
+          promo_start = @validFrom,
+          promo_end = @validTo,
+          description = @description,
+          promoCode = @code,
+          discount = @discount
+        WHERE promo_id = @promoID;
+      `);
+      res.status(201).json({ success: true, message: 'promo edited successfully!' });
+
+
+}
+//====================================================================
 
 /**
  * GET /api/admin/bookings

@@ -400,8 +400,11 @@ d
 
 im cleaning the manage promo
 my second screen doesnt wanna work today
+//fixed an issue of github being a fuckin retard n not handling my code properly
 
-
+-> basically doing crud for promotions
+3.47pm - can get from db
+->now trying to make promotions
 
 
 pending;===========================================================
@@ -424,9 +427,28 @@ frontend for customer to accept incoming (status as request reschddule) [DONE DO
 
 1pm - pulled billie's branch,he gonna continue test reports
 now its me n sum with latest build
+4pm - now admin can see all promo n make new promo
+4.25 - now admin can edit promo
+
+next: customer enter promo for discount;
+nah i doing crud scubscriptinons instead ahahahahahhhah
+
+next task: crud subscriptions
+>>> crud of subscriptions
+5pm-dinner break
+
+4-11 10am
+>>> crud scubscription page
+//manage service - doesnt add duration when managing or editing
+
+11.16AM - CAN NOW CRUD subscriptions'
 
 
 
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+============================================================================================================
+============================================================================================================
 weijie tasklist;====================================================
 -- edit customerbookservice jsx n booking controller for the new data [done]
 //once customer frontend can send the correct data wat does admin do?

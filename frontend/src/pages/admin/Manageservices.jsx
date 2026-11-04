@@ -187,7 +187,7 @@ const Manageservices = () => {
                         <div className="dash-row-actions">
                           <button className="dash-row-btn" onClick={() => setModal({ mode: "view", record: s })}>View</button>
                           <button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: s })}>Edit</button>
-                          <button className="dash-row-btn is-danger" onClick={() => handleRemove(s)}>Remove</button>
+                       {/* <button className="dash-row-btn is-danger" onClick={() => handleRemove(s)}>Remove</button>* */}  
                         </div>
                       </td>
                     </tr>

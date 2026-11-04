@@ -81,7 +81,7 @@ const navItems = [
     ),
   },
   {
-    label: "Manage Packages", path: "/admin/packages",
+    label: "Manage Subscriptions", path: "/admin/packages",
     icon: (
       <path d="m3 7 9-4 9 4-9 4-9-4ZM3 7v10l9 4 9-4V7M12 11v10" />
     ),

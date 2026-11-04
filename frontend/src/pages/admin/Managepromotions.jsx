@@ -44,6 +44,15 @@ const ManagePromotions = () => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
+const toDateString = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const formatLocalDateString = (dateInput) => {
+  if (!dateInput) return "";
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+  return toDateString(d);
+};
 
   // GET: Load promotions
   // TODO: API - Confirm GET endpoint and response property.
@@ -62,18 +71,20 @@ const ManagePromotions = () => {
       }
 
       const res = await fetch(
-        "http://localhost:5000/api/admin/promo",
+        "http://localhost:5000/api/admin/bookings/promo",
         { headers }
       );
+console.log("Response status:", res.status);
 
       const data = await res.json();
-
+console.log("Backend response:", data);
       if (!res.ok) {
         throw new Error(data.message || "Failed to load promotions");
       }
 
       if (data.success && Array.isArray(data.promotions)) {
         setPromotions(data.promotions);
+        console.log(promotions)
       } else {
         setPromotions([]);
       }
@@ -110,7 +121,7 @@ const ManagePromotions = () => {
       const token = localStorage.getItem("token") || "";
 
       const res = await fetch(
-        "http://localhost:5000/api/admin/promotions",
+        "http://localhost:5000/api/admin/bookings/newPromo",
         {
           method: "POST",
           headers: {
@@ -118,12 +129,13 @@ const ManagePromotions = () => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            code: formData.code,
+            code: formData.promoCode,
             description: formData.description,
             discount: formData.discount,
-            validFrom: formData.validFrom,
-            validTo: formData.validTo,
-            status: formData.status,
+            validFrom: formData.promo_start,
+            validTo: formData.promo_end,
+          //  status: formData.status,
+            promo_name:formData.promo_name
           }),
         }
       );
@@ -151,7 +163,7 @@ const ManagePromotions = () => {
       const token = localStorage.getItem("token") || "";
 
       const res = await fetch(
-        `http://localhost:5000/api/admin/promotions/${modal.record.id}`,
+        `http://localhost:5000/api/admin/bookings/editpromo`,
         {
           method: "PUT",
           headers: {
@@ -159,12 +171,16 @@ const ManagePromotions = () => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            code: formData.code,
+              code: formData.promoCode,
             description: formData.description,
             discount: formData.discount,
-            validFrom: formData.validFrom,
-            validTo: formData.validTo,
-            status: formData.status,
+            validFrom: formData.promo_start,
+            validTo: formData.promo_end,
+          //  status: formData.status,
+            promo_name:formData.promo_name,
+              promo_id: modal.record.promo_id,
+
+
           }),
         }
       );
@@ -237,7 +253,7 @@ const ManagePromotions = () => {
         </header>
 
         {/* Promotion statistics */}
-        <section className="dash-stats">
+        {/**  <section className="dash-stats">
           <div className="dash-stat dash-stat-accent">
             <p className="dash-stat-label">Total Promotions</p>
             <p className="dash-stat-value">{promotions.length}</p>
@@ -252,7 +268,7 @@ const ManagePromotions = () => {
             <p className="dash-stat-delta">Live and redeemable</p>
           </div>
 
-          <div className="dash-stat dash-stat-cyan">
+          <div className="dash-stat dash-stat-cyan">s
             <p className="dash-stat-label">Total Redemptions</p>
             <p className="dash-stat-value">
               {promotions.reduce(
@@ -262,19 +278,21 @@ const ManagePromotions = () => {
             </p>
             <p className="dash-stat-delta">Across all codes</p>
           </div>
-        </section>
+        </section>*/}
+       
 
         <section className="dash-panel">
-          <div className="dash-filterbar">
-            <input
+          {/** <div className="dash-filterbar">
+           <input
               className="dash-search"
               type="text"
               placeholder="Search by code or description..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-            />
+            /> */}
+            
 
-            <div className="dash-chips">
+{/***  <div className="dash-chips">
               {statusFilters.map((status) => (
                 <button
                   key={status}
@@ -287,20 +305,24 @@ const ManagePromotions = () => {
                 </button>
               ))}
             </div>
-          </div>
+           
+          </div>*/}
 
           <div className="dash-table-wrap">
             <table className="dash-table">
               <thead>
                 <tr>
                   <th>Promo ID</th>
-                  <th>Code</th>
-                  <th>Description</th>
-                  <th>Discount</th>
-                  <th>Valid From</th>
+                  <th>Name</th>
+ <th>Valid From</th>
                   <th>Valid To</th>
-                  <th>Used</th>
-                  <th>Status</th>
+                  <th>Description</th>
+
+                  <th>Code</th>
+                  <th>Discount</th>
+                 {/**    <th>Used</th>
+                  <th>Status</th>*/}
+               
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -318,13 +340,17 @@ const ManagePromotions = () => {
                 ) : filtered.length > 0 ? (
                   filtered.map((promo) => (
                     <tr key={promo.id}>
-                      <td className="dash-mono">{promo.id}</td>
-                      <td className="dash-mono">{promo.code}</td>
-                      <td>{promo.description}</td>
+                      <td className="dash-mono">{promo.promo_id}</td>
+                           <td className="dash-mono">{promo.promo_name}</td>
+                           <td className="dash-mono">{formatLocalDateString(promo.promo_start)}</td>
+                                                      <td className="dash-mono">{formatLocalDateString(promo.promo_end)}</td>
+   <td>{promo.description}</td>
+                      <td className="dash-mono">{promo.promoCode}</td>
+                   
                       <td className="dash-mono">{promo.discount}</td>
-                      <td className="dash-mono">{promo.validFrom}</td>
-                      <td className="dash-mono">{promo.validTo}</td>
-                      <td className="dash-mono">{promo.used ?? 0}</td>
+                {/** <td className="dash-mono">{promo.validFrom}</td>
+                      <td className="dash-mono">{promo.validTo}</td>    
+                 
 
                       <td>
                         <span
@@ -335,18 +361,18 @@ const ManagePromotions = () => {
                           <i />
                           {promo.status}
                         </span>
-                      </td>
+                      </td>*/}  
 
-                      <td>
-                        <div className="dash-row-actions">
-                          <button
+                      <td>{/*** <button
                             className="dash-row-btn"
                             onClick={() =>
                               setModal({ mode: "view", record: promo })
                             }
                           >
                             View
-                          </button>
+                          </button> */}
+                        <div className="dash-row-actions">
+                         
 
                           <button
                             className="dash-row-btn"
@@ -356,14 +382,14 @@ const ManagePromotions = () => {
                           >
                             Edit
                           </button>
-
-                          <button
+                              {/**  <button
                             className="dash-row-btn is-danger"
                             onClick={() => handleEnd(promo)}
                             disabled={promo.status === "Expired"}
                           >
                             End
-                          </button>
+                          </button> */}
+                        
                         </div>
                       </td>
                     </tr>
@@ -386,7 +412,7 @@ const ManagePromotions = () => {
             </table>
           </div>
 
-          <div className="dash-pagination">
+          {/*** <div className="dash-pagination">
             <span>
               Showing {filtered.length} of {promotions.length} promotions
             </span>
@@ -399,7 +425,9 @@ const ManagePromotions = () => {
                 Next
               </button>
             </div>
-          </div>
+          </div> */}
+
+         
         </section>
       </main>
 

@@ -2,7 +2,10 @@
    Re-runnable: drops and rebuilds everything.
    
    
-   261026 - weijie made new column for bookings to handle request reschdule loop */
+   261026 - weijie made new column for bookings to handle request reschdule loop
+   3-11-26 - weijie last checked, the proper tables */
+
+   
 USE master;
 GO
 IF DB_ID(N'aircon-db') IS NOT NULL
