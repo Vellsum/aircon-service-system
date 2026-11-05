@@ -1436,8 +1436,220 @@ date,
               console.log("finish clone rr2")}
 
 
+              
+              //subcriptions==================
+        const purchaseSubscription = async (req, res) => {
+  const { customerID, subscriptionID } = req.body;
+
+  console.log("Received purchase request:", req.body);
+
+  if (!customerID || !subscriptionID) {
+    return res.status(400).json({
+      success: false,
+      message: "customerID and subscriptionID are required."
+    });
+  }
+
+  const pool = await poolPromise;
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+
+    // 1. Retrieve subscription plan and recurring service
+    const planResult = await new sql.Request(transaction)
+      .input("subscriptionID", sql.Int, subscriptionID)
+      .query(`
+        SELECT
+          s.subscriptionID,
+          s.name,
+          s.recurringServiceID,
+          s.timeTillNextService,
+          s.numberOfBookings,
+          sv.service_name
+        FROM payables.subscription s
+        LEFT JOIN payables.service sv
+          ON s.recurringServiceID = sv.service_id
+        WHERE s.subscriptionID = @subscriptionID
+      `);
+
+    if (planResult.recordset.length === 0) {
+      throw new Error("Subscription plan not found.");
+    }
+
+    const plan = planResult.recordset[0];
+
+    if (
+      !plan.numberOfBookings ||
+      plan.numberOfBookings <= 0 ||
+      !plan.timeTillNextService ||
+      plan.timeTillNextService <= 0 ||
+      !plan.service_name
+    ) {
+      throw new Error("Invalid subscription plan or recurring service.");
+    }
+
+    // 2. Retrieve customer's main address
+    const customerResult = await new sql.Request(transaction)
+      .input("customerID", sql.Int, customerID)
+      .query(`
+        SELECT customer_ID, customer_address
+        FROM user3.newCustomer
+        WHERE customer_ID = @customerID
+      `);
+
+    if (customerResult.recordset.length === 0) {
+      throw new Error("Customer not found.");
+    }
+
+    const customer = customerResult.recordset[0];
+
+    // 3. Get today's date from SQL Server
+    const dateResult = await new sql.Request(transaction)
+      .query(`
+        SELECT CAST(GETDATE() AS DATE) AS today
+      `);
+
+    const today = dateResult.recordset[0].today;
+
+    // 4. Calculate subscription dates
+    const dateStarted = today;
+
+    const bookings = [];
+
+    for (let i = 1; i <= plan.numberOfBookings; i++) {
+      const bookingDate = new Date(today);
+
+      bookingDate.setDate(
+        bookingDate.getDate() + (plan.timeTillNextService * i)
+      );
+
+      // Format date as YYYY-MM-DD
+      const formattedDate = [
+        bookingDate.getFullYear(),
+        String(bookingDate.getMonth() + 1).padStart(2, "0"),
+        String(bookingDate.getDate()).padStart(2, "0")
+      ].join("-");
+
+      // Randomly assign Morning or Afternoon
+      const timing = Math.random() < 0.5
+        ? "Morning"
+        : "Afternoon";
+
+      const actualTime = timing === "Morning"
+        ? "09:00"
+        : "14:00";
+
+      bookings.push({
+        date: formattedDate,
+        timing,
+        actualTime
+      });
+    }
+
+    // 5. Register customer as subscriber
+    await new sql.Request(transaction)
+      .input("customerID", sql.Int, customerID)
+      .input("subscriptionID", sql.Int, subscriptionID)
+      .input("remainingBookings", sql.Int, plan.numberOfBookings)
+      .input("dateStarted", sql.Date, dateStarted)
+      .input("nextBookingDate", sql.Date, bookings[0].date)
+      .query(`
+        INSERT INTO payables.currentSubscribers (
+          customerID,
+          subscriptionid,
+          remainingBookings,
+          dateStarted,
+          nextBookingDate
+        )
+        VALUES (
+          @customerID,
+          @subscriptionID,
+          @remainingBookings,
+          @dateStarted,
+          @nextBookingDate
+        )
+      `);
+
+    // 6. Generate future bookings
+    const createdBookings = [];
+
+    for (const booking of bookings) {
+      const result = await new sql.Request(transaction)
+        .input("customerID", sql.Int, customerID)
+        .input("date", sql.Date, booking.date)
+        .input("time", sql.VarChar(5), booking.actualTime)
+        .input("location", sql.VarChar(100), customer.customer_address)
+        .input("timing", sql.VarChar(50), booking.timing)
+        .input("status", sql.VarChar(100), "Pending")
+        .input("servicesBooked", sql.VarChar(300), plan.service_name)
+        .query(`
+          INSERT INTO new_jobBooking.Booking (
+            customer_ID,
+            technician_ID,
+            [date],
+            [time],
+            isFollowup,
+            location,
+            [status],
+            timing,
+            servicesBooked
+          )
+          OUTPUT INSERTED.booking_ID
+          VALUES (
+            @customerID,
+            NULL,
+            @date,
+            @time,
+            0,
+            @location,
+            @status,
+            @timing,
+            @servicesBooked
+          )
+        `);
+
+      createdBookings.push({
+        booking_ID: result.recordset[0].booking_ID,
+        date: booking.date,
+        timing: booking.timing,
+        service: plan.service_name
+      });
+    }
+
+    // 7. Commit transaction
+    await transaction.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: "Subscription purchased and future bookings created successfully.",
+      subscription: {
+        customerID,
+        subscriptionID,
+        remainingBookings: plan.numberOfBookings,
+        dateStarted,
+        nextBookingDate: bookings[0].date
+      },
+      bookings: createdBookings
+    });
+
+  } catch (err) {
+    try {
+      await transaction.rollback();
+    } catch (rollbackErr) {
+      console.error("Subscription rollback error:", rollbackErr);
+    }
+
+    console.error("Purchase subscription error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message || "Failed to purchase subscription."
+    });
+  }
+};
 
 module.exports = {clone2,clone3,cloneBooking, pickRR1,pickRR2,pickRR3, chooseRROption, getDashboard, getMyBookings, rateBooking, getMyUnits, registerUnit, 
   getServices, getPlans, getMySubscriptions, getPromotions, getAddresses, createBooking, cancelBooking, getProfile,
    updateProfile,getINCOMING,updateIncomingBookingStatus,
-  getOtherAddresses,updateOtherAddress ,makeNewExtraAddress};
+  getOtherAddresses,updateOtherAddress ,makeNewExtraAddress,purchaseSubscription};

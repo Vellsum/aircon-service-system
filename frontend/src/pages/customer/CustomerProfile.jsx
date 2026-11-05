@@ -755,14 +755,14 @@ const CustomerProfile = () => {
               >
                 {form.customer_name || "Customer"}
               </h2>
-
-              <span
+                {/** <span
                 className="cust-badge tone-success"
                 style={{ marginTop: 12 }}
               >
                 <Icon name="star" size={12} />
                 {account.loyalty_points} loyalty points
-              </span>
+              </span> */}
+             
             </div>
           </section>
 

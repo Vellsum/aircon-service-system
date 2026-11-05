@@ -557,54 +557,139 @@ try {
 </section>
 
 {/* View current subscriptions ---------------------------------------------------------------------------------------------*/}
+
+{/* View current subscriptions */}
 <section className="cust-panel">
   <div className="cust-panel-head">
     <div>
       <h2>Your current subscriptions</h2>
       <p>Active maintenance plans and packages</p>
     </div>
-  </div>
-
-  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-    {/* Example Mock Subscription Card - Replace or map with your actual subscription data */}
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "16px 20px",
-        borderRadius: "var(--radius)",
-        background: "var(--bg-app)",
-        border: "1px solid var(--border)",
-        flexWrap: "wrap",
-        gap: 16,
-      }}
+    <button
+      className="dash-btn dash-btn-ghost"
+      onClick={() => navigate("/customer/service-catalog")}
     >
-      <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <p style={{ margin: 0, fontWeight: 600, fontSize: 15 }}>
-            Quarterly Aircon Maintenance Plan (i am mock data)
-          </p>
-          <span className="cust-badge tone-success" style={{ fontSize: 11, padding: "2px 8px" }}>
-            Active (i am mock data)
-          </span>
-        </div>
-        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
-          Covers 3 units · Renews on 12 Dec 2026 (i am mock data)
-        </p>
-      </div>
-
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <button
-          className="dash-btn dash-btn-outline"
-          onClick={() => navigate("/customer/service-catalog")}
-        >
-          Manage plan (i am not done yet)
-        </button>
-      </div>
-    </div>
+      Browse plans →
+    </button>
   </div>
+
+  {/* Loading */}
+  {subsLoading && (
+    <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+      Loading your subscriptions...
+    </p>
+  )}
+
+  {/* Error */}
+  {!subsLoading && subsError && (
+    <p style={{ color: "var(--danger, #c0392b)" }}>
+      {subsError}
+    </p>
+  )}
+
+  {/* No subscriptions */}
+  {!subsLoading && !subsError && subscriptions.length === 0 && (
+    <div className="cust-empty" style={{ padding: "24px 0" }}>
+      <h3>No subscriptions yet</h3>
+      <p>Purchase a maintenance package to schedule your servicing visits.</p>
+
+      <button
+        className="dash-btn dash-btn-primary"
+        onClick={() => navigate("/customer/service-catalog")}
+      >
+        Browse subscriptions
+      </button>
+    </div>
+  )}
+
+  {/* Display actual subscriptions from database */}
+  {!subsLoading && !subsError && subscriptions.length > 0 && (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {subscriptions.map((sub) => (
+        <div
+          key={sub.package_id}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "16px 20px",
+            borderRadius: "var(--radius)",
+            background: "var(--bg-app)",
+            border: "1px solid var(--border)",
+            flexWrap: "wrap",
+            gap: 16,
+          }}
+        >
+          <div>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 4
+            }}>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: 15 }}>
+                {sub.package_name}
+              </p>
+
+              <span
+                className={`cust-badge tone-${sub.status === "Active" ? "success" : "warning"}`}
+                style={{ fontSize: 11, padding: "2px 8px" }}
+              >
+                {sub.status}
+              </span>
+            </div>
+
+            <p style={{
+              margin: 0,
+              fontSize: 13,
+              color: "var(--text-secondary)"
+            }}>
+              {sub.description}
+            </p>
+
+            <p style={{
+              margin: "6px 0 0",
+              fontSize: 12,
+              color: "var(--text-secondary)"
+            }}>
+              Includes: {sub.services_included?.length
+                ? sub.services_included.join(", ")
+                : "—"}
+
+              {Number(sub.remaining_bookings) > 0 &&
+                ` · ${sub.remaining_bookings} of ${sub.visits_included} visits left`}
+
+              {sub.next_booking_date &&
+                ` · Next visit ${formatDate(sub.next_booking_date)}`}
+            </p>
+          </div>
+
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <p style={{
+              margin: 0,
+              fontSize: 17,
+              fontWeight: 700,
+              color: "var(--text-main)"
+            }}>
+              {formatMoney(sub.price)}
+            </p>
+
+            {sub.price_per_visit && (
+              <p style={{
+                margin: 0,
+                fontSize: 11.5,
+                color: "var(--text-secondary)"
+              }}>
+                {formatMoney(sub.price_per_visit)}/visit
+              </p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
 </section>
+
 
 
 {/***

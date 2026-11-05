@@ -64,6 +64,26 @@ router.put("/bookings/:bookingId/clone3",authenticateToken, customerController.c
 router.put("/bookings/:bookingId/status",authenticateToken, customerController.updateIncomingBookingStatus);   // <--- doesnt work
 router.put("/bookings/:bookingId/choose/:option", authenticateToken,customerController.chooseRROption)
 router.get('/incoming', getINCOMING);
+
+
+
+//sbscruptions===========
+
+
+router.post(
+  "/subscriptions/purchase",
+  customerController.purchaseSubscription
+);
+
+
+
+
+
+
+
+
+
+
 module.exports = router;
 
 //module.exports.updateIncomingBookingStatus = updateIncomingBookingStatus;

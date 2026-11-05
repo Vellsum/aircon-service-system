@@ -6,20 +6,20 @@ import "../../styles/shared.css";
 const addCustomerFields = [
   { key: "customer_name", label: "Customer Name", type: "text", required: true },
   { key: "customer_address", label: "Address", type: "text" },
-  { key: "loyaltyPoints", label: "Loyalty Points", type: "number" },
+//  { key: "loyaltyPoints", label: "Loyalty Points", type: "number" },
 ];
 
 const editCustomerFields = [
   { key: "customer_name", label: "Customer Name", type: "text", required: true },
   { key: "customer_address", label: "Address", type: "text" },
-  { key: "loyaltyPoints", label: "Loyalty Points", type: "number" },
+ // { key: "loyaltyPoints", label: "Loyalty Points", type: "number" },
 ];
 
 const viewCustomerFields = [
   { key: "customer_ID", label: "Customer ID" },
   { key: "customer_name", label: "Customer Name" },
   { key: "customer_address", label: "Address" },
-  { key: "loyaltyPoints", label: "Loyalty Points" },
+ // { key: "loyaltyPoints", label: "Loyalty Points" },
 ];
 
 const Managecustomers = () => {
@@ -174,7 +174,7 @@ const Managecustomers = () => {
                   <th>ID</th>
                   <th>Customer Name</th>
                   <th>Address</th>
-                  <th>Loyalty Points</th>
+               {/**   <th>Loyalty Points</th>* */}
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -191,7 +191,7 @@ const Managecustomers = () => {
                       <td className="dash-mono">#{c.customer_ID}</td>
                       <td><strong>{c.customer_name}</strong></td>
                       <td>{c.customer_address || "Singapore"}</td>
-                      <td className="dash-mono">{c.loyaltyPoints || 0} pts</td>
+                     {/** <td className="dash-mono">{c.loyaltyPoints || 0} pts</td> */}
                       <td>
                         <div className="dash-row-actions">
                           <button className="dash-row-btn" onClick={() => setModal({ mode: "view", record: c })}>View</button>

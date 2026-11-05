@@ -42,7 +42,32 @@ function getCurrentCustomerId() {
 
 //method to get bookings with assigned status
 export const getIncomingBookings =()=> request(`/customer/incoming?customerId=${getCurrentCustomerId()}`);
+export  const purchaseSubscription = async (customerID, planId) => {
+  const token = localStorage.getItem("token") || "";
 
+  const res = await fetch(
+    "http://localhost:5000/api/customer/subscriptions/purchase",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        customerID: helpMyID(),
+        subscriptionID: planId,
+      }),
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok || !data.success) {
+    throw new Error(data.message || "Failed to purchase subscription");
+  }
+
+  return data;
+};
 
 export const chooseRROption=(bookingId,option)=>{
    return request(

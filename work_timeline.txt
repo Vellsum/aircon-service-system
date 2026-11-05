@@ -444,12 +444,68 @@ next task: crud subscriptions
 11.16AM - CAN NOW CRUD subscriptions'
 
 
+5/11 - 10am
+- remove the loyalty points mechanic [doen]
+//we wont have maanag eu userpage, idk bout wat billi edid for techniian raitng ruck fhtat
+
+->customer enter promocode for discount when book service
+
+ {/* Promotions — real data from payables.promotions ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/}
+     {/**ITS NOW REAL DATA, actually always was */} <section className="cust-panel">
+        <div className="cust-panel-head">
+          <div>
+            <h2>Current promotions</h2>
+            <p>Apply any of these codes at the last step of booking.</p>
+          </div>
+        </div>
+
+        <div className="cust-choice-grid">
+          {promotions.map((promo, idx) => (
+            <div
+              className={`cust-promo-card tone-${PROMO_TONES[idx % PROMO_TONES.length]}`}
+              key={promo.promo_id}
+            >
+              <span className="cust-promo-code">{promo.code}</span>
+              <h3>{promo.title}</h3>
+              <p>{promo.description}</p>
+              <span className="cust-promo-valid">
+                <Icon name="tag" size={12} />
+                {discountLabel(promo)}
+                {promo.valid_until ? ` · Valid until ${promo.valid_until}` : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
 
 
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-============================================================================================================
-============================================================================================================
-weijie tasklist;====================================================
+11am - now promo discount really works, discounted price goes to db
+next; >>> customer buying subscription
+//maybe do that last
+
+>>> - proper crud of all inventory
+- view parts used table
+
+//manage inventory was always working localhost
+
+next: view parts used table, maybe inside here
+1.18pm - done
+
+last task before hosting: >>>>> customer buy subscription ---------------------------------------------------
+--> when they click, make the bookings
+-> logic to track subscrptions if possible
+
+//breakdown;
+-make controllers and routes n api to get the current subscribers table data
+-show in customer pages
+- when buy, book service in advance
+
+
+2pm - customer can now buys the subscription, shows in dasboard
+2.23pm - now when they book, booking table updated so admin can settle
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+weijie tasklist;============================================================================================================================================================================================================================================================================
 -- edit customerbookservice jsx n booking controller for the new data [done]
 //once customer frontend can send the correct data wat does admin do?
 - admin frontend for assign booking to include time, for bookings in pending status

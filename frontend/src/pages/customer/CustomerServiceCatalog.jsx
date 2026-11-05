@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AirconUnitArt, Icon, SnowfieldBackdrop } from "../../components/customer/CustomerIcons";
 import { formatMoney } from "../../data/customer/customerSelectors";
-import { getPlans, getPromotions, getServices } from "../../api/customerApi";
+import { getPlans, getPromotions, getServices,purchaseSubscription } from "../../api/customerApi";
 
 //I AM NOW THE PURCHASE SUBSCRIPTION PAGE=======================================================
 
@@ -88,7 +88,26 @@ const CustomerServiceCatalog = () => {
       </section>
     );
   }
+const handlePurchase = async (plan) => {
+  try {
+    const customerID = localStorage.getItem("customer_ID");
 
+    const res = await purchaseSubscription(
+      customerID,
+      plan.plan_id
+    );
+
+    if (res.success) {
+      alert("Subscription purchased successfully!");
+      navigate("/customer/dashboard");
+    } else {
+      alert(res.message || "Purchase failed.");
+    }
+  } catch (err) {
+    console.error("Subscription purchase error:", err);
+    alert(err.message || "Unable to purchase subscription.");
+  }
+};
   return (
     <>
       {/* Banner Section -----------------------------------------------------------------------------------------*/}
@@ -227,8 +246,7 @@ const CustomerServiceCatalog = () => {
               <button
                 className="dash-btn dash-btn-primary"
                 style={{ width: "100%", marginTop: "auto" }}
-                onClick={() => navigate("/customer/book")}
-              >
+onClick={() => handlePurchase(plan)}              >
                 Choose {plan.plan_name}
               </button>
             </article>

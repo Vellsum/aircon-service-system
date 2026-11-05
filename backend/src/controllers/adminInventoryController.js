@@ -6,6 +6,27 @@
 
 const { poolPromise, sql } = require('../config/db');
 
+
+exports.partsUsed= async (req, res) =>{
+  try {
+    const pool = await poolPromise;
+    if (!pool) return res.status(200).json({ success: true, items: [] });
+
+    // Select all valid inventory items
+    const query = `
+      SELECT 
+     * from new_jobBooking.partsUsed
+    `;
+
+    const result = await pool.request().query(query);
+    console.log(`[Cool Fix] Fetched ${result.recordset.length} parts used data from DB.`);
+    return res.status(200).json({ success: true, items: result.recordset || [] });
+  } catch (err) {
+    console.error('[Cool Fix] GET parts used Error:', err.message);
+    res.status(500).json({ success: false, message: err.message, items: [] });
+  }
+}
+
 /**
  * GET /api/admin/inventory
  * Fetches all non-deleted inventory items from Azure SQL
