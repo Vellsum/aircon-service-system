@@ -13,9 +13,13 @@ const RecordModal = ({
   alternativeFields,
   onProposeAlternatives,
   onSaveAlternatives,
+  getTechnicianOptions,
   action
 }) => {
   const [form, setForm] = useState(data || {});
+ // console.log("ACTION:", action);
+//console.log("IS PROPOSING:", isProposingAlternatives);
+//console.log("FIELDS TO DISPLAY:", fieldsToDisplay);
 
   const bookingStatus = String(data?.status || "") .trim() .toLowerCase(); //get booking status
   const isConfirmed = bookingStatus === "confirmed"; //will state a var for wat is indeed confirmed
@@ -23,10 +27,21 @@ const RecordModal = ({
   //for this state, the different spelling
   const isRescheduleRequested = ["request_reschedule",  "reschedule_requested",  ].includes(bookingStatus);
     
-  
-  //get the right spelling for techcnican column
-  const isTechnicianField = (key) =>  ["technician_id", "technicianid", "technician"].includes(  String(key).toLowerCase()  );
-  
+const isTechnicianField = (key) =>
+  [
+    "technician_id",
+    "technicianid",
+    "technician",
+    "technician_id_2",
+    "technicianid_2",
+    "assisting",
+    "rr1",
+    "rr2",
+    "rr3",
+    "option1_technician_id",
+    "option2_technician_id",
+    "option3_technician_id",
+  ].includes(String(key).toLowerCase());
     //check booking data, state the  timefields (var refered to in this modal), as those spellings
   const isTimeField = (key) =>
     [
@@ -57,6 +72,10 @@ const fieldsToDisplay = isProposingAlternatives
       [key]: value,
     }));
   };
+  /*** const assignData = useMemo(
+  () => (modal ? { ...modal.record, technician_ID: "", reason: "" } : null),
+  [modal]
+);*/
 
   //on the final button click==================================================================================
   const handleSubmit = (e) => {
@@ -255,36 +274,94 @@ const fieldsToDisplay = isProposingAlternatives
                 </label>
 
 {/**turn the options into  a dropdown */}
-                {field.type === "select" ? (
-                  <select
-                    className="dash-form-select"
-                    value={form[key] ?? ""}
-                    onChange={(e) =>
-                      handleChange(key, e.target.value)
-                    }
-                    required={required}
-                    disabled={disabled}
-                  >
-                    <option value="">-- Select Option --</option>
+             
+{field.type === "select" ? (
+  (() => {
+    // Start with the options supplied by ManageBookings
+    //let options = field.options || [];
+    let options = (field.options || []).map((o) =>
+  typeof o === "string" ? { label: o, value: o } : o
+);
 
-                    {(field.options || []).map((opt, idx) => {
-                      const isObj =
-                        typeof opt === "object" && opt !== null;
+    // For technician dropdowns, calculate availability
+    if (isTechnicianField(key) && getTechnicianOptions) {
+      let date;
+      let time;
+      let excludeTechnicianIds = [];
 
-                      const value = isObj ? opt.value : opt;
-                      const label = isObj ? opt.label : opt;
+      // Initial assignment
+      if (key === "technician_ID" || key === "technician_ID_2") {
+        date = data?.booking_date;
+        time = data?.timing;
 
-                      return (
-                        <option
-                          key={isObj ? opt.value : idx}
-                          value={value}
-                        >
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </select>
-                ) : (
+        // Prevent Technician 2 from being the same as Technician 1
+        if (key === "technician_ID_2" && form.technician_ID) {
+          excludeTechnicianIds = [form.technician_ID];
+        }
+      }
+
+      // Alternative 1
+      if (key === "option1_technician_ID" || key === "RR1") {
+        date = form.option1_date;
+        time = form.option1_time;
+
+        if (key === "RR1" && form.option1_technician_ID) {
+          excludeTechnicianIds = [form.option1_technician_ID];
+        }
+      }
+
+      // Alternative 2
+      if (key === "option2_technician_ID" || key === "RR2") {
+        date = form.option2_date;
+        time = form.option2_time;
+
+        if (key === "RR2" && form.option2_technician_ID) {
+          excludeTechnicianIds = [form.option2_technician_ID];
+        }
+      }
+
+      // Alternative 3
+      if (key === "option3_technician_ID" || key === "RR3") {
+        date = form.option3_date;
+        time = form.option3_time;
+
+        if (key === "RR3" && form.option3_technician_ID) {
+          excludeTechnicianIds = [form.option3_technician_ID];
+        }
+      }
+
+      options = getTechnicianOptions(
+        date,
+        time,
+        data?.booking_ID,
+        excludeTechnicianIds
+      );
+      
+    }
+
+    return (
+      <select
+        className="dash-form-select"
+        value={form[key] ?? ""}
+        onChange={(e) => handleChange(key, e.target.value)}
+        required={required}
+        disabled={disabled}
+      >
+        <option value="">
+          {isTechnicianField(key) && options.length === 0
+            ? "-- Pick date & time first --"
+            : "-- Select Option --"}
+        </option>
+        {options.map((opt, idx) => (
+          <option key={`${opt.value}-${idx}`} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    );
+  })()
+) : (
+
                   <input
                     className="dash-form-input"
                     type={field.type || "text"}
@@ -353,7 +430,7 @@ const fieldsToDisplay = isProposingAlternatives
       ? "Update Booking Time"
       : mode === "create"
         ? "Create"
-        : "Assign Technician"}
+        : "Confirm"}
                   
                  
           </button>

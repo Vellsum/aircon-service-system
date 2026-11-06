@@ -5,6 +5,111 @@
 
 const { poolPromise, sql } = require('../config/db');
 const bcrypt = require('bcryptjs');
+//admin, get all admins===========================================
+
+
+exports.addAdmin = async (req, res) => {
+  console.log("im at make admin controller");
+
+  let transaction;
+
+  try {
+    const { admin_name, password } = req.body;
+
+    if (!admin_name || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Admin name and password are required.",
+      });
+    }
+
+    const pool = await poolPromise;
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(password, salt);
+
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    // STEP 1: Create user account
+    const userRequest = new sql.Request(transaction);
+
+    userRequest.input("username", sql.VarChar(100), admin_name);
+    userRequest.input("salt", sql.VarChar(255), salt);
+    userRequest.input("hash", sql.VarChar(255), hash);
+
+    const userResult = await userRequest.query(`
+      INSERT INTO [user3].[topUser]
+        (username, salt, hash, accountType)
+      VALUES
+        (@username, @salt, @hash, 'Admin');
+
+      SELECT SCOPE_IDENTITY() AS newUserId;
+    `);
+
+    const newUserId = userResult.recordset[0].newUserId;
+
+    // STEP 2: Create admin record linked to user account
+    const adminRequest = new sql.Request(transaction);
+
+    adminRequest.input("admin_name", sql.VarChar(100), admin_name);
+    adminRequest.input("user_ID", sql.Int, newUserId);
+
+    await adminRequest.query(`
+      INSERT INTO [user3].[admin]
+        (admin_name, user_ID)
+      VALUES
+        (@admin_name, @user_ID);
+    `);
+
+    // STEP 3: Commit transaction
+    await transaction.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: "Admin created successfully!",
+      user_ID: newUserId,
+    });
+
+  } catch (err) {
+    if (transaction) {
+      await transaction.rollback();
+    }
+
+    console.error("[Cool Fix] POST admin Error:", err.message);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+
+exports.editAdmin=async(req, res)=>{ //make changes to
+
+}
+
+//get all admins
+exports.getAdmins=async(req, res) =>{
+ 
+  try {
+    const pool = await poolPromise;
+    if (!pool) return res.status(200).json({ success: true, admins: [] });
+
+    const query = `
+      SELECT 
+        * from [user3].[admin]
+    `;
+
+    const result = await pool.request().query(query);
+    res.status(200).json({ success: true, admins: result.recordset || [] });
+  } catch (err) {
+    console.error('[Cool Fix] GET admin Error:', err.message);
+    res.status(500).json({ success: false, message: err.message, admins: [] });
+  }
+}
 
 // ==========================================
 // CUSTOMERS MANAGEMENT

@@ -59,6 +59,7 @@ const bookingSelect = (top = 0) => `
     t.technician_name,
     ISNULL(t.technician_rating, 5) AS technician_rating,
     ISNULL(t.jobsDone, 0) AS jobsDone,
+    ratings.customerRatingAverage, ratings.customerReviewCount,
     svc.service_name, ISNULL(svc.amount, 0) AS amount,
     rep.report_summary
 
@@ -66,6 +67,12 @@ const bookingSelect = (top = 0) => `
 
   FROM [new_jobBooking].[Booking] b
   LEFT JOIN [user3].[technician] t ON t.technician_ID = b.technician_ID
+  OUTER APPLY (
+    SELECT AVG(CAST(r.stars AS DECIMAL(10, 4))) AS customerRatingAverage,
+           COUNT(*) AS customerReviewCount
+      FROM [new_jobBooking].[bookingRating] r
+     WHERE r.technician_ID = t.technician_ID AND r.stars BETWEEN 1 AND 5
+  ) ratings
   OUTER APPLY (
     SELECT STRING_AGG(ISNULL(s.service_name, 'Aircon Service'), ', ') AS service_name,
            SUM(ISNULL(s.price, 0)) AS amount
@@ -97,7 +104,8 @@ function shapeBooking(row, customerUnits = []) {
     unit_ids: customerUnits.map((u) => u.installed_ID),
     units: customerUnits.map((u) => u.nickname),
     technician: row.technician_name
-      ? { name: row.technician_name, rating: Number(row.technician_rating), jobs_done: Number(row.jobsDone) }
+      ? { name: row.technician_name, rating: Number(row.technician_rating), jobs_done: Number(row.jobsDone),
+          customerRatingAverage: row.customerRatingAverage, customerReviewCount: row.customerReviewCount }
       : null,
     report: row.report_summary ? { summary: row.report_summary } : null,
 
@@ -231,18 +239,7 @@ console.log("Authenticated user:", req.user);
     }
 
     // Only allow statuses intended for this customer action.
-    /** const allowedStatuses = ["confirmed", "request_reschedule", "Pending"];
-console.log("Received status:", req.body?.status);
-console.log("Normalized status:", requestedStatus);
-console.log("Allowed statuses:", allowedStatuses);
-    if (!allowedStatuses.includes(requestedStatus)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid booking status."
-      });
-    }
-*/
-    
+
     const pool = await poolPromise;
 
     // Update only if this booking belongs to the logged-in customer
@@ -264,15 +261,7 @@ console.log("Allowed statuses:", allowedStatuses);
         SELECT @@ROWCOUNT AS rowsUpdated;
       `);
 
-      /**   const rowsUpdated = result.recordset[0].rowsUpdated;
-    if (rowsUpdated === 0) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Booking not found, not owned by this customer, or no longer assigned."
-      });
-    }
-*/
+   
   
     return res.status(200).json({
       success: true,
@@ -374,20 +363,133 @@ const getDashboard = async (req, res) => {
   }
 };
 
-/* GET /api/customer/bookings?customerId=# */
+/* GET /api/customer/bookings — identity comes from the verified login token. */
 const getMyBookings = async (req, res) => {
   try {
+    const customerID = req.ratingCustomer?.customerID;
+    if (!Number.isSafeInteger(customerID) || customerID <= 0) {
+      return res.status(401).json({ success: false, message: 'Customer authentication is required.' });
+    }
     const pool = await poolPromise;
-    if (!pool) return res.status(200).json({ success: true, bookings: [] });
-    const customer = await resolveCustomer(pool, parseInt(req.query.customerId, 10) || 1);
-    if (!customer) return res.status(404).json({ success: false, message: 'Customer profile not found' });
-    const result = await pool.request().input('cid', sql.Int, customer.customer_ID).query(
+    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
+    const result = await pool.request().input('cid', sql.Int, customerID).query(
       `${bookingSelect()} WHERE b.customer_ID = @cid ORDER BY b.[date] DESC, b.[time] DESC`);
-    const unitList = await getCustomerUnits(pool, customer.customer_ID);
-    res.status(200).json({ success: true, bookings: (result.recordset || []).map((r) => shapeBooking(r, unitList)) });
+    const ratings = await pool.request().input('cid', sql.Int, customerID).query(`
+      SELECT r.booking_ID, r.stars, r.technician_ID AS technicianID, r.submittedAt
+      FROM [new_jobBooking].[bookingRating] r
+      JOIN [new_jobBooking].[Booking] b ON b.booking_ID = r.booking_ID
+      WHERE b.customer_ID = @cid AND r.customer_ID = @cid
+    `);
+    const ratingByBooking = new Map(ratings.recordset.map(({ booking_ID, ...rating }) => [booking_ID, rating]));
+    const unitList = await getCustomerUnits(pool, customerID);
+    res.status(200).json({ success: true, bookings: (result.recordset || []).map((r) => ({
+      ...shapeBooking(r, unitList), rating: ratingByBooking.get(r.booking_ID) || null,
+    })) });
   } catch (err) {
     console.error('[Cool Fix] GET Customer Bookings Error:', err.message);
     res.status(500).json({ success: false, message: err.message, bookings: [] });
+  }
+};
+
+/* POST /api/customer/bookings/:bookingId/rate — once per completed booking. */
+const rateBooking = async (req, res) => {
+  let transaction;
+  let transactionOpen = false;
+  try {
+    const customerID = req.ratingCustomer?.customerID;
+    if (!Number.isSafeInteger(customerID) || customerID <= 0) {
+      return res.status(401).json({ success: false, message: 'Customer authentication is required.' });
+    }
+    const reference = String(req.params.bookingId || '');
+    const bookingID = /^\d+$/.test(reference) ? Number(reference) : NaN;
+    const stars = req.body?.stars;
+    if (!Number.isSafeInteger(bookingID) || bookingID <= 0 || bookingID > 2147483647) {
+      return res.status(400).json({ success: false, message: 'A valid booking ID is required.' });
+    }
+    if (!Number.isInteger(stars) || stars < 1 || stars > 5) {
+      return res.status(400).json({ success: false, message: 'Stars must be an integer from 1 to 5.' });
+    }
+    const pool = await poolPromise;
+    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
+    transaction = new sql.Transaction(pool);
+    transaction.on('rollback', () => { transactionOpen = false; });
+    await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+    transactionOpen = true;
+
+    const bookingResult = await new sql.Request(transaction).input('bid', sql.Int, bookingID).query(`
+      SELECT booking_ID, customer_ID, [status]
+      FROM [new_jobBooking].[Booking] WITH (UPDLOCK, HOLDLOCK)
+      WHERE booking_ID = @bid
+    `);
+    const booking = bookingResult.recordset[0];
+    if (!booking || booking.customer_ID !== customerID) {
+      throw Object.assign(new Error('Booking not found for this customer.'), { statusCode: 404 });
+    }
+    if (String(booking.status).trim().toLowerCase() !== 'completed') {
+      throw Object.assign(new Error('You can only rate completed services.'), { statusCode: 400 });
+    }
+    const existing = await new sql.Request(transaction).input('bid', sql.Int, bookingID).query(`
+      SELECT booking_ID FROM [new_jobBooking].[bookingRating] WITH (UPDLOCK, HOLDLOCK)
+      WHERE booking_ID = @bid
+    `);
+    if (existing.recordset.length) {
+      throw Object.assign(new Error('You already rated this service.'), { statusCode: 400 });
+    }
+
+    // Every target job must have an exclusive, valid report relationship.
+    // Attribute the visit to its report technician, never to a later reassignment.
+    const links = await new sql.Request(transaction).input('bid', sql.Int, bookingID).query(`
+      SELECT j.job_ID, j.serviceReport, sr.reportID, sr.technicianID,
+        t.technician_ID AS performedTechnicianID,
+        (SELECT COUNT(*) FROM [new_jobBooking].[work] ow WITH (UPDLOCK, HOLDLOCK)
+         WHERE ow.job_ID = w.job_ID AND ow.booking_ID <> @bid) AS otherBookingCount,
+        (SELECT COUNT(*) FROM [new_jobBooking].[job] rj WITH (UPDLOCK, HOLDLOCK)
+         JOIN [new_jobBooking].[work] rw WITH (UPDLOCK, HOLDLOCK) ON rw.job_ID = rj.job_ID
+         WHERE rj.serviceReport = sr.reportID AND rw.booking_ID <> @bid) AS otherReportBookingCount
+      FROM [new_jobBooking].[work] w WITH (UPDLOCK, HOLDLOCK)
+      LEFT JOIN [new_jobBooking].[job] j WITH (UPDLOCK, HOLDLOCK) ON j.job_ID = w.job_ID
+      LEFT JOIN [new_jobBooking].[serviceReport] sr WITH (UPDLOCK, HOLDLOCK) ON sr.reportID = j.serviceReport
+      LEFT JOIN [user3].[technician] t WITH (HOLDLOCK) ON t.technician_ID = sr.technicianID
+      WHERE w.booking_ID = @bid
+      ORDER BY j.job_ID
+    `);
+    const jobs = links.recordset;
+    if (!jobs.length || new Set(jobs.map(j => j.job_ID)).size !== jobs.length
+      || jobs.some(j => !Number.isSafeInteger(j.job_ID) || j.job_ID <= 0
+        || !Number.isSafeInteger(j.reportID) || j.reportID <= 0 || j.reportID !== j.serviceReport
+        || !Number.isSafeInteger(j.technicianID) || j.technicianID <= 0
+        || j.technicianID !== j.performedTechnicianID
+        || j.otherBookingCount !== 0 || j.otherReportBookingCount !== 0)
+      || new Set(jobs.map(j => j.technicianID)).size !== 1) {
+      throw Object.assign(new Error('Performed technician attribution is unavailable or ambiguous.'), { statusCode: 400 });
+    }
+    const technicianID = jobs[0].technicianID;
+    const inserted = await new sql.Request(transaction)
+      .input('bid', sql.Int, bookingID).input('cid', sql.Int, customerID)
+      .input('tid', sql.Int, technicianID).input('stars', sql.Int, stars)
+      .query(`
+        INSERT INTO [new_jobBooking].[bookingRating] (booking_ID, customer_ID, technician_ID, stars)
+        OUTPUT INSERTED.booking_ID, INSERTED.stars, INSERTED.technician_ID AS technicianID, INSERTED.submittedAt
+        VALUES (@bid, @cid, @tid, @stars)
+      `);
+    const rating = inserted.recordset[0];
+    if (inserted.recordset.length !== 1 || rating.booking_ID !== bookingID
+      || rating.stars !== stars || rating.technicianID !== technicianID || !rating.submittedAt) {
+      throw new Error('Rating insertion could not be verified.');
+    }
+    await transaction.commit();
+    transactionOpen = false;
+    return res.status(201).json({ success: true, rating });
+  } catch (err) {
+    if (transactionOpen) {
+      try { await transaction.rollback(); }
+      catch { return res.status(500).json({ success: false, message: 'Rating transaction could not be rolled back.' }); }
+    }
+    const duplicate = [2601, 2627].includes(err.number || err.originalError?.info?.number);
+    return res.status(duplicate ? 400 : err.statusCode || 500).json({
+      success: false,
+      message: duplicate ? 'You already rated this service.' : err.statusCode ? err.message : 'Rating could not be saved.',
+    });
   }
 };
 
@@ -580,6 +682,75 @@ const getPromotions = async (req, res) => {
   }
 };
 
+
+//get the other addresses=================================
+const getOtherAddresses = async(req,res)=>{
+  const customerId = req.query.customerId
+  console.log(customerId)
+      const pool = await poolPromise;
+   const result = await pool.request()
+      .input('custId', sql.Int, customerId)
+      .query(`
+        SELECT
+         * from user3.customerAddresses where 
+        customer_ID = @custId
+      `);
+
+      console.log(result.recordset)
+      res.status(200).json({
+      success: true,
+      addresses: result.recordset,
+    });
+}
+
+const updateOtherAddress = async (req, res) => {
+        const{input, address_ID} = req.body;
+    const pool = await poolPromise;
+     console.log(input)
+          console.log(address_ID)
+          console.log("pool:", pool);
+console.log("request:", pool.request());
+console.log("sql:", sql);
+      const result = await pool.request()
+
+     
+
+    .input('input', sql.VarChar(200), input)
+    .input('address_ID', sql.Int, address_ID)
+
+          .query(`
+          update [user3].[customerAddresses]
+            set customer_address = @input
+            
+            
+            where 
+            address_ID = @address_ID
+          `);
+};
+
+const makeNewExtraAddress =async(req,res)=>{
+     const{input, id} = req.body;
+    const pool = await poolPromise;
+     console.log(input)
+          console.log(id)
+          console.log("pool:", pool);
+console.log("request:", pool.request());
+console.log("sql:", sql);
+      const result = await pool.request()
+
+     
+
+    .input('input', sql.VarChar(200), input)
+    .input('id', sql.Int, id)
+
+          .query(`insert into user3.customerAddresses (customer_ID,customer_address ) values
+            (@id, @input)
+
+
+         
+          `);
+}
+
 /* GET /api/customer/addresses?customerId=# */
 const getAddresses = async (req, res) => {
   try {
@@ -627,7 +798,7 @@ const createBooking = async (req, res) => {
                 comments,
                 //promocode cannot really, its a frontend calculation thing
                 estimatedtotalcost, 
-                estimatedtotaltime} = req.body; //these things take name from frontend 
+                estimatedtotaltime,services} = req.body; //these things take name from frontend 
                 /**
                  * console.log("Required booking fields:", {
     customer_ID,
@@ -641,7 +812,7 @@ const createBooking = async (req, res) => {
                 message: 'Please provide customer_ID, date, time, and location.' 
             });
         }
-
+dfssd
                  */
 
         const pool = await poolPromise;
@@ -649,6 +820,7 @@ const createBooking = async (req, res) => {
         // technician_ID is set to NULL until assigned by Admin
         const result = await pool.request() //prepare the inputs
             .input('customer_ID', sql.Int, customer_ID)
+            .input('services', sql.VarChar(300),services)
             //no service id here
             .input('numberOfUnits', sql.Int,numberOfUnits) //number of units column
             .input('date', sql.Date, date)
@@ -659,7 +831,7 @@ const createBooking = async (req, res) => {
              .input('estimateTotalCost',sql.Float,estimatedtotalcost) //new code
             .input('technician_ID', sql.Int, null) 
             .input('isFollowup', sql.Bit, 0)
-            .input('status', sql.VarChar(100), 'Pending')
+            .input('status', sql.VarChar(100), 'pending')
             .input('time',sql.VarChar(8), '12:00:00')
 
             //the sql code, these got sorted
@@ -675,7 +847,7 @@ const createBooking = async (req, res) => {
                                                         technician_ID,      
                                                            isFollowup, 
                                                             status,
-                                                            time)
+                                                            time,servicesBooked)
                
                 OUTPUT INSERTED.booking_ID
                 VALUES (@customer_ID,
@@ -689,7 +861,7 @@ const createBooking = async (req, res) => {
                  @technician_ID, 
                   @isFollowup,
                     @status,
-                    @time)
+                    @time, @services)
             `); //these @ ones refer to the input method on top
 
         const newBookingId = result.recordset[0].booking_ID;
@@ -1102,6 +1274,382 @@ const pickRR3 = async (req,res) =>{
 
 }
 
+//this is stuck as rr1
+const cloneBooking= async (req,res) =>{
+const { booking, customer_ID } = req.body.bookingId;
+
+const {
+  RR1_technician,
+  RR1_date,
+  RR1_time,
+  location,
+  numberOfUnits
+} = booking;
+
+const id = customer_ID;
+
+console.log({
+  customer_ID: id,
+  RR1_technician,
+  RR1_date,
+  RR1_time,
+  location,
+  numberOfUnits
+});
+        const pool = await poolPromise;
+const result = await pool.request()
+ .input('customer_ID', sql.Int, id)
+            .input('technician_ID', sql.Int, RR1_technician) 
+            .input('booking_date', sql.Date, RR1_date)
+.input('timing', sql.VarChar(50), RR1_time)
+  .input('location', sql.VarChar(100), location)
+  .input('status',sql.VarChar(100), 'confirmed' )
+  .input('comments',sql.VarChar(500),'Assisting another technician, through an RR')       
+        .input('time',sql.VarChar(8), '12:00:00')
+        .input('numberOfUnits',sql.Int,numberOfUnits)
+//clone RR1 data
+.query(`
+ INSERT INTO [new_jobBooking].[Booking]
+ (
+ customer_ID,
+date,
+    timing,
+      location,
+      comments,
+       technician_ID,   
+       status,
+       time,numberOfUnits
+       
+ )
+  OUTPUT INSERTED.booking_ID
+                VALUES (
+                @customer_ID,
+                @booking_date,
+                @timing,
+                @location,
+               @comments,
+                @technician_ID,
+               @status,
+               @time,
+               @numberOfUnits) `)}
+
+//clone rr2
+const clone2= async (req,res) =>{
+const { booking, customer_ID } = req.body.bookingId;
+const {
+  RR2_technician,
+  RR2_date,
+  RR2_time,
+  location,
+  numberOfUnits
+} = booking;
+
+const id = customer_ID;
 
 
-module.exports = {pickRR1,pickRR2,pickRR3, chooseRROption, getDashboard, getMyBookings, getMyUnits, registerUnit, getServices, getPlans, getMySubscriptions, getPromotions, getAddresses, createBooking, cancelBooking, getProfile, updateProfile,getINCOMING,updateIncomingBookingStatus };
+        const pool = await poolPromise;
+const result = await pool.request()
+ .input('customer_ID', sql.Int, id)
+            .input('technician_ID', sql.Int, RR2_technician) 
+            .input('booking_date', sql.Date, RR2_date)
+.input('timing', sql.VarChar(50), RR2_time)
+  .input('location', sql.VarChar(100), location)
+  .input('status',sql.VarChar(100), 'confirmed' )
+  .input('comments',sql.VarChar(500),'Assisting another technician, through an RR')       
+        .input('time',sql.VarChar(8), '12:00:00')
+        .input('numberOfUnits',sql.Int,numberOfUnits)
+.query(`
+ INSERT INTO [new_jobBooking].[Booking]
+ (
+ customer_ID,
+date,
+    timing,
+      location,
+      comments,
+       technician_ID,   
+       status,
+       time,numberOfUnits
+       
+ )
+  OUTPUT INSERTED.booking_ID
+                VALUES (
+                @customer_ID,
+                @booking_date,
+                @timing,
+                @location,
+               @comments,
+                @technician_ID,
+               @status,
+               @time,
+               @numberOfUnits) `)
+              console.log("finish clone rr2")}
+
+//clone3
+const clone3= async (req,res) =>{
+const { booking, customer_ID } = req.body.bookingId;
+const {
+  RR3_technician,
+  RR3_date,
+  RR3_time,
+  location,
+  numberOfUnits
+} = booking;
+
+const id = customer_ID;
+
+
+        const pool = await poolPromise;
+const result = await pool.request()
+ .input('customer_ID', sql.Int, id)
+            .input('technician_ID', sql.Int, RR3_technician) 
+            .input('booking_date', sql.Date, RR3_date)
+.input('timing', sql.VarChar(50), RR3_time)
+  .input('location', sql.VarChar(100), location)
+  .input('status',sql.VarChar(100), 'confirmed' )
+  .input('comments',sql.VarChar(500),'Assisting another technician, through an RR')       
+        .input('time',sql.VarChar(8), '12:00:00')
+        .input('numberOfUnits',sql.Int,numberOfUnits)
+.query(`
+ INSERT INTO [new_jobBooking].[Booking]
+ (
+ customer_ID,
+date,
+    timing,
+      location,
+      comments,
+       technician_ID,   
+       status,
+       time,numberOfUnits
+       
+ )
+  OUTPUT INSERTED.booking_ID
+                VALUES (
+                @customer_ID,
+                @booking_date,
+                @timing,
+                @location,
+               @comments,
+                @technician_ID,
+               @status,
+               @time,
+               @numberOfUnits) `)
+              console.log("finish clone rr2")}
+
+
+              
+              //subcriptions==================
+        const purchaseSubscription = async (req, res) => {
+  const { customerID, subscriptionID } = req.body;
+
+  console.log("Received purchase request:", req.body);
+
+  if (!customerID || !subscriptionID) {
+    return res.status(400).json({
+      success: false,
+      message: "customerID and subscriptionID are required."
+    });
+  }
+
+  const pool = await poolPromise;
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+
+    // 1. Retrieve subscription plan and recurring service
+    const planResult = await new sql.Request(transaction)
+      .input("subscriptionID", sql.Int, subscriptionID)
+      .query(`
+        SELECT
+          s.subscriptionID,
+          s.name,
+          s.recurringServiceID,
+          s.timeTillNextService,
+          s.numberOfBookings,
+          sv.service_name
+        FROM payables.subscription s
+        LEFT JOIN payables.service sv
+          ON s.recurringServiceID = sv.service_id
+        WHERE s.subscriptionID = @subscriptionID
+      `);
+
+    if (planResult.recordset.length === 0) {
+      throw new Error("Subscription plan not found.");
+    }
+
+    const plan = planResult.recordset[0];
+
+    if (
+      !plan.numberOfBookings ||
+      plan.numberOfBookings <= 0 ||
+      !plan.timeTillNextService ||
+      plan.timeTillNextService <= 0 ||
+      !plan.service_name
+    ) {
+      throw new Error("Invalid subscription plan or recurring service.");
+    }
+
+    // 2. Retrieve customer's main address
+    const customerResult = await new sql.Request(transaction)
+      .input("customerID", sql.Int, customerID)
+      .query(`
+        SELECT customer_ID, customer_address
+        FROM user3.newCustomer
+        WHERE customer_ID = @customerID
+      `);
+
+    if (customerResult.recordset.length === 0) {
+      throw new Error("Customer not found.");
+    }
+
+    const customer = customerResult.recordset[0];
+
+    // 3. Get today's date from SQL Server
+    const dateResult = await new sql.Request(transaction)
+      .query(`
+        SELECT CAST(GETDATE() AS DATE) AS today
+      `);
+
+    const today = dateResult.recordset[0].today;
+
+    // 4. Calculate subscription dates
+    const dateStarted = today;
+
+    const bookings = [];
+
+    for (let i = 1; i <= plan.numberOfBookings; i++) {
+      const bookingDate = new Date(today);
+
+      bookingDate.setDate(
+        bookingDate.getDate() + (plan.timeTillNextService * i)
+      );
+
+      // Format date as YYYY-MM-DD
+      const formattedDate = [
+        bookingDate.getFullYear(),
+        String(bookingDate.getMonth() + 1).padStart(2, "0"),
+        String(bookingDate.getDate()).padStart(2, "0")
+      ].join("-");
+
+      // Randomly assign Morning or Afternoon
+      const timing = Math.random() < 0.5
+        ? "Morning"
+        : "Afternoon";
+
+      const actualTime = timing === "Morning"
+        ? "09:00"
+        : "14:00";
+
+      bookings.push({
+        date: formattedDate,
+        timing,
+        actualTime
+      });
+    }
+
+    // 5. Register customer as subscriber
+    await new sql.Request(transaction)
+      .input("customerID", sql.Int, customerID)
+      .input("subscriptionID", sql.Int, subscriptionID)
+      .input("remainingBookings", sql.Int, plan.numberOfBookings)
+      .input("dateStarted", sql.Date, dateStarted)
+      .input("nextBookingDate", sql.Date, bookings[0].date)
+      .query(`
+        INSERT INTO payables.currentSubscribers (
+          customerID,
+          subscriptionid,
+          remainingBookings,
+          dateStarted,
+          nextBookingDate
+        )
+        VALUES (
+          @customerID,
+          @subscriptionID,
+          @remainingBookings,
+          @dateStarted,
+          @nextBookingDate
+        )
+      `);
+
+    // 6. Generate future bookings
+    const createdBookings = [];
+
+    for (const booking of bookings) {
+      const result = await new sql.Request(transaction)
+        .input("customerID", sql.Int, customerID)
+        .input("date", sql.Date, booking.date)
+        .input("time", sql.VarChar(5), booking.actualTime)
+        .input("location", sql.VarChar(100), customer.customer_address)
+        .input("timing", sql.VarChar(50), booking.timing)
+        .input("status", sql.VarChar(100), "Pending")
+        .input("servicesBooked", sql.VarChar(300), plan.service_name)
+        .query(`
+          INSERT INTO new_jobBooking.Booking (
+            customer_ID,
+            technician_ID,
+            [date],
+            [time],
+            isFollowup,
+            location,
+            [status],
+            timing,
+            servicesBooked
+          )
+          OUTPUT INSERTED.booking_ID
+          VALUES (
+            @customerID,
+            NULL,
+            @date,
+            @time,
+            0,
+            @location,
+            @status,
+            @timing,
+            @servicesBooked
+          )
+        `);
+
+      createdBookings.push({
+        booking_ID: result.recordset[0].booking_ID,
+        date: booking.date,
+        timing: booking.timing,
+        service: plan.service_name
+      });
+    }
+
+    // 7. Commit transaction
+    await transaction.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: "Subscription purchased and future bookings created successfully.",
+      subscription: {
+        customerID,
+        subscriptionID,
+        remainingBookings: plan.numberOfBookings,
+        dateStarted,
+        nextBookingDate: bookings[0].date
+      },
+      bookings: createdBookings
+    });
+
+  } catch (err) {
+    try {
+      await transaction.rollback();
+    } catch (rollbackErr) {
+      console.error("Subscription rollback error:", rollbackErr);
+    }
+
+    console.error("Purchase subscription error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message || "Failed to purchase subscription."
+    });
+  }
+};
+
+module.exports = {clone2,clone3,cloneBooking, pickRR1,pickRR2,pickRR3, chooseRROption, getDashboard, getMyBookings, rateBooking, getMyUnits, registerUnit, 
+  getServices, getPlans, getMySubscriptions, getPromotions, getAddresses, createBooking, cancelBooking, getProfile,
+   updateProfile,getINCOMING,updateIncomingBookingStatus,
+  getOtherAddresses,updateOtherAddress ,makeNewExtraAddress,purchaseSubscription};

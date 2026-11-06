@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "../../styles/shared.css";
@@ -5,35 +6,70 @@ import "../../styles/Login.css";
 
 const Register = () => {
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     username: "",
     password: "",
     customer_name: "",
-    customer_address: "",
+    block_number: "",
+    street_name: "",
+    building_name: "",
+    unit_number: "",
+    postal_code: "",
   });
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (!formData.username || !formData.password || !formData.customer_name) {
+    if (
+      !formData.username ||
+      !formData.password ||
+      !formData.customer_name ||
+      !formData.block_number ||
+      !formData.street_name ||
+      !formData.postal_code
+    ) {
       setError("Please fill in all required fields.");
       return;
     }
 
     setLoading(true);
 
+    // Combine address components into one string
+    const customer_address = [
+      formData.block_number,
+      formData.street_name,
+      formData.building_name,
+      formData.unit_number,
+      formData.postal_code,
+    ]
+      .filter((part) => part.trim() !== "")
+      .join(", ");
+
+    // Keep the original backend property
+    const registrationData = {
+      username: formData.username,
+      password: formData.password,
+      customer_name: formData.customer_name,
+      customer_address,
+    };
+
     try {
       const response = await fetch("http://localhost:5000/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(registrationData),
       });
 
       const data = await response.json();
@@ -89,14 +125,63 @@ const Register = () => {
           </div>
 
           <div className="dash-form-row">
-            <label className="dash-form-label">Address</label>
+            <label className="dash-form-label">Block / House Number *</label>
             <input
               className="dash-form-input"
               type="text"
-              name="customer_address"
-              value={formData.customer_address}
+              name="block_number"
+              value={formData.block_number}
               onChange={handleChange}
-              placeholder="123 Main Street"
+              placeholder="123"
+            />
+          </div>
+
+          <div className="dash-form-row">
+            <label className="dash-form-label">Street Name *</label>
+            <input
+              className="dash-form-input"
+              type="text"
+              name="street_name"
+              value={formData.street_name}
+              onChange={handleChange}
+              placeholder="Orchard Road"
+            />
+          </div>
+
+          <div className="dash-form-row">
+            <label className="dash-form-label">Building Name</label>
+            <input
+              className="dash-form-input"
+              type="text"
+              name="building_name"
+              value={formData.building_name}
+              onChange={handleChange}
+              placeholder="Example: Orchard Residences"
+            />
+          </div>
+
+          <div className="dash-form-row">
+            <label className="dash-form-label">Unit Number</label>
+            <input
+              className="dash-form-input"
+              type="text"
+              name="unit_number"
+              value={formData.unit_number}
+              onChange={handleChange}
+              placeholder="#12-34"
+            />
+          </div>
+
+          <div className="dash-form-row">
+            <label className="dash-form-label">Postal Code *</label>
+            <input
+              className="dash-form-input"
+              type="text"
+              name="postal_code"
+              value={formData.postal_code}
+              onChange={handleChange}
+              placeholder="238858"
+              maxLength={6}
             />
           </div>
 
@@ -112,7 +197,11 @@ const Register = () => {
             />
           </div>
 
-          <button type="submit" className="dash-btn dash-btn-primary login-submit" disabled={loading}>
+          <button
+            type="submit"
+            className="dash-btn dash-btn-primary login-submit"
+            disabled={loading}
+          >
             {loading ? "Creating Account..." : "Register as Customer"}
           </button>
 

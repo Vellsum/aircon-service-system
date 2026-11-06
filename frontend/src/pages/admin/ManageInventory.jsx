@@ -24,7 +24,8 @@ const inventoryFields = [
 const inventoryViewFields = [{ key: "id", label: "Item ID" }, ...inventoryFields];
 
 const ManageInventory = () => {
-  const [inventory, setInventory] = useState([]);
+  const [inventory, setInventory] = useState([]);const [partsLog, setPartsLog] = useState([]);
+const [partsLogLoading, setPartsLogLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeStatus, setActiveStatus] = useState("All");
@@ -35,6 +36,35 @@ const ManageInventory = () => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
+
+const fetchPartsLog = useCallback(async () => {
+  setPartsLogLoading(true);
+
+  try {
+    const token = localStorage.getItem("token") || "";
+    const headers = { "Content-Type": "application/json" };
+
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch("http://localhost:5000/api/admin/inventory/parts", {
+      headers
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.success && Array.isArray(data.items)) {
+      setPartsLog(data.items);
+    } else {
+      throw new Error(data.message || "Failed to fetch parts log");
+    }
+
+  } catch (err) {
+    console.error("Error fetching parts log data:", err);
+    showToast("Failed to load parts log data from database.");
+  } finally {
+    setPartsLogLoading(false);
+  }
+}, []);
 
   // 1. HTTP GET: Fetch inventory records from Azure SQL database
   const fetchInventory = useCallback(async () => {
@@ -85,8 +115,9 @@ const ManageInventory = () => {
 
   // Run fetch on mount
   useEffect(() => {
-    fetchInventory();
-  }, [fetchInventory]);
+  fetchInventory();
+  fetchPartsLog();
+}, [fetchInventory, fetchPartsLog]);
 
   // 2. Filter & Search Logic
   const filtered = inventory.filter((item) => {
@@ -321,6 +352,83 @@ const ManageInventory = () => {
             </div>
           </div>
         </section>
+
+        {/* Parts Log Table */}
+<section className="dash-panel">
+
+  <div className="dash-filterbar">
+    <div>
+      <h2>Parts Log</h2>
+      <p>View records of spare parts used in service reports</p>
+    </div>
+  </div>
+
+  <div className="dash-table-wrap">
+    <table className="dash-table">
+
+      <thead>
+        <tr>
+          {partsLog.length > 0 &&
+            Object.keys(partsLog[0]).map((key) => (
+              <th key={key}>
+                {key
+                  .replace(/([A-Z])/g, " $1")
+                  .replace(/_/g, " ")
+                  .replace(/^./, (str) => str.toUpperCase())}
+              </th>
+            ))
+          }
+        </tr>
+      </thead>
+
+      <tbody>
+        {partsLogLoading ? (
+          <tr>
+            <td colSpan={partsLog.length > 0 ? Object.keys(partsLog[0]).length : 1}
+                style={{ textAlign: "center", padding: "24px" }}>
+              Loading parts log...
+            </td>
+          </tr>
+
+        ) : partsLog.length > 0 ? (
+          partsLog.map((record, index) => (
+            <tr key={index}>
+              {Object.values(record).map((value, i) => (
+                <td key={i}>
+                  {value === null || value === undefined
+                    ? "-"
+                    : typeof value === "object"
+                      ? JSON.stringify(value)
+                      : String(value)}
+                </td>
+              ))}
+            </tr>
+          ))
+
+        ) : (
+          <tr>
+            <td
+              colSpan={1}
+              style={{
+                textAlign: "center",
+                padding: "24px",
+                color: "var(--text-secondary)"
+              }}
+            >
+              No parts log records found.
+            </td>
+          </tr>
+        )}
+      </tbody>
+
+    </table>
+  </div>
+
+  <div className="dash-pagination">
+    <span>Showing {partsLog.length} parts log records</span>
+  </div>
+
+</section>
       </main>
 
       {modal && (

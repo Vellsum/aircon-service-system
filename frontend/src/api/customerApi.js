@@ -12,7 +12,7 @@ THESE METHODS WHEN CALLED, SEND POST REQUEST TO BACKEND NODE  (cd backend, npm s
 
 
 function getAuthHeaders() {
-  const token = localStorage.getItem('token') || '';
+  const token = localStorage.getItem('token') || localStorage.getItem('aircon_token') || '';
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 }
 
@@ -42,7 +42,32 @@ function getCurrentCustomerId() {
 
 //method to get bookings with assigned status
 export const getIncomingBookings =()=> request(`/customer/incoming?customerId=${getCurrentCustomerId()}`);
+export  const purchaseSubscription = async (customerID, planId) => {
+  const token = localStorage.getItem("token") || "";
 
+  const res = await fetch(
+    "http://localhost:5000/api/customer/subscriptions/purchase",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        customerID: helpMyID(),
+        subscriptionID: planId,
+      }),
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok || !data.success) {
+    throw new Error(data.message || "Failed to purchase subscription");
+  }
+
+  return data;
+};
 
 export const chooseRROption=(bookingId,option)=>{
    return request(
@@ -165,6 +190,34 @@ export const helpMyID = () => getCurrentCustomerId();
 export const getDashboard = () => request(`/customer/dashboard?customerId=${getCurrentCustomerId()}`);
 export const getMyBookings = () => request(`/customer/bookings?customerId=${getCurrentCustomerId()}`);
 export const getMyUnits = () => request(`/customer/units?customerId=${getCurrentCustomerId()}`);
+
+export async function rateBooking(bookingId, stars) {
+  if (!Number.isSafeInteger(bookingId) || bookingId <= 0 || bookingId > 2147483647
+    || !Number.isInteger(stars) || stars < 1 || stars > 5) {
+    throw new Error('Choose a rating from 1 to 5 for a valid booking.');
+  }
+  const headers = getAuthHeaders();
+  if (headers.Authorization === 'Bearer ') {
+    throw new Error('Please sign in again before rating this booking.');
+  }
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/customer/bookings/${bookingId}/rate`, {
+      method: 'POST', headers, body: JSON.stringify({ stars }),
+    });
+  } catch {
+    throw Object.assign(new Error('The save outcome could not be confirmed. Refresh the booking before trying again.'), { uncertain: true });
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.message || `Rating request failed (${res.status}).`);
+  const rating = body?.rating;
+  if (body?.success !== true || rating?.booking_ID !== bookingId || rating?.stars !== stars
+    || !Number.isSafeInteger(rating?.technicianID) || rating.technicianID <= 0
+    || typeof rating.submittedAt !== 'string' || !Number.isFinite(Date.parse(rating.submittedAt))) {
+    throw Object.assign(new Error('The save outcome could not be confirmed. Refresh the booking before trying again.'), { uncertain: true });
+  }
+  return body;
+}
 export const getMySubscriptions = () => request(`/customer/subscriptions?customerId=${getCurrentCustomerId()}`);
 
 export const getServices = () => request(`/customer/services`);
@@ -172,6 +225,23 @@ export const getPromotions = () => request(`/customer/promotions`);
 
 export const getPlans = () => request(`/customer/plans`);
 export const getAddresses = () => request(`/customer/addresses?customerId=${getCurrentCustomerId()}`);
+
+export const getOtherAddresses=()=>request(`/customer/otherAddresses?customerId=${getCurrentCustomerId()}`);
+
+export const makeNewExtraAddress_=(input,id)=>{
+ request(`/customer/makeNewExtraAddress?customerId=${getCurrentCustomerId()}`, {
+    method: "PUT",
+    body: JSON.stringify({input,id} ),
+  });
+}
+
+export const updateOtherAddress = (input,address_ID) =>{ // console.log(input)
+ //console.log(address_ID)
+
+  request(`/customer/editExtraAddress`, {
+    method: "PUT",
+    body: JSON.stringify({input, address_ID} ),
+  });}
 
 
 //the 3 picks for RR
@@ -206,8 +276,33 @@ export const pickRR3 = (bookingId) =>  {
    );
   };
 
-
-
+export const clone=(bookingId)=>{
+      console.log("reached cloning api")
+return request(`/customer/bookings/${encodeURIComponent(bookingId)}/clone`,
+     {
+      method: "PUT",
+      body: JSON.stringify({bookingId}),
+    }
+   );
+}
+export const clone2=(bookingId)=>{
+      console.log("reached cloning2 api")
+return request(`/customer/bookings/${encodeURIComponent(bookingId)}/clone2`,
+     {
+      method: "PUT",
+      body: JSON.stringify({bookingId}),
+    }
+   );
+}
+export const clone3=(bookingId)=>{
+      console.log("reached cloning2 api")
+return request(`/customer/bookings/${encodeURIComponent(bookingId)}/clone3`,
+     {
+      method: "PUT",
+      body: JSON.stringify({bookingId}),
+    }
+   );
+}
 //export const pickRR2 = () => request(`/customer/bookings?customerId=${getCurrentCustomerId()}/RR2`);
 //export const pickRR3 = () => request(`/customer/bookings?customerId=${getCurrentCustomerId()}/RR3`);
 

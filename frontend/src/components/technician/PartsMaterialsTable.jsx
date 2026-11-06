@@ -5,6 +5,20 @@ const currencyFormatter = new Intl.NumberFormat('en-SG', {
   currency: 'SGD',
 })
 
+function formatStock(value) {
+  const stock = typeof value === 'string' && /^\d+$/.test(value.trim())
+    ? Number(value) : value
+  return typeof stock === 'number' && Number.isSafeInteger(stock) && stock >= 0
+    ? stock : 'Unavailable'
+}
+
+function inventoryPrice(value) {
+  if (typeof value !== 'number' && (typeof value !== 'string'
+    || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim()))) return null
+  const price = Number(value)
+  return Number.isFinite(price) && price >= 0 ? price : null
+}
+
 function createMaterialRow() {
   const uniqueId =
     typeof crypto !== 'undefined' && crypto.randomUUID
@@ -16,7 +30,7 @@ function createMaterialRow() {
     itemID: '',
     // Pending schema confirmation: quantity and cost are presentation-only fields.
     quantity: '1',
-    unitCost: '0.00',
+    unitCost: '',
   }
 }
 
@@ -46,7 +60,15 @@ function PartsMaterialsTable({ rows, inventoryItems = [], errors = {}, onChange 
 
   const updateRow = (rowId, field, value) => {
     onChange(
-      rows.map((row) => (row.id === rowId ? { ...row, [field]: value } : row)),
+      rows.map((row) => {
+        if (row.id !== rowId) return row
+        if (field === 'itemID') {
+          if (row.itemID === value) return row
+          const price = inventoryPrice(inventoryById.get(value)?.price)
+          return { ...row, itemID: value, unitCost: price === null ? '' : String(price) }
+        }
+        return { ...row, [field]: value }
+      }),
     )
   }
 
@@ -61,7 +83,7 @@ function PartsMaterialsTable({ rows, inventoryItems = [], errors = {}, onChange 
           <h3 id="parts-materials-title">Parts &amp; Materials Used</h3>
           <p>Select inventory items consumed during this service visit.</p>
         </div>
-        <button type="button" className="btn btn-outline-primary btn-sm" onClick={addRow}>
+        <button type="button" className="cf-button cf-button-secondary text-nowrap" onClick={addRow}>
           <span aria-hidden="true">+</span> Add Row
         </button>
       </div>
@@ -82,6 +104,8 @@ function PartsMaterialsTable({ rows, inventoryItems = [], errors = {}, onChange 
             const itemErrorId = `material-${row.id}-item-error`
             const quantityErrorId = `material-${row.id}-quantity-error`
             const costErrorId = `material-${row.id}-cost-error`
+            const priceUnavailable = row.itemID !== '' && inventoryPrice(selectedInventoryItem?.price) === null
+            const priceUnavailableId = `material-${row.id}-price-unavailable`
 
             return (
               <div className="materials-grid materials-grid-row" key={row.id}>
@@ -115,7 +139,7 @@ function PartsMaterialsTable({ rows, inventoryItems = [], errors = {}, onChange 
                     <div className="materials-inventory-details">
                       <div>
                         <span>{selectedInventoryItem.itemType}</span>
-                        <span>Stock: {selectedInventoryItem.stock}</span>
+                        <span>Stock: {formatStock(selectedInventoryItem.stock)}</span>
                       </div>
                       <small>{selectedInventoryItem.description}</small>
                     </div>
@@ -166,8 +190,13 @@ function PartsMaterialsTable({ rows, inventoryItems = [], errors = {}, onChange 
                     onChange={(event) => updateRow(row.id, 'unitCost', event.target.value)}
                     aria-required="true"
                     aria-invalid={Boolean(rowErrors.unitCost)}
-                    aria-describedby={rowErrors.unitCost ? costErrorId : undefined}
+                    aria-describedby={[rowErrors.unitCost && costErrorId, priceUnavailable && priceUnavailableId].filter(Boolean).join(' ') || undefined}
                   />
+                  {priceUnavailable && (
+                    <small className="form-text d-block" id={priceUnavailableId}>
+                      Inventory price unavailable. Enter Unit Cost manually.
+                    </small>
+                  )}
                   {rowErrors.unitCost && (
                     <span className="report-field-error" id={costErrorId}>
                       {rowErrors.unitCost}

@@ -48,16 +48,18 @@ const navItems = [
     ),
   },
   //manage admins button
-  /** i just comment it first, dont know if really nexccessary
+
+
+  /** i just comment it first, dont know if really nexccessary*/
     {
-    label: "Manage Admins", path: "/admin/customers",
+    label: "Manage Admins", path: "/admin/admins",
     icon: (
       <>
         <circle cx="8" cy="8" r="3" />
         <path d="M2 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6M18 15a5 5 0 0 1 4 5" />
       </>
     ),
-  },*/
+  },
 
 
      /**i cant believe this type of shit meet take so long to do 
@@ -79,7 +81,7 @@ const navItems = [
     ),
   },
   {
-    label: "Manage Packages", path: "/admin/packages",
+    label: "Manage Subscriptions", path: "/admin/packages",
     icon: (
       <path d="m3 7 9-4 9 4-9 4-9-4ZM3 7v10l9 4 9-4V7M12 11v10" />
     ),

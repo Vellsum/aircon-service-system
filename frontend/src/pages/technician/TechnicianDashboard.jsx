@@ -115,13 +115,28 @@ const getFormattedLiveDate = () => {
   return new Date().toLocaleDateString('en-GB', options);
 };
 
-function storedRatingDisplay(status, value) {
-  if (status === 'loading') return { value: 'Loading…', note: 'Loading stored profile rating' }
-  if (status === 'error') return { value: 'Request failed', note: 'Stored profile rating could not be loaded' }
-  if (status !== 'success' || typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 5) {
-    return { value: 'Unavailable', note: 'Stored profile rating unavailable' }
+function customerRatingDisplay(status, average, count) {
+  const display = (value, note = '', available = false, text = value) => ({ value, note, available, text })
+  if (status === 'loading') return display('Loading customer ratings…')
+  if (status === 'error') return display('Rating unavailable.', 'Customer ratings could not be loaded.')
+  if (status === 'success' && count === 0 && average === null) {
+    return display('No customer ratings yet.', '', true)
   }
-  return { value: value === 0 ? 'Not rated yet' : `${value.toFixed(1)} ★`, note: 'Stored profile rating' }
+  if (status !== 'success' || !Number.isSafeInteger(count) || count <= 0
+    || typeof average !== 'number' || !Number.isFinite(average) || average < 1 || average > 5) {
+    return display('Rating unavailable.', 'Customer rating data is unavailable.')
+  }
+  const value = (
+    <span className="cf-customer-rating-value">
+      {average.toFixed(1)}
+      <svg className="cf-customer-rating-star" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 3.4l2.7 5.6 6.1.85-4.45 4.3 1.1 6.05L12 17.4l-5.45 2.8 1.1-6.05L3.2 9.85l6.1-.85Z" />
+      </svg>
+      <span className="visually-hidden">out of 5</span>
+    </span>
+  )
+  const reviews = `${count} ${count === 1 ? 'review' : 'reviews'}`
+  return display(value, reviews, true, <>{value} · {reviews}</>)
 }
 
 function TechnicianDashboard() {
@@ -183,7 +198,10 @@ function TechnicianDashboard() {
         } else if (!pData.profile || pData.profile.technicianID !== technicianID) {
           update('unavailable')
         } else {
-          update('success', pData.profile.technicianRating)
+          update('success', {
+            customerRatingAverage: pData.profile.customerRatingAverage,
+            customerReviewCount: pData.profile.customerReviewCount,
+          })
         }
       } catch {
         update('error')
@@ -197,7 +215,8 @@ function TechnicianDashboard() {
     : !Number.isSafeInteger(technicianID) || technicianID <= 0 ? 'unavailable'
     : ratingState.technicianID === technicianID && ratingState.token === token && ratingState.identitySource === identitySource
       ? ratingState.status : 'loading'
-  const rating = storedRatingDisplay(ratingStatus, ratingState.value)
+  const rating = customerRatingDisplay(ratingStatus,
+    ratingState.value?.customerRatingAverage, ratingState.value?.customerReviewCount)
 
   const openJobDetails = (job) => {
     jobDetailsTriggerRef.current = document.activeElement
@@ -360,7 +379,7 @@ const handleStartService = async (jobToStart) => {
       ),
     },
     {
-      label: 'Rating',
+      label: 'Customer rating',
       value: rating.value,
       context: rating.note,
       tone: 'violet',
@@ -604,8 +623,8 @@ const handleStartService = async (jobToStart) => {
             </div>
             <dl className="cf-performance-list">
               <div>
-                <dt>Profile rating</dt>
-                <dd>{rating.value}<small>{rating.note}</small></dd>
+                <dt>Customer rating</dt>
+                <dd>{rating.text}<small>{rating.available ? 'Customer-submitted booking feedback' : rating.note}</small></dd>
               </div>
               <div>
                 <dt>Completed assignments</dt>

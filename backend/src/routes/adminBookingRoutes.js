@@ -11,7 +11,7 @@ const express = require('express');
 //app.use(express.json());
 const router = express.Router();
 const adminBookingController = require('../controllers/adminBookingController');
-
+router.put('/:bookingId/clone',adminBookingController.cloneBooking);
 // GET all bookings
 router.get('/', adminBookingController.getAllBookings);
 
@@ -34,5 +34,19 @@ router.put(
 );
 
 router.put('/:bookingId/alternatives',adminBookingController.submitBookingAlternatives);
+router.put('/:bookingId/reserve',adminBookingController.makeReservedSlots)
+
+
+//promos--------------------
+router.get('/promo',adminBookingController.getPromotions)
+router.post('/newPromo',adminBookingController.newPromo)
+router.put('/editpromo',adminBookingController.editPromo)
+
+//suscriptns-------------
+router.get('/subscriptions',adminBookingController.getSubscriptions)
+router.get('/subscriptions/services',adminBookingController.getServices)
+router.post('/subscriptions',adminBookingController.addSubscription)  
+
+router.put('/subscriptions/:subscriptionID',adminBookingController.editSubscription) 
 
 module.exports = router;

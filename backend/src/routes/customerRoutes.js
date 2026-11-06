@@ -12,6 +12,7 @@ const customerController = require('../controllers/customerController');
 //to get incoming booking
 const getINCOMING= customerController.getINCOMING;
 
+const authenticateCustomer = require('../middleware/authenticateCustomer');
 
 // Diagnostic check: Fallback inline handlers prevent server crash if a controller method is missing
 const getDashboard = customerController.getDashboard || ((req, res) => res.status(500).json({ error: 'getDashboard missing in controller' }));
@@ -33,7 +34,8 @@ router.get('/profile', customerController.getProfile);
 router.put('/profile', customerController.updateProfile);
 
 router.get('/dashboard', getDashboard);
-router.get('/bookings', getMyBookings);
+router.get('/bookings', authenticateCustomer, getMyBookings);
+router.post('/bookings/:bookingId/rate', authenticateCustomer, customerController.rateBooking);
 router.get('/units', getMyUnits);
 router.post('/units', registerUnit);
 router.get('/subscriptions', getMySubscriptions);
@@ -43,6 +45,9 @@ router.get('/addresses', getAddresses);
 router.post('/bookings', createBooking);  //to make booking
 router.put('/bookings/:bookingId/cancel', cancelBooking);
 
+router.get('/otherAddresses', customerController.getOtherAddresses); ///for the other address
+router.put("/editExtraAddress", customerController.updateOtherAddress)
+router.put("/makeNewExtraAddress",customerController.makeNewExtraAddress)
 
 //customer approve/reject
 //const validateBooking = customerController. updateIncomingBookingStatus;
@@ -52,11 +57,33 @@ const authenticateToken = require('./authMiddleware');
 router.put("/bookings/:bookingId/RR1",authenticateToken, customerController.pickRR1)
 router.put("/bookings/:bookingId/RR2",authenticateToken, customerController.pickRR2)
 router.put("/bookings/:bookingId/RR3",authenticateToken, customerController.pickRR3)
-
+router.put("/bookings/:bookingId/clone",authenticateToken, customerController.cloneBooking)
+router.put("/bookings/:bookingId/clone2",authenticateToken, customerController.clone2)
+router.put("/bookings/:bookingId/clone3",authenticateToken, customerController.clone3)
 
 router.put("/bookings/:bookingId/status",authenticateToken, customerController.updateIncomingBookingStatus);   // <--- doesnt work
 router.put("/bookings/:bookingId/choose/:option", authenticateToken,customerController.chooseRROption)
 router.get('/incoming', getINCOMING);
+
+
+
+//sbscruptions===========
+
+
+router.post(
+  "/subscriptions/purchase",
+  customerController.purchaseSubscription
+);
+
+
+
+
+
+
+
+
+
+
 module.exports = router;
 
 //module.exports.updateIncomingBookingStatus = updateIncomingBookingStatus;

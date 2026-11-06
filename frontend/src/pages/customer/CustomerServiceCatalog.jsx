@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AirconUnitArt, Icon, SnowfieldBackdrop } from "../../components/customer/CustomerIcons";
 import { formatMoney } from "../../data/customer/customerSelectors";
-import { getPlans, getPromotions, getServices } from "../../api/customerApi";
+import { getPlans, getPromotions, getServices,purchaseSubscription } from "../../api/customerApi";
+
+//I AM NOW THE PURCHASE SUBSCRIPTION PAGE=======================================================
 
 const PROMO_TONES = ["accent", "success", "warning"];
 
@@ -86,14 +88,33 @@ const CustomerServiceCatalog = () => {
       </section>
     );
   }
+const handlePurchase = async (plan) => {
+  try {
+    const customerID = localStorage.getItem("customer_ID");
 
+    const res = await purchaseSubscription(
+      customerID,
+      plan.plan_id
+    );
+
+    if (res.success) {
+      alert("Subscription purchased successfully!");
+      navigate("/customer/dashboard");
+    } else {
+      alert(res.message || "Purchase failed.");
+    }
+  } catch (err) {
+    console.error("Subscription purchase error:", err);
+    alert(err.message || "Unable to purchase subscription.");
+  }
+};
   return (
     <>
-      {/* Banner Section */}
+      {/* Banner Section -----------------------------------------------------------------------------------------*/}
       <section className="cust-banner">
         <SnowfieldBackdrop />
         <div className="cust-banner-text">
-          <p className="cust-banner-eyebrow">Services &amp; packages</p>
+          <p className="cust-banner-eyebrow">Subscriptions and Promotions</p>
           <h1>Everything we can do for your aircon.</h1>
           <p>
             Transparent pricing, certified technicians and a 30-day workmanship guarantee on every
@@ -105,7 +126,7 @@ const CustomerServiceCatalog = () => {
         </div>
       </section>
 
-      {/* Individual services — real data from payables.service 
+      {/* Individual services — real data from payables.service ---------------------------------------------------------------------------------------------------------------------
       <section className="cust-panel">
         <div className="cust-panel-head">
           <div>
@@ -167,7 +188,8 @@ const CustomerServiceCatalog = () => {
       
       </section>*/}
       
-            {/* Maintenance plans — real data from payables.subscription */}
+            {/* Maintenance plans — real data from payables.subscription
+            USES REAL DATA ------------------------------------------------------------------------------------------------------------------------------------ */}
       <section className="cust-panel">
         <div className="cust-panel-head">
           <div>
@@ -224,8 +246,7 @@ const CustomerServiceCatalog = () => {
               <button
                 className="dash-btn dash-btn-primary"
                 style={{ width: "100%", marginTop: "auto" }}
-                onClick={() => navigate("/customer/book")}
-              >
+onClick={() => handlePurchase(plan)}              >
                 Choose {plan.plan_name}
               </button>
             </article>
@@ -233,8 +254,8 @@ const CustomerServiceCatalog = () => {
         </div>
       </section>
 
-      {/* Promotions — real data from payables.promotions */}
-      <section className="cust-panel">
+      {/* Promotions — real data from payables.promotions ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/}
+     {/**ITS NOW REAL DATA, actually always was */} <section className="cust-panel">
         <div className="cust-panel-head">
           <div>
             <h2>Current promotions</h2>

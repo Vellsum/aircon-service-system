@@ -20,7 +20,7 @@ const statusTone = {   //dafuq is this used for???
 const statusFilters = [
   "All",
   "confirmed",
-  "Pending",
+  "pending",
   "Assigned",
   "Completed",
   "Cancelled",
@@ -43,6 +43,7 @@ const columns = [
   {key: "totalTime", label: "total time"},
   {key: "totalCost", label: "total cost"},
   {key: "reassignmentReason", label: "reason for reassignment"},
+  {key: "servicesBooked",label:"Services Booked"},
   //the html gets key from here
 ];
 
@@ -85,7 +86,10 @@ const AssignTechnician = () => {
   const assignLimit = getAssignLimit();
 
   const [modalAction, setModalAction] = useState("default");  //This tracks what the admin is doing inside the modal.
-
+  const assignData = useMemo(
+    () => (modal ? { ...modal.record, technician_ID: "", reason: "" } : null),
+    [modal]
+  );
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
@@ -125,8 +129,13 @@ const AssignTechnician = () => {
                 totalTime: b.estimateTotalTime_minutes,
                 totalCost: b.estimateTotalCost,
                 reassignmentReason: b.reasonOfReassignment,
+                servicesBooked: b.servicesBooked,
 
-
+                customer_ID: b.customer_ID,
+                assisting: b.assisting,
+technician_ID_2: b.technician_ID_2
+  ? String(b.technician_ID_2)
+  : "",
             };
           })
         );
@@ -177,7 +186,14 @@ const AssignTechnician = () => {
         return String(a[sortKey]).localeCompare(String(b[sortKey])) * dir;
       });
   }, [bookings, search, activeStatus, sortKey, sortDir]);
-const timingOptions = ["Morning", "Afternoon"];
+
+const timingOptions_old = ["Morning", "Afternoon"];
+const timingOptions = [
+  { label: "Morning", value: "Morning" },
+  { label: "Afternoon", value: "Afternoon" },
+];
+
+
   const isReassign = modal?.mode === "assign" && Boolean(modal.record.technician_ID);
 
   // When reassigning, the current technician is not offered again
@@ -185,12 +201,132 @@ const timingOptions = ["Morning", "Afternoon"];
    * so sum, u would need below method to call an api to get only technicians that r free, for that date n time
    */
 //bro, below gets all the  technicians but if we want one that filters by date time need to make another one of these or something, depends on ur api
-  const technicianOptions = technicians
+/*** old one
+ * 
+ *  */  
+const technicianOptions = technicians
     .map((t) => ({
       label: t.technician_name || t.username,
       value: String(t.technician_ID),
     }))
     .filter((o) => !isReassign || o.value !== modal.record.technician_ID);
+
+
+    //still deciding.....
+    //new above method that is being called by dropdown selectors
+
+
+const getAvailableTechnicianOptions = ( //lets use this
+  date,
+  time,
+  excludeBookingId = null,
+  excludeTechnicianIds = []
+) => {
+  if (!date || !time) return [];
+
+  const unavailableIds = new Set(
+    excludeTechnicianIds.map(String)
+  );
+
+  bookings.forEach((booking) => {
+    // Don't count the booking currently being edited
+    if (
+      excludeBookingId != null &&
+      String(booking.booking_ID) === String(excludeBookingId)
+    ) {
+      return;
+    }
+
+    const status = String(booking.status || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[_-]+/g, " ");
+
+    // Completed and cancelled bookings don't occupy a slot
+    if (["completed", "cancelled"].includes(status)) return;
+
+    const bookingDate = formatLocalDateString(booking.booking_date);
+    const bookingTime = String(booking.timing || "")
+      .trim()
+      .toLowerCase();
+
+    if (
+      bookingDate !== date ||
+      bookingTime !== String(time).trim().toLowerCase()
+    ) {
+      return;
+    }
+
+    // Primary technician
+    if (booking.technician_ID) {
+      unavailableIds.add(String(booking.technician_ID));
+    }
+
+    // Assisting technician
+    if (booking.technician_ID_2) {
+      unavailableIds.add(String(booking.technician_ID_2));
+    }
+
+    // Existing assisting field, if returned by your backend
+    if (booking.assisting) {
+      unavailableIds.add(String(booking.assisting));
+    }
+  });
+
+  return technicians
+    .map((t) => ({
+      label: t.technician_name || t.username,
+      value: String(t.technician_ID),
+    }))
+    .filter((option) => !unavailableIds.has(option.value));
+};
+const technicianOptions2 = getAvailableTechnicianOptions(
+  modal?.record?.booking_date,
+  modal?.record?.timing,
+  isReassign ? [modal.record.technician_ID] : []
+);
+
+    //new one that filters by exclusions, but this return data
+    const getAvailableTechnicianOptions2 = (date, time, excludeIds = []) => {
+  if (!date || !time) return [];
+
+  const unavailableIds = new Set(excludeIds.map(String));
+
+  bookings.forEach((booking) => {
+    const bookingDate = formatLocalDateString(booking.booking_date);
+    const bookingTime = String(booking.timing || "").trim().toLowerCase();
+    const selectedTime = String(time).trim().toLowerCase();
+    const status = String(booking.status || "").trim().toLowerCase();
+
+    // Completed and cancelled bookings do not block technicians
+    if (["completed", "cancelled"].includes(status)) return;
+
+    // Only bookings on the selected date and time slot matter
+    if (bookingDate !== date || bookingTime !== selectedTime) return;
+
+    // Block both the primary and assisting technicians
+    if (booking.technician_ID) {
+      unavailableIds.add(String(booking.technician_ID));
+    }
+
+    if (booking.technician_ID_2) {
+      unavailableIds.add(String(booking.technician_ID_2));
+    }
+
+    // Also account for your existing assisting field if that's
+    // where the backend stores the second technician's ID.
+    if (booking.assisting) {
+      unavailableIds.add(String(booking.assisting));
+    }
+  });
+
+  return technicians
+    .map((t) => ({
+      label: t.technician_name || t.username,
+      value: String(t.technician_ID),
+    }))
+    .filter((option) => !unavailableIds.has(option.value));
+};
 
   // Reschedule requests: change time only.
 // Confirmed bookings: allow technician reassignment.
@@ -299,7 +435,7 @@ key: "NO_U",
           key: "reason",
           label: "Reason for reassignment",
           type: "text",
-           options: timingOptions,
+          // options: timingOptions,
           required: true,
         },
       ]
@@ -309,6 +445,8 @@ key: "NO_U",
 //alternative field for request rescheduel----------------------------------------------
 
 const alternativeFields = [
+    //RR 1 ----------------------------------------------------------
+
   {
     key: "option1_date",
     label: "Alternative 1 — Date",
@@ -330,6 +468,23 @@ const alternativeFields = [
     required: true,
   },
 
+  // Show a second technician slot when more than 3 aircon units
+...(Number(modal?.record?.NO_U) > 3 &&
+    String(modal?.record?.status || "").toLowerCase() === "pending" &&
+    !modal?.record?.technician_ID
+  ? [
+      {
+        key: "RR1",
+        label: "Alternative 1 — Assisting Technician",
+        type: "select",
+        required: true,
+        options: technicianOptions,
+      },
+    ]
+  : []),
+
+  //RR 2 ----------------------------------------------------------
+
   {
     key: "option2_date",
     label: "Alternative 2 — Date",
@@ -350,6 +505,21 @@ const alternativeFields = [
     options: technicianOptions,
     required: true,
   },
+   // Show a second technician slot when more than 3 aircon units
+...(Number(modal?.record?.NO_U) > 3 &&
+    String(modal?.record?.status || "").toLowerCase() === "pending" &&
+    !modal?.record?.technician_ID
+  ? [
+      {
+        key: "RR2",
+        label: "Alternative 2 — Assisting Technician",
+        type: "select",
+        required: true,
+        options: technicianOptions,
+      },
+    ]
+  : []),
+  //RR 3 ----------------------------------------------------------
 
   {
     key: "option3_date",
@@ -371,6 +541,18 @@ const alternativeFields = [
     options: technicianOptions,
     required: true,
   },
+   // Show a second technician slot when more than 3 aircon units
+...(Number(modal?.record?.NO_U) > 3 
+  ? [
+      {
+        key: "RR3",
+        label: "Alternative 3 — Assisting Technician",
+        type: "select",
+        required: true,
+        options: technicianOptions,
+      },
+    ]
+  : []),
 ];
 
 
@@ -390,7 +572,7 @@ const viewFields = [
 //sends data to api
 const handleAssign = async (formData) => {
   const record = modal.record;
-
+const token = localStorage.getItem("token");
   //get the booking status
   const status = String(record.status || "") .trim() .toLowerCase();
    
@@ -415,6 +597,8 @@ console.log("Technician ID:", record.technician_ID);
 console.log("Is confirmed:", isConfirmed);
 console.log("Is reschedule:", isRescheduleRequested);
 console.log("Is initial assignment:", isInitialAssignment);
+console.log(record.NO_U); //correct
+console.log(record);
 
   if (
     !isConfirmed &&
@@ -491,31 +675,45 @@ console.log("Is initial assignment:", isInitialAssignment);
                 time: newTime,
               };
   }
-
 else {
-  // New pending booking: assign its first technician.---------------------------------------
+  // Initial assignment for a pending booking
   const technicianId = String(formData.technician_ID || "");
-  const bookingTime = String(formData.newTime || "").trim();
+  const numberOfUnits = Number(record.NO_U);
+
+  const technicianId2 =
+    numberOfUnits > 3
+      ? String(formData.technician_ID_2 || "")
+      : "";
 
   if (!technicianId) {
-    showToast("Error: Please select a technician");
+    showToast("Error: Please select Technician 1");
     return;
   }
-/**  if (!bookingTime) {
-    showToast("Error: Booking time is missing");
+
+  if (numberOfUnits > 3 && !technicianId2) {
+    showToast("Error: Please select Technician 2");
     return;
-  } */
+  }
 
-//on more than 3 aircon, call another method
-
+  if (technicianId2 && technicianId2 === technicianId) {
+    showToast("Error: Please select two different technicians");
+    return;
+  }
 
   endpoint = `${API}/bookings/${record.booking_ID}/status`;
 
   requestBody = {
     technician_ID: Number(technicianId),
-    time: bookingTime,
-    status: "confirmed",   //assume technicians available, can just confirm straight away since its the date n time customer wants
-    // only for this sprint
+    ...(technicianId2
+      ? { technician_ID_2: Number(technicianId2) }
+      : {}),
+    status: "confirmed",
+    numberOfUnits:  Number(record.NO_U),
+    customer_ID:  Number(record.customer_ID),
+    assisting: Number(technicianId2),
+    location: record.customerAddress,
+    booking_date: record.booking_date,
+    timing: record.timing,
   };
 }
 
@@ -569,6 +767,34 @@ else {
     console.error("Booking update failed:", err);
     showToast(`Error: ${err.message}`);
   }
+
+  //clone booking for single assistant (3 or more units)-----------
+  if(record.NO_U >3){
+    console.log('reached that part for assisting ')
+     endpoint = `${API}/bookings/${record.booking_ID}/clone`;
+
+  const cloneResult = await fetch(endpoint, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+
+
+
+
+
+
+
+
+  } 
+ 
+  
+
+
 };
 
   //end of shit===================================
@@ -585,16 +811,21 @@ const handleProposeAlternatives = async (formData) => {
       date: formData.option1_date,
       time: formData.option1_time,
       technician_ID: Number(formData.option1_technician_ID),
+      assisting: formData.RR1,
     },
     {
       date: formData.option2_date,
       time: formData.option2_time,
       technician_ID: Number(formData.option2_technician_ID),
+            assisting: formData.RR2,
+
     },
     {
       date: formData.option3_date,
       time: formData.option3_time,
       technician_ID: Number(formData.option3_technician_ID),
+            assisting: formData.RR3,
+
     },
   ];
 
@@ -656,12 +887,6 @@ if (responseText) {
     );
   }
 }
-/**if (!response.ok) {
-  throw new Error(
-    result.message || `Request failed (HTTP ${response.status})`
-  );
-}
- */
 
 showToast("Alternative options submitted successfully.");
 
@@ -673,22 +898,44 @@ await fetchData();
 
   }
 
-/** if (!response.ok) {
-      throw new Error(
-        result.message || "Failed to submit alternative options."
-      );
-    
-    
+// make the RR reserved mock booking
+console.log("making the reserve mock booking - managebooking.jsx")
+    const endpointRR = `${API}/bookings/${record.booking_ID}/reserve`; //btw admin has no api like customer it goes straitght to routes
+ const alternativesWithMore = [ //so booking can be properly made with requireed ID
+    {
+      date: formData.option1_date,
+      time: formData.option1_time,
+      technician_ID: Number(formData.option1_technician_ID),
+      assisting: formData.RR1,
+    },
+    {
+      date: formData.option2_date,
+      time: formData.option2_time,
+      technician_ID: Number(formData.option2_technician_ID),
+            assisting: formData.RR2,
 
-    showToast("Alternative options submitted successfully.");
-    setModal(null);
-    setModalAction("default");
-    await fetchData();
-  } catch (err) {
-    console.error("Submitting alternatives failed:", err);
-    showToast(`Error: ${err.message}`);
-  }
-}*/
+    },
+    {
+      date: formData.option3_date,
+      time: formData.option3_time,
+      technician_ID: Number(formData.option3_technician_ID),
+            assisting: formData.RR3,
+
+    },
+  ];
+
+
+   const tokenRR = localStorage.getItem("token")
+  const make_reserved = await fetch(endpointRR, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${tokenRR}`,
+      },
+      body: JSON.stringify({alternativesWithMore,
+        customer_ID:  Number(record.customer_ID),}),
+    });
+console.log("able to call method")
 
 
 };//end of fucking method
@@ -783,7 +1030,8 @@ await fetchData();
                         {/**number of units */} <td> {booking.NO_U}</td> {/**not showing properly */}
                         {/**total time */} <td> {booking.totalTime}</td>
                         {/**total cost */} <td> { booking.totalCost} </td>
-                        {/**reason for reassignment */} <td> {booking.reassignmentReason} </td>                   
+                        {/**reason for reassignment */} <td> {booking.reassignmentReason} </td>    
+                        <td>{booking.servicesBooked}</td>               
                         
 
 
@@ -865,8 +1113,8 @@ await fetchData();
             
           }
           fields={modal.mode === "assign" ? assignFields : viewFields}
-          data={modal.mode === "assign" ? { ...modal.record, technician_ID: "", reason: "" } : modal.record}
-      onClose={() => {
+data={modal.mode === "assign" ? assignData : modal.record}      getTechnicianOptions={getAvailableTechnicianOptions}
+          onClose={() => {
   setModal(null);
   setModalAction("default");
 }}

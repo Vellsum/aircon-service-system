@@ -244,10 +244,10 @@ function TechnicianJobHistory() {
           <JobStatusBadge status={selectedJob.status} />
         </section>
 
-        {/* ---- Two-Column Detail Grid ---- */}
+        {/* ---- Stacked Detail Sections ---- */}
         <div className="cf-history-detail-grid">
           {/* ============================================================
-               LEFT: Service Information
+               Service Information
                ============================================================ */}
           <section className="cf-widget cf-history-information-card" aria-labelledby="service-information-title">
             <header className="cf-widget-header cf-widget-header-compact">
@@ -293,7 +293,7 @@ function TechnicianJobHistory() {
           </section>
 
           {/* ============================================================
-               RIGHT: Service Report (from API)
+               Service Report (from API)
                ============================================================ */}
           <section className="cf-widget cf-history-feedback-card" aria-labelledby="service-report-details-title">
             <header className="cf-widget-header cf-widget-header-compact">
@@ -336,7 +336,7 @@ function TechnicianJobHistory() {
                 </div>
 
                 {/* Findings */}
-                <div>
+                <div className="cf-history-field-wide">
                   <dt>Findings</dt>
                   <dd style={{ whiteSpace: 'pre-wrap' }}>
                     {jobReport.findings || '—'}
@@ -372,7 +372,7 @@ function TechnicianJobHistory() {
                 </div>
 
                 {/* Actions Taken */}
-                <div>
+                <div className="cf-history-field-wide">
                   <dt>Actions Taken</dt>
                   <dd style={{ whiteSpace: 'pre-wrap' }}>
                     {jobReport.actionsTaken || '—'}
@@ -388,7 +388,7 @@ function TechnicianJobHistory() {
                 </div>
 
                 {/* Recommendations / Follow-up */}
-                <div>
+                <div className="cf-history-field-wide">
                   <dt>Recommendations</dt>
                   <dd style={{ whiteSpace: 'pre-wrap' }}>
                     {jobReport.recommendations || '—'}
@@ -396,7 +396,7 @@ function TechnicianJobHistory() {
                 </div>
 
                 {/* Checklist */}
-                <div>
+                <div className="cf-history-field-wide">
                   <dt>Checklist</dt>
                   <dd style={{ whiteSpace: 'pre-wrap' }}>
                     {jobReport.serviceChecklist || '—'}
@@ -425,7 +425,7 @@ function TechnicianJobHistory() {
 
                 {/* Internal Notes */}
                 {jobReport.notes && (
-                  <div>
+                  <div className="cf-history-field-wide">
                     <dt>Internal Notes</dt>
                     <dd style={{
                       whiteSpace: 'pre-wrap',

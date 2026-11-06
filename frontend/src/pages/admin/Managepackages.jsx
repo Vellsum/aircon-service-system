@@ -1,293 +1,332 @@
-import React, { useCallback, useEffect, useState } from "react";
+
+import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
 
-// ⚠️ Keep this IDENTICAL to the base URL used in src/api/customerApi.js
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+// Subscription fields based on payables.subscription
+const subscriptionFields = [
+  {
+    key: "name",
+    label: "Subscription Name",
+    type: "text",
+    required: true,
+  },
+  {
+    key: "description",
+    label: "Description",
+    type: "textarea",
+    required: true,
+  },
+  {
+    key: "recurringServiceID",
+    label: "Recurring Service",
+    type: "select",
+    options: [], // API NEEDED: Retrieve existing services
+    required: true,
+  },
+  {
+    key: "timeTillNextService",
+    label: "Interval (Days)",
+    type: "number",
+    required: true,
+  },
+  {
+    key: "numberOfBookings",
+    label: "Number of Bookings",
+    type: "number",
+    required: true,
+  },
+];
 
-const statusTone = {
-  Active: "success",
-  Inactive: "warning",
-};
+const subscriptionViewFields = [
+  { key: "subscriptionID", label: "Subscription ID" },
+  ...subscriptionFields,
+];
 
-const statusFilters = ["All", "Active", "Inactive"];
-
-// "10 - General Servicing (1 Unit)" -> 10
-const parseServiceOption = (value) => {
-  const m = String(value || "").match(/^(\d+)/);
-  return m ? Number(m[1]) : null;
-};
-
-const ManagePackages = () => {
-  const [packages, setPackages] = useState([]);
+const ManageSubscriptions = () => {
+  const [subscriptions, setSubscriptions] = useState([]);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [activeStatus, setActiveStatus] = useState("All");
   const [modal, setModal] = useState(null);
+  const [toast, setToast] = useState(null);
 
-  const loadPackages = useCallback(async () => {
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // GET: Load subscriptions
+  const fetchSubscriptions = useCallback(async () => {
+    setLoading(true);
+
     try {
-      setLoading(true);
-      setError("");
-      const [pkgRes, svcRes] = await Promise.all([
-        fetch(`${API_BASE}/packages`),
-        fetch(`${API_BASE}/packages/services`),
-      ]);
-      const pkgJson = await pkgRes.json().catch(() => ({}));
-      const svcJson = await svcRes.json().catch(() => ({}));
-      if (!pkgRes.ok || !pkgJson.success) throw new Error(pkgJson.message || `Request failed (${pkgRes.status})`);
-      setPackages(pkgJson.data || []);
-      if (svcRes.ok && svcJson.success) setServices(svcJson.data || []);
+      const token = localStorage.getItem("token") || "";
+
+      const res = await fetch(
+        "http://localhost:5000/api/admin/bookings/subscriptions",  /// <---  THIS GET ALL FROM TABLE
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to load subscriptions");
+      }
+
+      if (data.success && Array.isArray(data.subscriptions)) {
+        setSubscriptions(data.subscriptions);
+      } else {
+        setSubscriptions([]);
+      }
     } catch (err) {
-      setError(err.message || "Failed to load packages");
+      console.error("Error fetching subscriptions:", err);
+      showToast(`Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadPackages();
-  }, [loadPackages]);
+  // GET: Load existing services for dropdown
+  const fetchServices = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token") || "";
 
-  // Dropdown options need the loaded services, so build the field list at render time
-  const packageFields = [
-    { key: "name", label: "Package Name", type: "text" },
-    { key: "description", label: "Description", type: "text" },
-    {
-      key: "recurringServiceID",
-      label: "Recurring Service",
-      type: "select",
-      options: services.map((s) => `${s.service_id} - ${s.service_name}`),
-    },
-    { key: "timeTillNextService", label: "Days Between Services", type: "text" },
-    { key: "numberOfBookings", label: "Number of Bookings", type: "text" },
-    { key: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
+      const res = await fetch(
+        "http://localhost:5000/api/admin/bookings/subscriptions/services",/// <---  THIS GET ALL services FROM TABLE
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to load services");
+      }
+
+      if (data.success && Array.isArray(data.services)) {
+        setServices(data.services);
+      }
+    } catch (err) {
+      console.error("Error fetching services:", err);
+      showToast(`Error loading services: ${err.message}`);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSubscriptions();
+    fetchServices();
+  }, [fetchSubscriptions, fetchServices]);
+
+  // Prepare service dropdown options
+  const serviceOptions = services.map((service) => ({
+    value: service.service_id,
+    label: service.service_name,
+  }));
+
+  const fieldsWithServices = subscriptionFields.map((field) =>
+    field.key === "recurringServiceID"
+      ? { ...field, options: serviceOptions }
+      : field
+  );
+
+  const viewFieldsWithServices = [
+    { key: "subscriptionID", label: "Subscription ID" },
+    ...fieldsWithServices,
   ];
 
-  // Turn the numeric recurringServiceID into the matching "id - name" option string
-  const toFormRecord = (pkg) => ({
-    ...pkg,
-    recurringServiceID:
-      pkg.recurringServiceID != null ? `${pkg.recurringServiceID} - ${pkg.serviceName || ""}` : "",
-  });
-
-  const handleSave = async (formData) => {
-    const isCreate = modal.mode === "create";
-    const url = isCreate ? `${API_BASE}/packages` : `${API_BASE}/packages/${modal.record.id}`;
-    const payload = {
-      name: formData.name,
-      description: formData.description,
-      recurringServiceID: parseServiceOption(formData.recurringServiceID),
-      timeTillNextService: formData.timeTillNextService,
-      numberOfBookings: formData.numberOfBookings,
-      status: formData.status,
-    };
-    try {
-      const res = await fetch(url, {
-        method: isCreate ? "POST" : "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.success) throw new Error(json.message || `Request failed (${res.status})`);
-      setModal(null);
-      await loadPackages();
-    } catch (err) {
-      alert(err.message || "Failed to save package");
-    }
-  };
-
-  const handleStatus = async (pkg, status) => {
-    try {
-      const res = await fetch(`${API_BASE}/packages/${pkg.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.success) throw new Error(json.message || `Request failed (${res.status})`);
-      await loadPackages();
-    } catch (err) {
-      alert(err.message || "Failed to update package");
-    }
-  };
-
-  const filtered = packages.filter((pkg) => {
-    const matchesStatus = activeStatus === "All" || pkg.status === activeStatus;
-    const haystack = `${pkg.name} ${pkg.packageId} ${pkg.description}`.toLowerCase();
-    const matchesSearch = haystack.includes(search.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
-
-  const topSeller = packages.reduce(
-    (best, p) => (!best || p.subscribers > best.subscribers ? p : best),
-    null
+  // Search subscriptions
+  const filtered = subscriptions.filter((sub) =>
+    (sub.name || "").toLowerCase().includes(search.toLowerCase()) ||
+    String(sub.subscriptionID || "").includes(search)
   );
+
+  // POST: Create subscription
+  const handleAdd = async (formData) => {
+    if (modal?.mode !== "create") return;
+
+    try {
+      const token = localStorage.getItem("token") || "";
+
+      const res = await fetch(
+        "http://localhost:5000/api/admin/bookings/subscriptions",  /// <---  make new subscription
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description,
+            recurringServiceID: formData.recurringServiceID,
+            timeTillNextService: formData.timeTillNextService,
+            numberOfBookings: formData.numberOfBookings,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to create subscription");
+      }
+
+      showToast("Subscription created successfully!");
+      setModal(null);
+      fetchSubscriptions();
+    } catch (err) {
+      showToast(`Error: ${err.message}`);
+    }
+  };
+
+  // PUT: Edit subscription
+  const handleSave = async (formData) => {
+    if (modal?.mode !== "edit") return;
+
+    try {
+      const token = localStorage.getItem("token") || "";
+      const subscriptionID = modal.record.subscriptionID;
+
+      const res = await fetch(
+        `http://localhost:5000/api/admin/bookings/subscriptions/${subscriptionID}`,  // <-- edit subscription
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            subscriptionID,
+            name: formData.name,
+            description: formData.description,
+            recurringServiceID: formData.recurringServiceID,
+            timeTillNextService: formData.timeTillNextService,
+            numberOfBookings: formData.numberOfBookings,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to update subscription");
+      }
+
+      showToast("Subscription updated successfully!");
+      setModal(null);
+      fetchSubscriptions();
+    } catch (err) {
+      showToast(`Error: ${err.message}`);
+    }
+  };
 
   return (
     <div className="dash">
-      <Sidebar active="Manage Packages" />
+      <Sidebar active="Manage Subscriptions" />
 
       <main className="dash-main">
         <header className="dash-header">
           <div>
-            <h1>Manage Packages</h1>
-            <p>View and manage bundled service packages</p>
+            <h1>Manage Subscriptions</h1>
+            <p>Manage recurring service packages and booking cycles</p>
           </div>
-          <button className="dash-btn dash-btn-primary" onClick={() => setModal({ mode: "create", record: {} })}>
-            + Add Package
+
+          <button
+            className="dash-btn dash-btn-primary"
+            onClick={() => setModal({ mode: "create", record: {} })}
+          >
+            + Add Subscription
           </button>
         </header>
 
         <section className="dash-stats">
           <div className="dash-stat dash-stat-accent">
-            <p className="dash-stat-label">Total Packages</p>
-            <p className="dash-stat-value">{packages.length}</p>
-            <p className="dash-stat-delta">Available bundles</p>
-          </div>
-          <div className="dash-stat dash-stat-success">
-            <p className="dash-stat-label">Active Packages</p>
-            <p className="dash-stat-value">{packages.filter((p) => p.status === "Active").length}</p>
-            <p className="dash-stat-delta">Currently purchasable</p>
-          </div>
-          <div className="dash-stat dash-stat-cyan">
-            <p className="dash-stat-label">Top Seller</p>
-            <p className="dash-stat-value" style={{ fontSize: "18px" }}>
-              {topSeller && topSeller.subscribers > 0 ? topSeller.name : "—"}
-            </p>
-            <p className="dash-stat-delta">Most active subscribers</p>
+            <p className="dash-stat-label">Total Subscriptions</p>
+            <p className="dash-stat-value">{subscriptions.length}</p>
+            <p className="dash-stat-delta">Available subscription plans</p>
           </div>
         </section>
 
         <section className="dash-panel">
-          {error && (
-            <div
-              style={{
-                background: "#fdecea",
-                border: "1px solid #f5c6c2",
-                color: "#b3261e",
-                padding: "12px 16px",
-                borderRadius: "8px",
-                marginBottom: "16px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span>{error}</span>
-              <button type="button" className="dash-row-btn" onClick={loadPackages}>
-                Retry
-              </button>
-            </div>
-          )}
-
           <div className="dash-filterbar">
             <input
               className="dash-search"
               type="text"
-              placeholder="Search by name, ID or description..."
+              placeholder="Search by subscription name or ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-
-            <div className="dash-chips">
-              {statusFilters.map((status) => (
-                <button
-                  key={status}
-                  className={`dash-chip${status === activeStatus ? " is-active" : ""}`}
-                  onClick={() => setActiveStatus(status)}
-                >
-                  {status}
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="dash-table-wrap">
             <table className="dash-table">
               <thead>
                 <tr>
-                  <th>Package ID</th>
-                  <th>Package Name</th>
-                  <th>Included Services</th>
-                  <th>Price</th>
-                  <th>Validity</th>
-                  <th>Subscribers</th>
-                  <th>Status</th>
+                  <th>Subscription ID</th>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th>Recurring Service ID</th>
+                  <th>Interval (Days)</th>
+                  <th>Number of Bookings</th>
                   <th>Actions</th>
                 </tr>
               </thead>
+
               <tbody>
-                {loading && (
+                {loading ? (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--text-secondary)" }}>
-                      Loading packages...
+                    <td colSpan={7} style={{ textAlign: "center", padding: "20px" }}>
+                      Loading subscriptions from database...
                     </td>
                   </tr>
-                )}
-
-                {!loading &&
-                  filtered.map((pkg) => (
-                    <tr key={pkg.id}>
-                      <td className="dash-mono">{pkg.packageId}</td>
-                      <td>{pkg.name}</td>
-                      <td>
-                        {pkg.serviceName
-                          ? `${pkg.serviceName} × ${pkg.numberOfBookings}`
-                          : "—"}
-                      </td>
-                      <td className="dash-mono">{pkg.price}</td>
-                      <td className="dash-mono">{pkg.validity}</td>
-                      <td className="dash-mono">{pkg.subscribers}</td>
-                      <td>
-                        <span className={`dash-status dash-status-${statusTone[pkg.status]}`}>
-                          <i />
-                          {pkg.status}
-                        </span>
-                      </td>
+                ) : filtered.length > 0 ? (
+                  filtered.map((sub) => (
+                    <tr key={sub.subscriptionID}>
+                      <td className="dash-mono">{sub.subscriptionID}</td>
+                      <td>{sub.name}</td>
+                      <td>{sub.description}</td>
+                      <td className="dash-mono">{sub.recurringServiceID}</td>
+                      <td className="dash-mono">{sub.timeTillNextService}</td>
+                      <td className="dash-mono">{sub.numberOfBookings}</td>
                       <td>
                         <div className="dash-row-actions">
-                          <button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: toFormRecord(pkg) })}>
+                          <button
+                            className="dash-row-btn"
+                            onClick={() =>
+                              setModal({ mode: "edit", record: sub })
+                            }
+                          >
                             Edit
                           </button>
-                          {pkg.status === "Active" ? (
-                            <button className="dash-row-btn is-danger" onClick={() => handleStatus(pkg, "Inactive")}>
-                              Deactivate
-                            </button>
-                          ) : (
-                            <button className="dash-row-btn" onClick={() => handleStatus(pkg, "Active")}>
-                              Activate
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>
-                  ))}
-
-                {!loading && filtered.length === 0 && (
+                  ))
+                ) : (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--text-secondary)" }}>
-                      {packages.length === 0
-                        ? 'No packages yet. Click "+ Add Package" to create the first one.'
-                        : "No packages match your search."}
+                    <td
+                      colSpan={7}
+                      style={{
+                        textAlign: "center",
+                        padding: "24px",
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      No subscriptions found.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </div>
-
-          <div className="dash-pagination">
-            <span>
-              Showing {filtered.length} of {packages.length} packages
-            </span>
-            <div className="dash-pagination-controls">
-              <button className="dash-row-btn">Prev</button>
-              <button className="dash-row-btn">Next</button>
-            </div>
           </div>
         </section>
       </main>
@@ -295,15 +334,27 @@ const ManagePackages = () => {
       {modal && (
         <RecordModal
           mode={modal.mode}
-          title={modal.mode === "create" ? "Add Package" : "Edit Package"}
-          fields={packageFields}
+          title={
+            modal.mode === "create"
+              ? "Add Subscription"
+              : modal.mode === "view"
+              ? "Subscription Details"
+              : "Edit Subscription"
+          }
+          fields={
+            modal.mode === "view"
+              ? viewFieldsWithServices
+              : fieldsWithServices
+          }
           data={modal.record}
           onClose={() => setModal(null)}
-          onSave={handleSave}
+          onSave={modal.mode === "create" ? handleAdd : handleSave}
         />
       )}
+
+      {toast && <div className="dash-toast">{toast}</div>}
     </div>
   );
 };
 
-export default ManagePackages;
+export default ManageSubscriptions;

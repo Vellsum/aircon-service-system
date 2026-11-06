@@ -77,6 +77,254 @@ async function ensureJobLink(pool, bookingId, serviceId = null) {
     .query(`INSERT INTO [new_jobBooking].[work] (job_ID, booking_ID) VALUES (@jid, @bid)`);
 }
 
+//subscriptopms ============================================================
+
+//const { poolPromise, sql } = require('../config/db');
+
+// GET all subscriptions
+exports.getSubscriptions = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    const result = await pool.request().query(`
+      SELECT
+        subscriptionID,
+        name,
+        description,
+        recurringServiceID,
+        timeTillNextService,
+        numberOfBookings
+      FROM payables.subscription
+      ORDER BY subscriptionID DESC
+    `);
+
+    res.status(200).json({
+      success: true,
+      subscriptions: result.recordset
+    });
+
+  } catch (err) {
+    console.error('Error fetching subscriptions:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch subscriptions'
+    });
+  }
+};
+
+
+// POST create a subscription
+exports.addSubscription = async (req, res) => {
+  try {
+    const {
+      name,
+      description,
+      recurringServiceID,
+      timeTillNextService,
+      numberOfBookings
+    } = req.body;
+
+    const pool = await poolPromise;
+
+    const result = await pool.request()
+      .input('name', sql.VarChar(255), name)
+      .input('description', sql.VarChar(sql.MAX), description)
+      .input('recurringServiceID', sql.Int, recurringServiceID)
+      .input('timeTillNextService', sql.Int, timeTillNextService)
+      .input('numberOfBookings', sql.Int, numberOfBookings)
+      .query(`
+        INSERT INTO payables.subscription (
+          name,
+          description,
+          recurringServiceID,
+          timeTillNextService,
+          numberOfBookings
+        )
+        OUTPUT INSERTED.*
+        VALUES (
+          @name,
+          @description,
+          @recurringServiceID,
+          @timeTillNextService,
+          @numberOfBookings
+        )
+      `);
+
+    res.status(201).json({
+      success: true,
+      message: 'Subscription created successfully',
+      subscription: result.recordset[0]
+    });
+
+  } catch (err) {
+    console.error('Error creating subscription:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create subscription'
+    });
+  }
+};
+
+
+// PUT edit a subscription
+exports.editSubscription = async (req, res) => {
+  try {
+    const { subscriptionID } = req.params;
+
+    const {
+      name,
+      description,
+      recurringServiceID,
+      timeTillNextService,
+      numberOfBookings
+    } = req.body;
+
+    const pool = await poolPromise;
+
+    const result = await pool.request()
+      .input('subscriptionID', sql.Int, subscriptionID)
+      .input('name', sql.VarChar(255), name)
+      .input('description', sql.VarChar(sql.MAX), description)
+      .input('recurringServiceID', sql.Int, recurringServiceID)
+      .input('timeTillNextService', sql.Int, timeTillNextService)
+      .input('numberOfBookings', sql.Int, numberOfBookings)
+      .query(`
+        UPDATE payables.subscription
+        SET
+          name = @name,
+          description = @description,
+          recurringServiceID = @recurringServiceID,
+          timeTillNextService = @timeTillNextService,
+          numberOfBookings = @numberOfBookings
+        WHERE subscriptionID = @subscriptionID;
+
+        SELECT @@ROWCOUNT AS affectedRows;
+      `);
+
+    if (result.recordset[0].affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Subscription updated successfully'
+    });
+
+  } catch (err) {
+    console.error('Error updating subscription:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update subscription'
+    });
+  }
+};
+// GET existing services for subscription dropdown
+exports.getServices = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    const result = await pool.request().query(`
+      SELECT
+        service_id,
+        service_name
+      FROM payables.service
+    `);
+
+    res.status(200).json({
+      success: true,
+      services: result.recordset
+    });
+
+  } catch (err) {
+    console.error('Error fetching services:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch services'
+    });
+  }
+};
+
+
+
+//=============================================================================================================
+//get all promo
+/*** const customerId = req.query.customerId
+  console.log(customerId)
+      const pool = await poolPromise;
+   const result = await pool.request()
+      .input('custId', sql.Int, customerId)
+      .query(`
+        SELECT
+         * from user3.customerAddresses where 
+        customer_ID = custId
+      `);
+
+      console.log(result.recordset)
+      res.status(200).json({
+      success: true,
+      addresses: result.recordset,
+    }); */
+exports.getPromotions = async (req, res) => {
+   const pool = await poolPromise;
+   const result = await pool.request()
+   .query(`select * from payables.promotions`)
+       console.log(result.recordset)
+      res.status(200).json({
+      success: true,
+      promotions: result.recordset})
+}
+
+exports.newPromo = async (req, res) =>{
+  const{code,description,discount,validFrom,validTo,promo_name}=req.body
+const pool = await poolPromise;
+   const result = await pool.request()
+ .input('promo_name', sql.VarChar(255), promo_name)
+ .input('validFrom',sql.Date,validFrom)
+.input('validTo',sql.Date,validTo) 
+.input('description', sql.VarChar(255), description)
+.input('code', sql.VarChar(255), code)
+.input('discount', sql.Float,discount)
+.query(`
+  INSERT INTO payables.promotions (promo_name, promo_start, promo_end, description, promoCode, discount) VALUES
+(@promo_name,@validFrom,@validTo,@description,@code,@discount)  
+  
+  
+  `)
+      res.status(201).json({ success: true, message: 'promo created successfully!' });
+
+
+}
+exports.editPromo= async (req, res) =>{
+   // const { promoID } = req.params;
+  const{code,description,discount,validFrom,validTo,promo_name,promo_id}=req.body
+const pool = await poolPromise;
+   const result = await pool.request()
+ .input('promo_name', sql.VarChar(255), promo_name)
+ .input('validFrom',sql.Date,validFrom)
+.input('validTo',sql.Date,validTo) 
+.input('description', sql.VarChar(255), description)
+.input('code', sql.VarChar(255), code)
+.input('discount', sql.Float,discount)
+.input('promoID',sql.Int,promo_id)
+  .query(`
+        UPDATE payables.promotions
+        SET
+          promo_name = @promo_name,
+          promo_start = @validFrom,
+          promo_end = @validTo,
+          description = @description,
+          promoCode = @code,
+          discount = @discount
+        WHERE promo_id = @promoID;
+      `);
+      res.status(201).json({ success: true, message: 'promo edited successfully!' });
+
+
+}
+//====================================================================
 
 /**
  * GET /api/admin/bookings
@@ -102,7 +350,7 @@ exports.getAllBookings = async (req, res) => {
         b.estimateTotalTime_minutes,
         b.estimateTotalCost,
         b.reasonOfReassignment,
-        
+        b.servicesBooked,
 
         ISNULL(c.customer_name, 'Guest Customer') AS customer_name,
         ISNULL(tech.technician_name, 'Unassigned') AS technician_name
@@ -137,6 +385,59 @@ exports.getTechnicians = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+//clone booking for the asisting============================
+exports.cloneBooking  = async (req,res)=>{
+  console.log("controller making clone booking")
+  console.log(req.body)
+    const { customer_ID, technician_ID_2, booking_date, timing, location,numberOfUnits } = req.body;  //these names take from request body
+//status  will be confirmed in here
+//comments will be written as an assistant in here
+//tech id is the assisting
+
+        const pool = await poolPromise;
+const result = await pool.request()
+ .input('customer_ID', sql.Int, customer_ID)
+            .input('technician_ID', sql.Int, technician_ID_2) 
+            .input('booking_date', sql.Date, booking_date)
+.input('timing', sql.VarChar(50), timing)
+  .input('location', sql.VarChar(100), location)
+  .input('status',sql.VarChar(100), 'confirmed' )
+  .input('comments',sql.VarChar(500),'Assisting another technician')       
+        .input('time',sql.VarChar(8), '12:00:00')
+        .input('numberOfUnits',sql.Int,numberOfUnits)
+
+.query(`
+ INSERT INTO [new_jobBooking].[Booking]
+ (
+ customer_ID,
+date,
+    timing,
+      location,
+      comments,
+       technician_ID,   
+       status,
+       time,numberOfUnits
+       
+ )
+  OUTPUT INSERTED.booking_ID
+                VALUES (
+                @customer_ID,
+                @booking_date,
+                @timing,
+                @location,
+               @comments,
+                @technician_ID,
+               @status,
+               @time,
+               @numberOfUnits
+                
+                
+                )   `)
+
+  
+}//end of clone booking controller
+
 
 /**
  * POST /api/admin/bookings
@@ -221,7 +522,7 @@ exports.createBooking = async (req, res) => {
 exports.updateBookingStatus = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const { status, technician_ID, technicianId, booking_date, time } = req.body;
+    const { status, technician_ID, technicianId, booking_date, time,technician_ID_2 } = req.body;
 
     if (!bookingId || bookingId === 'undefined') {
       return res.status(400).json({ success: false, message: 'Invalid or missing Booking ID.' });
@@ -289,7 +590,8 @@ exports.updateBookingStatus = async (req, res) => {
       SET status = ISNULL(@statusVal, status),
           technician_ID = CASE WHEN @techIdProvided = 1 THEN @techId ELSE technician_ID END,
           [date] = ISNULL(@dateVal, [date]),
-          [time] = ISNULL(CONVERT(TIME, @timeVal), [time])
+          [time] = ISNULL(CONVERT(TIME, @timeVal), [time]),
+assisting = @technician_ID_2
       WHERE booking_ID = @bookingId
     `;
 
@@ -300,6 +602,7 @@ exports.updateBookingStatus = async (req, res) => {
       .input('techId',         sql.Int,          validTechId)
       .input('dateVal',        sql.Date,         targetDate)
       .input('timeVal',        sql.VarChar(8),   targetTime)
+      .input('technician_ID_2', sql.Int, technician_ID_2)
       .query(updateQuery);
 
     // 6. 6 Oct 2026: guarantee the job link whenever a technician is assigned
@@ -308,13 +611,26 @@ exports.updateBookingStatus = async (req, res) => {
         console.error('[Cool Fix] ensureJobLink (assign) skipped:', e.message);
       }
     }
+    //make booking clone for assisting, 
+ //create the RR reserved mock booking -------------------------------------------
+ /** if(req.params.numberOfUnits > 3){
+        console.log("there is 3+ aircon, making the clone booking for assisting");
+ const pool2 = await poolPromise;
+    const result2 = await pool2.request()
+      .input("bookingId", sql.Int, bookingId)
 
+      } */
+     
     console.log(`[Cool Fix] Updated booking #${bookingId} successfully!`);
     return res.status(200).json({ success: true, message: 'Cool Fix booking updated successfully!' });
   } catch (err) {
     console.error('[Cool Fix] SQL PUT Error:', err.message);
     return res.status(500).json({ success: false, message: `SQL Error: ${err.message}` });
   }
+
+
+
+
 };
 
 
@@ -658,14 +974,19 @@ exports.submitBookingAlternatives = async (req, res) => {
   .input("RR1_date", sql.Date, alternatives[0].date)
   .input("RR1_time", sql.VarChar(50), alternatives[0].time)
   .input("RR1_technician", sql.Int, alternatives[0].technician_ID)
+  .input("assist_RR1", sql.Int, alternatives[0].assisting)
 
   .input("RR2_date", sql.Date, alternatives[1].date)
   .input("RR2_time", sql.VarChar(50), alternatives[1].time)
   .input("RR2_technician", sql.Int, alternatives[1].technician_ID)
+    .input("assist_RR2", sql.Int, alternatives[1].assisting)
+
 
   .input("RR3_date", sql.Date, alternatives[2].date)
   .input("RR3_time", sql.VarChar(50), alternatives[2].time)
   .input("RR3_technician", sql.Int, alternatives[2].technician_ID)
+    .input("assist_RR3", sql.Int, alternatives[2].assisting)
+
 
   .input("RR_expiry", sql.Date, alternatives[0].date)
 
@@ -676,14 +997,19 @@ exports.submitBookingAlternatives = async (req, res) => {
       RR1_date = @RR1_date,
       RR1_time = @RR1_time,
       RR1_technician = @RR1_technician,
+      RR1_assisting = @assist_RR1,
 
       RR2_date = @RR2_date,
       RR2_time = @RR2_time,
-      RR2_technician = @RR2_technician,
+      RR2_technician = @RR2_technician,      
+      RR2_assisting = @assist_RR2,
+
 
       RR3_date = @RR3_date,
       RR3_time = @RR3_time,
       RR3_technician = @RR3_technician,
+            RR3_assisting = @assist_RR3,
+
 
       RR_expiry = @RR_expiry,
 
@@ -691,6 +1017,10 @@ exports.submitBookingAlternatives = async (req, res) => {
 
     WHERE booking_ID = @bookingId
   `);
+
+
+    
+
 
 
 
@@ -714,185 +1044,157 @@ if (result.rowsAffected[0] === 0) {throw new Error(`Booking ${bookingId} was not
 
   }
 
-};//end of method - set alternatives
-
-/**   if (!Number.isInteger(bookingId) || bookingId <= 0) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid Booking ID."
-    });
-  }
-
-  if (!Array.isArray(alternatives) || alternatives.length !== 3) {
-    return res.status(400).json({
-      success: false,
-      message: "Exactly three alternatives are required."
-    });
-  }
-*/
-
-  // Validate and normalize all three options first.
-  /** const normalizedAlternatives = [];
-
-  for (const option of alternatives) {
-    const date = normalizeDateToSql(option.date);
-    const time = normalizeTimeToSql(option.time);
-    const technicianId = Number(option.technician_ID);
-
-    if (
-      !date ||
-      !time ||
-      !Number.isInteger(technicianId) ||
-      technicianId <= 0
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Each alternative requires a valid date, time and technician."
-      });
-    }
-
-    normalizedAlternatives.push({
-      date,
-      time,
-      technicianId
-    });
-  } */
- 
-    /**   // Reject duplicate date/time options.
-  const uniqueSlots = new Set(
-    normalizedAlternatives.map(
-      option => `${option.date}T${option.time.slice(0, 5)}`
-    )
-  );
-
-  if (uniqueSlots.size !== 3) {
-    return res.status(400).json({
-      success: false,
-      message: "All three alternatives must have different date/time slots."
-    });
-  }*/
 
 
 
-  //let transaction;
-
- 
-
-    /**  if (!pool) {
-      return res.status(500).json({
-        success: false,
-        message: "Database connection offline."
-      });
-    }
-    */
-   
-    // Verify the booking exists and is still pending.
-    /**
-     *  const bookingResult = await pool.request()
-      .input("bookingId", sql.Int, bookingId)
-      .query(`
-        SELECT booking_ID, status
-        FROM [new_jobBooking].[Booking]
-        WHERE booking_ID = bookingId
-      `);
-
-    if (bookingResult.recordset.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Booking not found."
-      });
-    }
-
-    const currentStatus = String(
-      bookingResult.recordset[0].status || ""
-    ).trim().toLowerCase();
-
-    if (currentStatus !== "pending") {
-      return res.status(409).json({
-        success: false,
-        message: "Only pending bookings can receive alternative proposals."
-      });
-    }
-
-    // Verify that all selected technicians exist.
-    for (const option of normalizedAlternatives) {
-      const technicianResult = await pool.request()
-        .input("technicianId", sql.Int, option.technicianId)
-        .query(`
-          SELECT technician_ID
-          FROM [user3].[technician]
-          WHERE technician_ID = technicianId
-        `);
-
-      if (technicianResult.recordset.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Technician ${option.technicianId} does not exist.`
-        });
-      }
-    }
-
-    transaction = new sql.Transaction(pool);
-    await transaction.begin();
-     */
-   
-
-    // PLACEHOLDER TABLE/COLUMNS:
-    // Replace BookingAlternative and its column names with your actual schema.
-    //  for (let i = 0; i < normalizedAlternatives.length; i++) {
-    //  const option = normalizedAlternatives[i];
-
-     // await new pool(transaction)
      
 
+};//end of method - set alternatives
 
-    // Change the booking status after saving all alternatives.
-    //  const updateResult = await new sql.Request(transaction)
-  /**
-   *   .input("bookingId", sql.Int, bookingId)
-      .query(`
-        UPDATE [new_jobBooking].[Booking]
-        SET status = 'request_reschedule'
-        WHERE booking_ID = @\bookingId
-          AND LOWER(LTRIM(RTRIM(status))) = 'pending'
-      `);
+//make reserved booking-----------------------
 
-    if (updateResult.rowsAffected[0] === 0) {
-      throw new Error(
-        "Booking status changed before the proposal could be submitted."
-      );
-    }
-   */
-    
+exports.makeReservedSlots = async (req,res) => {
+  console.log(
+  "[makeReservedSlots] Received body:",
+  JSON.stringify(req.body, null, 2));
 
-  // await transaction.commit();
-/**
- * return res.status(200).json({
-      success: true,
-      message: "Three alternative booking options submitted.",
-      booking_ID: bookingId,
-      status: "request_reschedule"
-    });
+  //FOLLOW CODE OF CLONE BOOKING
+const { customer_ID} = req.body; 
 
-  } catch (err) {
-    if (transaction) {
-      try {
-        await transaction.rollback();
-      } catch (rollbackError) {
-        console.error("Transaction rollback failed:", rollbackError.message);
-      }
-    }
+const technician_ID_alt1 = req.body.alternativesWithMore[0].technician_ID //pull from array properly
+const booking_date_alt1= req.body.alternativesWithMore[0].date
+const timing_alt1 =req.body.alternativesWithMore[0].time
 
-    console.error("submitBookingAlternatives error:", err);
+const technician_ID_alt2 = req.body.alternativesWithMore[1].technician_ID 
+const booking_date_alt2= req.body.alternativesWithMore[1].date
+const timing_alt2 =req.body.alternativesWithMore[1].time
 
-    return res.status(500).json({
-      success: false,
-      message: "Failed to submit alternative booking options."
-    });
- */
-    
-  
+const technician_ID_alt3 = req.body.alternativesWithMore[2].technician_ID 
+const booking_date_alt3= req.body.alternativesWithMore[2].date
+const timing_alt3 =req.body.alternativesWithMore[2].time
 
+//the assisting, can use the same code
+const assiting_alt1 = req.body.alternativesWithMore[0].assisting
+const assiting_alt2 = req.body.alternativesWithMore[1].assisting
+const assiting_alt3 = req.body.alternativesWithMore[2].assisting
+
+
+
+     const pool = await poolPromise;
+const result = await pool.request()
+ .input('customer_ID', sql.Int, customer_ID)
+           
+  .input('location', sql.VarChar(100), 'RR reserving...')
+  .input('status',sql.VarChar(100), 'RR_reserved' )
+  .input('comments',sql.VarChar(500),'RESERVED SLOT')       
+        .input('time',sql.VarChar(8), '12:00:00')
+        .input('numberOfUnits',sql.Int,0)
+
+        //the 3 sets of booking dates
+         .input('technician_ID_alt1', sql.Int, technician_ID_alt1) 
+         .input('booking_date_alt1', sql.Date, booking_date_alt1)
+         .input('timing_alt1', sql.VarChar(50), timing_alt1)
+
+         .input('technician_ID_alt2', sql.Int, technician_ID_alt2) 
+         .input('booking_date_alt2', sql.Date, booking_date_alt2)
+         .input('timing_alt2', sql.VarChar(50), timing_alt2)
+
+         .input('technician_ID_alt3', sql.Int, technician_ID_alt3) 
+         .input('booking_date_alt3', sql.Date, booking_date_alt3)
+         .input('timing_alt3', sql.VarChar(50), timing_alt3)
+
+         .input('assiting_alt1', sql.Int, assiting_alt1) 
+         .input('assiting_alt2', sql.Int, assiting_alt2) 
+         .input('assiting_alt3', sql.Int, assiting_alt3) 
+
+         
+
+.query(`
+ INSERT INTO [new_jobBooking].[Booking]
+ (customer_ID,
+date,
+    timing,
+      location,
+      comments,
+       technician_ID,   
+       status,
+       time,numberOfUnits)
+
+  OUTPUT INSERTED.booking_ID
+                VALUES (
+                @customer_ID,
+                @booking_date_alt1,
+                @timing_alt1,
+                @location,
+               @comments,
+                @technician_ID_alt1,
+               @status,
+               @time,
+               @numberOfUnits
+                )  ,
+
+                 (
+                @customer_ID,
+                @booking_date_alt2,
+                @timing_alt2,
+                @location,
+               @comments,
+                @technician_ID_alt2,
+               @status,
+               @time,
+               @numberOfUnits             
+                )  ,
+               
+
+                (
+                @customer_ID,
+                @booking_date_alt3,
+                @timing_alt3,
+                @location,
+               @comments,
+                @technician_ID_alt3,
+               @status,
+               @time,
+               @numberOfUnits
+                ),
+
+               (
+                @customer_ID,
+                @booking_date_alt1,
+                @timing_alt1,
+                @location,
+               @comments,
+                @assiting_alt1,
+               @status,
+               @time,
+               @numberOfUnits
+                )  ,
+
+                      (
+                @customer_ID,
+                @booking_date_alt2,
+                @timing_alt2,
+                @location,
+               @comments,
+                @assiting_alt2,
+               @status,
+               @time,
+               @numberOfUnits             
+                )  ,
+               
+                     (
+                @customer_ID,
+                @booking_date_alt3,
+                @timing_alt3,
+                @location,
+               @comments,
+                @assiting_alt3,
+               @status,
+               @time,
+               @numberOfUnits
+                )
+               
+                `)
+}
 
 
