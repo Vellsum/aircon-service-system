@@ -1,3 +1,4 @@
+
 /**
  * Cool Fix - Chatbot Controller
  * Grounded customer support bot: FAQ knowledge base + live catalog snapshot + Gemini.
@@ -13,35 +14,38 @@
  *    with 400 INVALID_ARGUMENT, so it is only attached when GEMINI_THINKING_BUDGET is set in .env.
  *  - [Chatbot] timing line shows db / gemini / total per message.
  */
-const { poolPromise, sql } = require('../config/db');
+
+const pool = require('../config/supabaseDb');
 const { GoogleGenAI } = require('@google/genai');
 const FAQ_KNOWLEDGE_BASE = require('../data/faqKnowledgeBase');
 
 // Model is overridable from backend/.env (GEMINI_MODEL=...) - no code edit needed.
 // NOTE: gemini-2.5-flash-lite is retired for new keys (404) - Google's error names
 // 'gemini-3.5-flash-lite' as the replacement.
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite'; // alternatives: 'gemini-3.5-flash', 'gemini-3.8-flash' (valid but congested -> 504s)
-const GEMINI_TIMEOUT_MS = 20000;  // hard cap so a stalled API call can never hang a chat request
-const GEMINI_ATTEMPTS = 2;        // auto-retry ONCE on transient Google-side errors (503/504/DEADLINE_EXCEEDED)
-const MAX_OUTPUT_TOKENS = 1024;   // cap = worst-case stop; normal answers (~160 tokens) finish far below it.
-                                  // High enough that hidden "thinking" tokens can't starve the visible answer.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+const GEMINI_TIMEOUT_MS = 20000;
+const GEMINI_ATTEMPTS = 2;
+const MAX_OUTPUT_TOKENS = 1024;
 const MAX_HISTORY_TURNS = 6;
 const MAX_MESSAGE_LEN = 800;
 const HOTLINE = '+65 8686 2311';
-const SUPPORT_HOURS = 'Monday to Saturday, 9am\u20136pm';
-const CATALOG_TTL_MS = 60000;     // live catalog cache: 60s. Plans/promos don't change mid-conversation.
+const SUPPORT_HOURS = 'Monday to Saturday, 9am–6pm';
+const CATALOG_TTL_MS = 60000;
 
 let aiClient = null;
+
 function getGemini() {
   if (!aiClient) {
     if (!process.env.GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY missing. Add it to backend/.env and restart the server.');
     }
+
     aiClient = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY,
-      httpOptions: { timeout: GEMINI_TIMEOUT_MS }, // stalled calls fail at 20s instead of hanging forever
+      httpOptions: { timeout: GEMINI_TIMEOUT_MS },
     });
   }
+
   return aiClient;
 }
 
@@ -49,6 +53,7 @@ function getGemini() {
 function isTransientGeminiError(err) {
   const status = err?.status;
   const msg = String(err?.message || '');
+
   return (
     status === 503 ||
     status === 504 ||
@@ -59,46 +64,81 @@ function isTransientGeminiError(err) {
 }
 
 /* FAQ text never changes at runtime - build it ONCE here instead of on every message */
-const FAQ_TEXT = FAQ_KNOWLEDGE_BASE.map((f) => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n');
+const FAQ_TEXT = FAQ_KNOWLEDGE_BASE
+  .map((f) => `Q: ${f.question}\nA: ${f.answer}`)
+  .join('\n\n');
 
-/* ---- Live catalog snapshot (real schema: payables.service / .promotions / .subscription) ---- */
+/* ---- Live catalog snapshot (Supabase PostgreSQL) ---- */
 async function fetchLiveCatalog(pool) {
   const catalog = { services: [], promotions: [], plans: [] };
 
   try {
-    const svc = await pool.request().query(`
-      SELECT service_name, description, price, duration
-        FROM [payables].[service]
-       WHERE (isdeleted IS NULL OR LOWER(isdeleted) IN ('0','false','no'))`);
-    catalog.services = (svc.recordset || []).map((r) => ({
+    const svc = await pool.query(`
+      SELECT
+        "service_name",
+        "description",
+        "price",
+        "duration"
+      FROM "payables"."service"
+      WHERE (
+        "isdeleted" IS NULL
+        OR LOWER("isdeleted"::text) IN ('0', 'false', 'no')
+      )
+    `);
+
+    catalog.services = (svc.rows || []).map((r) => ({
       name: r.service_name,
       description: r.description || '',
       price: Number(r.price || 0),
       duration: r.duration || null,
     }));
-  } catch (e) { console.error('[Chatbot] services snapshot failed:', e.message); }
+  } catch (e) {
+    console.error('[Chatbot] services snapshot failed:', e.message);
+  }
 
   try {
-    const promos = await pool.request().query(`
-      SELECT promo_name, description, promoCode, discount
-        FROM [payables].[promotions]
-       WHERE (isdeleted IS NULL OR LOWER(isdeleted) IN ('0','false','no'))
-         AND (promo_end IS NULL OR promo_end >= CAST(GETDATE() AS DATE))`);
-    catalog.promotions = (promos.recordset || []).map((r) => ({
+    const promos = await pool.query(`
+      SELECT
+        "promo_name",
+        "description",
+        "promoCode",
+        "discount"
+      FROM "payables"."promotions"
+      WHERE (
+        "isdeleted" IS NULL
+        OR LOWER("isdeleted"::text) IN ('0', 'false', 'no')
+      )
+      AND (
+        "promo_end" IS NULL
+        OR "promo_end" >= CURRENT_DATE
+      )
+    `);
+
+    catalog.promotions = (promos.rows || []).map((r) => ({
       name: r.promo_name,
       description: r.description || '',
       code: String(r.promoCode || '').trim().toUpperCase(),
       discount: Number(r.discount || 0),
     }));
-  } catch (e) { console.error('[Chatbot] promotions snapshot failed:', e.message); }
+  } catch (e) {
+    console.error('[Chatbot] promotions snapshot failed:', e.message);
+  }
 
   try {
-    const plans = await pool.request().query(`
-      SELECT s.name, s.description, s.numberOfBookings, s.timeTillNextService,
-             sv.price AS visit_price, sv.service_name
-        FROM [payables].[subscription] s
-        LEFT JOIN [payables].[service] sv ON sv.service_id = s.recurringServiceID`);
-    catalog.plans = (plans.recordset || []).map((r) => ({
+    const plans = await pool.query(`
+      SELECT
+        s."name",
+        s."description",
+        s."numberOfBookings",
+        s."timeTillNextService",
+        sv."price" AS visit_price,
+        sv."service_name"
+      FROM "payables"."subscription" s
+      LEFT JOIN "payables"."service" sv
+        ON sv."service_id" = s."recurringServiceID"
+    `);
+
+    catalog.plans = (plans.rows || []).map((r) => ({
       name: r.name,
       description: r.description || '',
       visits: Number(r.numberOfBookings || 0),
@@ -106,20 +146,26 @@ async function fetchLiveCatalog(pool) {
       visitPrice: Number(r.visit_price || 0),
       serviceName: r.service_name || null,
     }));
-  } catch (e) { console.error('[Chatbot] plans snapshot failed:', e.message); }
+  } catch (e) {
+    console.error('[Chatbot] plans snapshot failed:', e.message);
+  }
 
   return catalog;
 }
 
 /* Cached catalog: SQL drops out of the hot path - one fetch per minute, not one per message */
 let catalogCache = { data: null, fetchedAt: 0 };
+
 async function getLiveCatalog(pool) {
   const now = Date.now();
+
   if (catalogCache.data && now - catalogCache.fetchedAt < CATALOG_TTL_MS) {
     return catalogCache.data;
   }
+
   const data = await fetchLiveCatalog(pool);
   catalogCache = { data, fetchedAt: now };
+
   return data;
 }
 
@@ -128,24 +174,34 @@ function buildContextText(catalog) {
 
   if (catalog.services.length) {
     lines.push('Services currently offered:');
+
     catalog.services.forEach((s) =>
-      lines.push(`- ${s.name}: S$${s.price.toFixed(2)} per unit${s.duration ? `, approx ${s.duration}` : ''}${s.description ? ` - ${s.description}` : ''}`));
+      lines.push(
+        `- ${s.name}: S$${s.price.toFixed(2)} per unit${s.duration ? `, approx ${s.duration}` : ''}${s.description ? ` - ${s.description}` : ''}`
+      )
+    );
   } else {
     lines.push('Services: live list unavailable right now - direct the customer to the Services page.');
   }
 
   if (catalog.promotions.length) {
     lines.push('Active promotions:');
+
     catalog.promotions.forEach((p) =>
-      lines.push(`- ${p.name} (code: ${p.code}): ${p.description || 'discount available'}`));
+      lines.push(`- ${p.name} (code: ${p.code}): ${p.description || 'discount available'}`)
+    );
   } else {
     lines.push('Active promotions: none right now.');
   }
 
   if (catalog.plans.length) {
     lines.push('Subscription plans available:');
+
     catalog.plans.forEach((p) =>
-      lines.push(`- ${p.name}: S$${p.visitPrice.toFixed(2)} per visit x ${p.visits} visits, scheduled every ${p.intervalDays} days${p.serviceName ? ` - includes ${p.serviceName}` : ''}${p.description ? ` - ${p.description}` : ''}`));
+      lines.push(
+        `- ${p.name}: S$${p.visitPrice.toFixed(2)} per visit x ${p.visits} visits, scheduled every ${p.intervalDays} days${p.serviceName ? ` - includes ${p.serviceName}` : ''}${p.description ? ` - ${p.description}` : ''}`
+      )
+    );
   } else {
     lines.push('Subscription plans: live list unavailable right now - direct the customer to the Service Catalogue page.');
   }
@@ -157,9 +213,9 @@ function buildSystemInstruction(catalog) {
   return `You are "Cool Fix Assist", the customer support assistant for Cool Fix, an air-conditioning servicing company in Singapore.
 
 KNOWLEDGE BASE (verified FAQs):
- ${FAQ_TEXT}
+${FAQ_TEXT}
 
- ${buildContextText(catalog)}
+${buildContextText(catalog)}
 
 STRICT RULES:
 1. Answer ONLY using the knowledge base and live data above. Never invent prices, promotions, services, dates or policies.
@@ -173,47 +229,73 @@ STRICT RULES:
 /* POST /api/chatbot/message  { message, history: [{role:'user'|'model', text}] } */
 const postMessage = async (req, res) => {
   const t0 = Date.now();
+
   try {
     const { message, history } = req.body || {};
     const text = String(message || '').trim();
-    if (!text) return res.status(400).json({ success: false, message: 'Message is required' });
+
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message is required',
+      });
+    }
+
     if (text.length > MAX_MESSAGE_LEN) {
-      return res.status(400).json({ success: false, message: `Message too long (max ${MAX_MESSAGE_LEN} characters)` });
+      return res.status(400).json({
+        success: false,
+        message: `Message too long (max ${MAX_MESSAGE_LEN} characters)`,
+      });
     }
 
     // Sanitise history: last N turns, valid roles only, must start at a user turn
     let cleanHistory = (Array.isArray(history) ? history : [])
       .slice(-MAX_HISTORY_TURNS)
-      .filter((h) => h && (h.role === 'user' || h.role === 'model') && typeof h.text === 'string')
-      .map((h) => ({ role: h.role, parts: [{ text: h.text.slice(0, MAX_MESSAGE_LEN) }] }));
+      .filter(
+        (h) =>
+          h &&
+          (h.role === 'user' || h.role === 'model') &&
+          typeof h.text === 'string'
+      )
+      .map((h) => ({
+        role: h.role,
+        parts: [{ text: h.text.slice(0, MAX_MESSAGE_LEN) }],
+      }));
+
     const firstUser = cleanHistory.findIndex((h) => h.role === 'user');
     cleanHistory = firstUser >= 0 ? cleanHistory.slice(firstUser) : [];
 
     // Live context (DB down should not kill the bot)
     let catalog = { services: [], promotions: [], plans: [] };
+
     try {
-      const pool = await poolPromise;
-      if (pool) catalog = await getLiveCatalog(pool);
+      catalog = await getLiveCatalog(pool);
     } catch (dbErr) {
       console.error('[Chatbot] DB context skipped:', dbErr.message);
     }
+
     const t1 = Date.now(); // ---- DB leg done
 
     try {
       const client = getGemini();
 
-      // Base config accepted by every model. NOTE: we do NOT attach thinkingConfig by default -
-      // models that don't support it reject the whole request with 400 INVALID_ARGUMENT
-      // ("Request contains an invalid argument").
+      // Base config accepted by every model.
+      // We do NOT attach thinkingConfig by default because some models reject it.
       const genConfig = {
         systemInstruction: buildSystemInstruction(catalog),
         temperature: 0.3,
         maxOutputTokens: MAX_OUTPUT_TOKENS,
       };
+
       // Optional opt-in: ONLY add GEMINI_THINKING_BUDGET=0 (or another number) to .env
       // if you have confirmed your model supports thinkingConfig.
-      if (process.env.GEMINI_THINKING_BUDGET !== undefined && String(process.env.GEMINI_THINKING_BUDGET).trim() !== '') {
-        genConfig.thinkingConfig = { thinkingBudget: Number(process.env.GEMINI_THINKING_BUDGET) };
+      if (
+        process.env.GEMINI_THINKING_BUDGET !== undefined &&
+        String(process.env.GEMINI_THINKING_BUDGET).trim() !== ''
+      ) {
+        genConfig.thinkingConfig = {
+          thinkingBudget: Number(process.env.GEMINI_THINKING_BUDGET),
+        };
       }
 
       let response = null;
@@ -223,27 +305,55 @@ const postMessage = async (req, res) => {
         try {
           response = await client.models.generateContent({
             model: GEMINI_MODEL,
-            contents: [...cleanHistory, { role: 'user', parts: [{ text }] }],
+            contents: [
+              ...cleanHistory,
+              { role: 'user', parts: [{ text }] },
+            ],
             config: genConfig,
           });
+
           break; // got an answer - leave the retry loop
         } catch (attemptErr) {
           const isLastAttempt = attempt === GEMINI_ATTEMPTS;
-          if (isLastAttempt || !isTransientGeminiError(attemptErr)) throw attemptErr;
-          console.warn(`[Chatbot] attempt ${attempt} hit a transient Google error (${attemptErr?.status || attemptErr?.message}) - retrying...`);
+
+          if (isLastAttempt || !isTransientGeminiError(attemptErr)) {
+            throw attemptErr;
+          }
+
+          console.warn(
+            `[Chatbot] attempt ${attempt} hit a transient Google error (${attemptErr?.status || attemptErr?.message}) - retrying...`
+          );
         }
       }
 
       const reply = (response.text || '').trim();
-      if (!reply) throw new Error('Empty reply from model');
+
+      if (!reply) {
+        throw new Error('Empty reply from model');
+      }
+
       const t2 = Date.now(); // ---- Gemini leg done
-      console.log(`[Chatbot] timing db=${t1 - t0}ms gemini=${t2 - t1}ms total=${t2 - t0}ms model=${GEMINI_MODEL}`);
-      return res.json({ success: true, reply, source: 'gemini' });
+
+      console.log(
+        `[Chatbot] timing db=${t1 - t0}ms gemini=${t2 - t1}ms total=${t2 - t0}ms model=${GEMINI_MODEL}`
+      );
+
+      return res.json({
+        success: true,
+        reply,
+        source: 'gemini',
+      });
     } catch (gemErr) {
-      console.error('[Chatbot] Gemini call failed:', gemErr?.status || '', gemErr?.message);
-      // 504/503 = Google-side congestion (retry already attempted). 404 = wrong/retired model name.
-      // 400 = an argument this model rejects (we no longer send thinkingConfig by default).
-      console.log(`[Chatbot] timing db=${t1 - t0}ms gemini=FAILED after ${Date.now() - t1}ms total=${Date.now() - t0}ms`);
+      console.error(
+        '[Chatbot] Gemini call failed:',
+        gemErr?.status || '',
+        gemErr?.message
+      );
+
+      console.log(
+        `[Chatbot] timing db=${t1 - t0}ms gemini=FAILED after ${Date.now() - t1}ms total=${Date.now() - t0}ms`
+      );
+
       // Graceful fallback so the demo never shows a dead bot
       return res.json({
         success: true,
@@ -253,17 +363,33 @@ const postMessage = async (req, res) => {
     }
   } catch (err) {
     console.error('[Chatbot] POST message error:', err.message);
-    res.status(500).json({ success: false, message: err.message });
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
 /* GET /api/chatbot/faq - powers the public FAQ page (same KB as the bot) */
 const getFaq = async (req, res) => {
   try {
-    const faqs = FAQ_KNOWLEDGE_BASE.map(({ id, question, answer }) => ({ id, question, answer }));
-    res.json({ success: true, faqs });
+    const faqs = FAQ_KNOWLEDGE_BASE.map(({ id, question, answer }) => ({
+      id,
+      question,
+      answer,
+    }));
+
+    res.json({
+      success: true,
+      faqs,
+    });
   } catch (err) {
-    res.status(500).json({ success: false, faqs: [], message: err.message });
+    res.status(500).json({
+      success: false,
+      faqs: [],
+      message: err.message,
+    });
   }
 };
 

@@ -504,6 +504,35 @@ last task before hosting: >>>>> customer buy subscription ----------------------
 2pm - customer can now buys the subscription, shows in dasboard
 2.23pm - now when they book, booking table updated so admin can settle
 
+
+
+7/11 - done last sponsor meeting. sum n billie can make the last changes while limpeh try to connect his dick to the supabase
+- make local connect to supabase [can connect]
+
+-> edit controllers
+
+controllers to do;=------------------
+adminbooking [working]
+admin dasbboard [working? - ya working, it needs admin booking]
+admin inventory [done]
+admin payables [done]
+admin user [done]
+
+auth [done[]]
+
+booking [this is a canceeleled shit]
+chatbot [done[]]
+
+customer [done, now when booking, goes to supabase] [issue with getting mybookings page]
+middleware/authenticate custoemr.js [fixed for customer page]
+
+technician [working?  - ya fixed]
+technician report [done]
+
+4.35pm - all controllers done
+
+
+
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 weijie tasklist;============================================================================================================================================================================================================================================================================
 -- edit customerbookservice jsx n booking controller for the new data [done]

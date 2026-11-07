@@ -1,119 +1,189 @@
 /**
  * Cool Fix - Admin Booking Controller
- * Database Schema: [new_jobBooking].[Booking]
+ * Supabase / PostgreSQL version
  *
- * CHANGELOG — 6 Oct 2026:
- *   1. [BUG] "Validation failed for parameter 'timeVal'. Invalid string" —
- *      the Booking.time column (SQL TIME) arrives from the driver as a JS
- *      Date object. Passing it to a VarChar parameter fails validation.
- *      Fixed: all times are normalized to "HH:MM:SS" strings via
- *      normalizeTimeToSql(), and the fallback SELECT CONVERTs the time.
- *   2. [RULE] Double-booking guard now compares date AND time (was date-only,
- *      which wrongly blocked same-day assignments at different times).
- *   3. [GAP] ensureJobLink(): every created/assigned booking now gets a
- *      job + work link — without it, the technician's completion gate
- *      rejects the booking ("No job is linked to this booking").
+ * Tables:
+ *   "new_jobBooking"."Booking"
+ *   "new_jobBooking"."job"
+ *   "new_jobBooking"."work"
+ *   "payables"."service"
+ *   "payables"."subscription"
+ *   "payables"."promotions"
+ *   "user3"."newCustomer"
+ *   "user3"."technician"
  */
 
-const { poolPromise, sql } = require('../config/db');
+const pool = require('../config/supabaseDb');
 
-/* ---------------------------------------------------------------------------
- * Helpers — 6 Oct 2026
- * ------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ * Helpers
+ * ------------------------------------------------------------------------ */
 
-// Normalize any incoming time shape → "HH:MM:SS" or null.
-// Handles: null/"", "undefined", "2:30 PM", "14:30", "14:30:00".
-// Never pass raw user input or JS Dates as sql.Time — normalize first.
+// Normalize incoming time to HH:MM:SS.
 function normalizeTimeToSql(t) {
   if (t === null || t === undefined) return null;
+
   const s = String(t).trim();
-  if (!s || s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null') return null;
+
+  if (!s || ['undefined', 'null'].includes(s.toLowerCase())) {
+    return null;
+  }
 
   const m12 = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (m12) {
-    let h = Number(m12[1]) % 12;
-    if (/pm/i.test(m12[3])) h += 12;
-    return `${String(h).padStart(2, '0')}:${m12[2]}:00`;
-  }
-  const m24 = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-  if (m24) return `${String(Number(m24[1])).padStart(2, '0')}:${m24[2]}:${m24[3] || '00'}`;
 
-  return null; // unrecognized → caller treats as "not provided"
+  if (m12) {
+    let hour = Number(m12[1]) % 12;
+
+    if (/pm/i.test(m12[3])) hour += 12;
+
+    return `${String(hour).padStart(2, '0')}:${m12[2]}:00`;
+  }
+
+  const m24 = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+
+  if (m24) {
+    return `${String(Number(m24[1])).padStart(2, '0')}:${m24[2]}:${m24[3] || '00'}`;
+  }
+
+  return null;
 }
 
-// "YYYY-MM-DD" or null (no silent today-substitution on update paths)
+// Accept only YYYY-MM-DD.
 function normalizeDateToSql(d) {
   if (!d) return null;
+
   const s = String(d).trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+
+  return s;
+}
+
+function getTodayDate() {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeId(value) {
+  const id = Number(value);
+
+  return Number.isInteger(id) && id > 0 ? id : null;
 }
 
 /**
- * 6 Oct 2026 — every Booking MUST have a job + work link. Without it:
- * service names don't resolve on dashboards, reports can't attach, and the
- * technician completion gate rejects the booking.
+ * Every normal booking should have a job + work link.
+ *
+ * "new_jobBooking"."job":
+ *   "job_ID", job_status, "isFollowup", "serviceID"
+ *
+ * "new_jobBooking"."work":
+ *   "job_ID", "booking_ID"
  */
-async function ensureJobLink(pool, bookingId, serviceId = null) {
-  const has = await pool.request()
-    .input('bid', sql.Int, Number(bookingId))
-    .query(`SELECT 1 FROM [new_jobBooking].[work] WHERE booking_ID = @bid`);
-  if (has.recordset.length > 0) return; // already linked
+async function ensureJobLink(bookingId, serviceId = null) {
+  const bid = normalizeId(bookingId);
 
-  let svcId = serviceId;
-  if (!svcId) {
-    const svc = await pool.request()
-      .query(`SELECT TOP 1 service_id FROM [payables].[service] ORDER BY service_id`);
-    svcId = svc.recordset[0]?.service_id;
+  if (!bid) {
+    throw new Error('Invalid booking ID supplied to ensureJobLink.');
   }
-  if (!svcId) return;
 
-  const j = await pool.request()
-    .input('svc', sql.Int, svcId)
-    .query(`INSERT INTO [new_jobBooking].[job] (job_status, isFollowup, serviceID)
-            OUTPUT INSERTED.job_ID VALUES ('Assigned', 0, @svc)`);
-  await pool.request()
-    .input('jid', sql.Int, j.recordset[0].job_ID)
-    .input('bid', sql.Int, Number(bookingId))
-    .query(`INSERT INTO [new_jobBooking].[work] (job_ID, booking_ID) VALUES (@jid, @bid)`);
+  const existing = await pool.query(
+    `
+      SELECT 1
+      FROM "new_jobBooking"."work"
+      WHERE "booking_ID" = $1
+      LIMIT 1
+    `,
+    [bid]
+  );
+
+  if (existing.rowCount > 0) return;
+
+  let svcId = normalizeId(serviceId);
+
+  if (!svcId) {
+    const serviceResult = await pool.query(
+      `
+        SELECT service_id
+        FROM "payables"."service"
+        ORDER BY service_id
+        LIMIT 1
+      `
+    );
+
+    svcId = normalizeId(serviceResult.rows[0]?.service_id);
+  }
+
+  if (!svcId) {
+    console.warn(`[Cool Fix] No service found. Job link skipped for booking #${bid}.`);
+    return;
+  }
+
+  const jobResult = await pool.query(
+    `
+      INSERT INTO "new_jobBooking"."job"
+        (job_status, "isFollowup", "serviceID")
+      VALUES ($1, $2, $3)
+      RETURNING "job_ID"
+    `,
+    ['Assigned', false, svcId]
+  );
+
+  const jobId = jobResult.rows[0].job_ID;
+
+  await pool.query(
+    `
+      INSERT INTO "new_jobBooking"."work"
+        ("job_ID", "booking_ID")
+      VALUES ($1, $2)
+      ON CONFLICT ("job_ID", "booking_ID") DO NOTHING
+    `,
+    [jobId, bid]
+  );
 }
 
-//subscriptopms ============================================================
+/* ==========================================================================
+ * SUBSCRIPTIONS
+ * ======================================================================== */
 
-//const { poolPromise, sql } = require('../config/db');
-
-// GET all subscriptions
+/**
+ * GET /api/admin/subscriptions
+ */
 exports.getSubscriptions = async (req, res) => {
   try {
-    const pool = await poolPromise;
-
-    const result = await pool.request().query(`
+    const result = await pool.query(`
       SELECT
-        subscriptionID,
+        "subscriptionID",
         name,
         description,
-        recurringServiceID,
-        timeTillNextService,
-        numberOfBookings
-      FROM payables.subscription
-      ORDER BY subscriptionID DESC
+        "recurringServiceID",
+        "timeTillNextService",
+        "numberOfBookings"
+      FROM "payables"."subscription"
+      ORDER BY "subscriptionID" DESC
     `);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      subscriptions: result.recordset
+      subscriptions: result.rows
     });
-
   } catch (err) {
     console.error('Error fetching subscriptions:', err);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch subscriptions'
     });
   }
 };
 
-
-// POST create a subscription
+/**
+ * POST /api/admin/subscriptions
+ */
 exports.addSubscription = async (req, res) => {
   try {
     const {
@@ -124,52 +194,55 @@ exports.addSubscription = async (req, res) => {
       numberOfBookings
     } = req.body;
 
-    const pool = await poolPromise;
-
-    const result = await pool.request()
-      .input('name', sql.VarChar(255), name)
-      .input('description', sql.VarChar(sql.MAX), description)
-      .input('recurringServiceID', sql.Int, recurringServiceID)
-      .input('timeTillNextService', sql.Int, timeTillNextService)
-      .input('numberOfBookings', sql.Int, numberOfBookings)
-      .query(`
-        INSERT INTO payables.subscription (
+    const result = await pool.query(
+      `
+        INSERT INTO "payables"."subscription" (
           name,
           description,
-          recurringServiceID,
-          timeTillNextService,
-          numberOfBookings
+          "recurringServiceID",
+          "timeTillNextService",
+          "numberOfBookings"
         )
-        OUTPUT INSERTED.*
-        VALUES (
-          @name,
-          @description,
-          @recurringServiceID,
-          @timeTillNextService,
-          @numberOfBookings
-        )
-      `);
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+      `,
+      [
+        name,
+        description,
+        recurringServiceID,
+        timeTillNextService,
+        numberOfBookings
+      ]
+    );
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Subscription created successfully',
-      subscription: result.recordset[0]
+      subscription: result.rows[0]
     });
-
   } catch (err) {
     console.error('Error creating subscription:', err);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: 'Failed to create subscription'
     });
   }
 };
 
-
-// PUT edit a subscription
+/**
+ * PUT /api/admin/subscriptions/:subscriptionID
+ */
 exports.editSubscription = async (req, res) => {
   try {
-    const { subscriptionID } = req.params;
+    const subscriptionID = normalizeId(req.params.subscriptionID);
+
+    if (!subscriptionID) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid subscription ID'
+      });
+    }
 
     const {
       name,
@@ -179,192 +252,285 @@ exports.editSubscription = async (req, res) => {
       numberOfBookings
     } = req.body;
 
-    const pool = await poolPromise;
-
-    const result = await pool.request()
-      .input('subscriptionID', sql.Int, subscriptionID)
-      .input('name', sql.VarChar(255), name)
-      .input('description', sql.VarChar(sql.MAX), description)
-      .input('recurringServiceID', sql.Int, recurringServiceID)
-      .input('timeTillNextService', sql.Int, timeTillNextService)
-      .input('numberOfBookings', sql.Int, numberOfBookings)
-      .query(`
-        UPDATE payables.subscription
+    const result = await pool.query(
+      `
+        UPDATE "payables"."subscription"
         SET
-          name = @name,
-          description = @description,
-          recurringServiceID = @recurringServiceID,
-          timeTillNextService = @timeTillNextService,
-          numberOfBookings = @numberOfBookings
-        WHERE subscriptionID = @subscriptionID;
+          name = $1,
+          description = $2,
+          "recurringServiceID" = $3,
+          "timeTillNextService" = $4,
+          "numberOfBookings" = $5
+        WHERE "subscriptionID" = $6
+        RETURNING "subscriptionID"
+      `,
+      [
+        name,
+        description,
+        recurringServiceID,
+        timeTillNextService,
+        numberOfBookings,
+        subscriptionID
+      ]
+    );
 
-        SELECT @@ROWCOUNT AS affectedRows;
-      `);
-
-    if (result.recordset[0].affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({
         success: false,
         message: 'Subscription not found'
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Subscription updated successfully'
     });
-
   } catch (err) {
     console.error('Error updating subscription:', err);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: 'Failed to update subscription'
     });
   }
 };
-// GET existing services for subscription dropdown
+
+/* ==========================================================================
+ * SERVICES
+ * ======================================================================== */
+
+/**
+ * GET /api/admin/services
+ */
 exports.getServices = async (req, res) => {
   try {
-    const pool = await poolPromise;
-
-    const result = await pool.request().query(`
+    const result = await pool.query(`
       SELECT
         service_id,
         service_name
-      FROM payables.service
+      FROM "payables"."service"
+      ORDER BY service_id
     `);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      services: result.recordset
+      services: result.rows
     });
-
   } catch (err) {
     console.error('Error fetching services:', err);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch services'
     });
   }
 };
 
+/* ==========================================================================
+ * PROMOTIONS
+ * ======================================================================== */
 
-
-//=============================================================================================================
-//get all promo
-/*** const customerId = req.query.customerId
-  console.log(customerId)
-      const pool = await poolPromise;
-   const result = await pool.request()
-      .input('custId', sql.Int, customerId)
-      .query(`
-        SELECT
-         * from user3.customerAddresses where 
-        customer_ID = custId
-      `);
-
-      console.log(result.recordset)
-      res.status(200).json({
-      success: true,
-      addresses: result.recordset,
-    }); */
+/**
+ * GET /api/admin/promotions
+ */
 exports.getPromotions = async (req, res) => {
-   const pool = await poolPromise;
-   const result = await pool.request()
-   .query(`select * from payables.promotions`)
-       console.log(result.recordset)
-      res.status(200).json({
+  try {
+    const result = await pool.query(`
+      SELECT *
+      FROM "payables"."promotions"
+      ORDER BY promo_id DESC
+    `);
+
+    return res.status(200).json({
       success: true,
-      promotions: result.recordset})
-}
+      promotions: result.rows
+    });
+  } catch (err) {
+    console.error('Error fetching promotions:', err);
 
-exports.newPromo = async (req, res) =>{
-  const{code,description,discount,validFrom,validTo,promo_name}=req.body
-const pool = await poolPromise;
-   const result = await pool.request()
- .input('promo_name', sql.VarChar(255), promo_name)
- .input('validFrom',sql.Date,validFrom)
-.input('validTo',sql.Date,validTo) 
-.input('description', sql.VarChar(255), description)
-.input('code', sql.VarChar(255), code)
-.input('discount', sql.Float,discount)
-.query(`
-  INSERT INTO payables.promotions (promo_name, promo_start, promo_end, description, promoCode, discount) VALUES
-(@promo_name,@validFrom,@validTo,@description,@code,@discount)  
-  
-  
-  `)
-      res.status(201).json({ success: true, message: 'promo created successfully!' });
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch promotions'
+    });
+  }
+};
 
+/**
+ * POST /api/admin/promotions
+ */
+exports.newPromo = async (req, res) => {
+  try {
+    const {
+      code,
+      description,
+      discount,
+      validFrom,
+      validTo,
+      promo_name
+    } = req.body;
 
-}
-exports.editPromo= async (req, res) =>{
-   // const { promoID } = req.params;
-  const{code,description,discount,validFrom,validTo,promo_name,promo_id}=req.body
-const pool = await poolPromise;
-   const result = await pool.request()
- .input('promo_name', sql.VarChar(255), promo_name)
- .input('validFrom',sql.Date,validFrom)
-.input('validTo',sql.Date,validTo) 
-.input('description', sql.VarChar(255), description)
-.input('code', sql.VarChar(255), code)
-.input('discount', sql.Float,discount)
-.input('promoID',sql.Int,promo_id)
-  .query(`
-        UPDATE payables.promotions
+    const result = await pool.query(
+      `
+        INSERT INTO "payables"."promotions" (
+          promo_name,
+          promo_start,
+          promo_end,
+          description,
+          "promoCode",
+          discount
+        )
+        VALUES ($1, $2::date, $3::date, $4, $5, $6)
+        RETURNING promo_id
+      `,
+      [
+        promo_name,
+        validFrom,
+        validTo,
+        description,
+        code,
+        discount
+      ]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Promo created successfully!',
+      promo_id: result.rows[0].promo_id
+    });
+  } catch (err) {
+    console.error('Error creating promotion:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create promotion',
+      error: err.message
+    });
+  }
+};
+
+/**
+ * PUT /api/admin/promotions
+ */
+exports.editPromo = async (req, res) => {
+  try {
+    const {
+      code,
+      description,
+      discount,
+      validFrom,
+      validTo,
+      promo_name,
+      promo_id
+    } = req.body;
+
+    const promoId = normalizeId(promo_id);
+
+    if (!promoId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid promotion ID'
+      });
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE "payables"."promotions"
         SET
-          promo_name = @promo_name,
-          promo_start = @validFrom,
-          promo_end = @validTo,
-          description = @description,
-          promoCode = @code,
-          discount = @discount
-        WHERE promo_id = @promoID;
-      `);
-      res.status(201).json({ success: true, message: 'promo edited successfully!' });
+          promo_name = $1,
+          promo_start = $2::date,
+          promo_end = $3::date,
+          description = $4,
+          "promoCode" = $5,
+          discount = $6
+        WHERE promo_id = $7
+        RETURNING promo_id
+      `,
+      [
+        promo_name,
+        validFrom,
+        validTo,
+        description,
+        code,
+        discount,
+        promoId
+      ]
+    );
 
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Promotion not found'
+      });
+    }
 
-}
-//====================================================================
+    return res.status(200).json({
+      success: true,
+      message: 'Promo edited successfully!'
+    });
+  } catch (err) {
+    console.error('Error editing promotion:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to edit promotion',
+      error: err.message
+    });
+  }
+};
+
+/* ==========================================================================
+ * ADMIN BOOKINGS
+ * ======================================================================== */
 
 /**
  * GET /api/admin/bookings
  */
 exports.getAllBookings = async (req, res) => {
   try {
-    const pool = await poolPromise;
-    if (!pool) return res.status(200).json({ success: true, bookings: [] });
-//this part is needed by admin manage booking
-    const query = `
-      SELECT 
-        b.booking_ID,
-        b.customer_ID,
-        b.technician_ID,
-        CONVERT(VARCHAR(10), b.[date], 120) AS booking_date,
-        CONVERT(VARCHAR(8), b.[time], 108) AS [time],
-        b.isFollowup,
+    const result = await pool.query(`
+      SELECT
+        b."booking_ID",
+        b."customer_ID",
+        b."technician_ID",
+        TO_CHAR(b."date", 'YYYY-MM-DD') AS booking_date,
+        TO_CHAR(b."time", 'HH24:MI:SS') AS "time",
+        b."isFollowup",
         b.location,
         b.status,
         b.comments,
         b.timing,
-        b.numberOfUnits,
-        b.estimateTotalTime_minutes,
-        b.estimateTotalCost,
-        b.reasonOfReassignment,
-        b.servicesBooked,
+        b."numberOfUnits",
+        b."estimateTotalTime_minutes",
+        b."estimateTotalCost",
+        b."reasonOfReassignment",
+        b."servicesBooked",
 
-        ISNULL(c.customer_name, 'Guest Customer') AS customer_name,
-        ISNULL(tech.technician_name, 'Unassigned') AS technician_name
-      FROM [new_jobBooking].[Booking] b
-      LEFT JOIN [user3].[newCustomer] c ON b.customer_ID = c.customer_ID
-      LEFT JOIN [user3].[technician] tech ON b.technician_ID = tech.technician_ID
-      ORDER BY b.booking_ID DESC
-    `;
+        COALESCE(c.customer_name, 'Guest Customer') AS customer_name,
+        COALESCE(tech.technician_name, 'Unassigned') AS technician_name
 
-    const result = await pool.request().query(query);
-    return res.status(200).json({ success: true, bookings: result.recordset || [] });
+      FROM "new_jobBooking"."Booking" b
+
+      LEFT JOIN "user3"."newCustomer" c
+        ON b."customer_ID" = c."customer_ID"
+
+      LEFT JOIN "user3"."technician" tech
+        ON b."technician_ID" = tech."technician_ID"
+
+      ORDER BY b."booking_ID" DESC
+    `);
+
+    return res.status(200).json({
+      success: true,
+      bookings: result.rows
+    });
   } catch (err) {
     console.error('[Cool Fix] GET Bookings Error:', err.message);
-    res.status(500).json({ success: false, message: err.message, bookings: [] });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+      bookings: []
+    });
   }
 };
 
@@ -373,828 +539,1029 @@ exports.getAllBookings = async (req, res) => {
  */
 exports.getTechnicians = async (req, res) => {
   try {
-    const pool = await poolPromise;
-    if (!pool) return res.status(200).json({ success: true, technicians: [] });
+    const result = await pool.query(`
+      SELECT
+        "technician_ID",
+        technician_name
+      FROM "user3"."technician"
+      ORDER BY "technician_ID"
+    `);
 
-    const result = await pool.request()
-      .query(`SELECT technician_ID, technician_name FROM [user3].[technician]`);
-
-    res.status(200).json({ success: true, technicians: result.recordset || [] });
+    return res.status(200).json({
+      success: true,
+      technicians: result.rows
+    });
   } catch (err) {
     console.error('[Cool Fix] Fetch Technicians Error:', err.message);
-    res.status(500).json({ success: false, message: err.message });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };
 
-//clone booking for the asisting============================
-exports.cloneBooking  = async (req,res)=>{
-  console.log("controller making clone booking")
-  console.log(req.body)
-    const { customer_ID, technician_ID_2, booking_date, timing, location,numberOfUnits } = req.body;  //these names take from request body
-//status  will be confirmed in here
-//comments will be written as an assistant in here
-//tech id is the assisting
+/* ==========================================================================
+ * CLONE BOOKING — ASSISTING TECHNICIAN
+ * ======================================================================== */
 
-        const pool = await poolPromise;
-const result = await pool.request()
- .input('customer_ID', sql.Int, customer_ID)
-            .input('technician_ID', sql.Int, technician_ID_2) 
-            .input('booking_date', sql.Date, booking_date)
-.input('timing', sql.VarChar(50), timing)
-  .input('location', sql.VarChar(100), location)
-  .input('status',sql.VarChar(100), 'confirmed' )
-  .input('comments',sql.VarChar(500),'Assisting another technician')       
-        .input('time',sql.VarChar(8), '12:00:00')
-        .input('numberOfUnits',sql.Int,numberOfUnits)
-
-.query(`
- INSERT INTO [new_jobBooking].[Booking]
- (
- customer_ID,
-date,
-    timing,
+/**
+ * Creates an additional booking for an assisting technician.
+ */
+exports.cloneBooking = async (req, res) => {
+  try {
+    const {
+      customer_ID,
+      technician_ID_2,
+      booking_date,
+      timing,
       location,
-      comments,
-       technician_ID,   
-       status,
-       time,numberOfUnits
-       
- )
-  OUTPUT INSERTED.booking_ID
-                VALUES (
-                @customer_ID,
-                @booking_date,
-                @timing,
-                @location,
-               @comments,
-                @technician_ID,
-               @status,
-               @time,
-               @numberOfUnits
-                
-                
-                )   `)
+      numberOfUnits
+    } = req.body;
 
-  
-}//end of clone booking controller
+    const customerId = normalizeId(customer_ID);
+    const technicianId = normalizeId(technician_ID_2);
+    const date = normalizeDateToSql(booking_date);
 
+    if (!customerId || !technicianId || !date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Customer, assisting technician and valid booking date are required.'
+      });
+    }
+
+    const result = await pool.query(
+      `
+        INSERT INTO "new_jobBooking"."Booking" (
+          "customer_ID",
+          "technician_ID",
+          "date",
+          timing,
+          location,
+          comments,
+          status,
+          "time",
+          "numberOfUnits"
+        )
+        VALUES (
+          $1, $2, $3::date, $4, $5, $6, $7, $8::time, $9
+        )
+        RETURNING "booking_ID"
+      `,
+      [
+        customerId,
+        technicianId,
+        date,
+        timing,
+        location,
+        'Assisting another technician',
+        'confirmed',
+        '12:00:00',
+        Number(numberOfUnits) || 0
+      ]
+    );
+
+    const newBookingId = result.rows[0].booking_ID;
+
+    try {
+      await ensureJobLink(newBookingId);
+    } catch (err) {
+      console.error('[Cool Fix] ensureJobLink (clone) failed:', err.message);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Assisting booking created successfully.',
+      booking_ID: newBookingId
+    });
+  } catch (err) {
+    console.error('[Cool Fix] cloneBooking Error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create assisting booking.',
+      error: err.message
+    });
+  }
+};
+
+/* ==========================================================================
+ * CREATE BOOKING
+ * ======================================================================== */
 
 /**
  * POST /api/admin/bookings
  */
 exports.createBooking = async (req, res) => {
   try {
-    const { customer_ID, customer_name, technician_ID, booking_date, time, location, isFollowup, status, comments } = req.body;
+    const {
+      customer_ID,
+      customer_name,
+      user_ID,
+      technician_ID,
+      booking_date,
+      time,
+      location,
+      isFollowup,
+      status,
+      comments
+    } = req.body;
 
-    const pool = await poolPromise;
-    if (!pool) return res.status(500).json({ success: false, message: 'Database connection offline' });
+    let finalCustomerId = normalizeId(customer_ID);
 
-    let finalCustomerId = parseInt(customer_ID, 10);
+    // Create a customer if the supplied customer ID is invalid.
+    if (!finalCustomerId) {
+      const nameToInsert =
+        customer_name && customer_name.trim()
+          ? customer_name.trim()
+          : 'New Customer';
 
-    if (isNaN(finalCustomerId) || finalCustomerId <= 0) {
-      const nameToInsert = customer_name && customer_name.trim() !== "" ? customer_name.trim() : "New Customer";
-      const newCustResult = await pool.request()
-        .input('custName', sql.VarChar(100), nameToInsert)
-        .query(`INSERT INTO [user3].[newCustomer] (customer_name, customer_address, loyaltyPoints, bought_packages)
-                OUTPUT INSERTED.customer_ID VALUES (@custName, 'Singapore', 0, 0)`);
-      finalCustomerId = newCustResult.recordset[0].customer_ID;
-    } else {
-      const checkExisting = await pool.request()
-        .input('cId', sql.Int, finalCustomerId)
-        .query(`SELECT customer_ID FROM [user3].[newCustomer] WHERE customer_ID = @cId`);
-      if (checkExisting.recordset.length === 0) {
-        return res.status(400).json({ success: false, message: `Customer #${finalCustomerId} does not exist.` });
-      }
-    }
+      /*
+       * Your newCustomer schema has a user_ID column.
+       * Supply user_ID when creating a new customer if that column
+       * is NOT NULL in your Supabase table.
+       */
+      const userId = normalizeId(user_ID);
 
-    let validTechId = parseInt(technician_ID, 10);
-    if (!isNaN(validTechId) && validTechId > 0) {
-      const techCheck = await pool.request()
-        .input('tId', sql.Int, validTechId)
-        .query(`SELECT technician_ID FROM [user3].[technician] WHERE technician_ID = @tId`);
-      if (techCheck.recordset.length === 0) validTechId = null;
-    } else {
-      validTechId = null;
-    }
-
-    // 6 Oct 2026: date required (schema NOT NULL) — invalid input → today
-    const formattedDate = normalizeDateToSql(booking_date) || new Date().toISOString().split('T')[0];
-    // 6 Oct 2026: normalized time (fixes Invalid string crashes)
-    const formattedTime = normalizeTimeToSql(time) || '09:00:00';
-
-    const insertQuery = `
-      INSERT INTO [new_jobBooking].[Booking] 
-        (customer_ID, technician_ID, [date], [time], isFollowup, location, status, comments)
-      OUTPUT INSERTED.booking_ID
-      VALUES (@custId, @techId, @dateVal, @timeVal, @followupVal, @locationVal, ISNULL(@statusVal, 'Pending'), @commentsVal)
-    `;
-
-    const inserted = await pool.request()
-      .input('custId', sql.Int, finalCustomerId)
-      .input('techId', sql.Int, validTechId)
-      .input('dateVal', sql.Date, formattedDate)
-      .input('timeVal', sql.VarChar(8), formattedTime)
-      .input('followupVal', sql.Bit, isFollowup ? 1 : 0)
-      .input('locationVal', sql.VarChar(100), location || 'Singapore Main Branch')
-      .input('statusVal', sql.VarChar(100), status || 'Pending')
-      .input('commentsVal', sql.VarChar(500), comments || 'Service booking')
-      .query(insertQuery);
-
-    const newBookingId = inserted.recordset[0].booking_ID;
-
-    // 6 Oct 2026: guarantee the job link so the completion gate passes later
-    try { await ensureJobLink(pool, newBookingId); } catch (e) {
-      console.error('[Cool Fix] ensureJobLink (create) skipped:', e.message);
-    }
-
-    res.status(201).json({ success: true, message: 'Cool Fix booking created successfully!', booking_ID: newBookingId });
-  } catch (err) {
-    console.error('[Cool Fix] SQL POST Error:', err.message);
-    res.status(500).json({ success: false, message: `SQL Error: ${err.message}` });
-  }
-};
-
-/**
- * PUT /api/admin/bookings/:bookingId/status
- * 
- * this mega shit is used when admin change techniican. it updates technic but reason not in yet
- */
-exports.updateBookingStatus = async (req, res) => {
-  try {
-    const { bookingId } = req.params;
-    const { status, technician_ID, technicianId, booking_date, time,technician_ID_2 } = req.body;
-
-    if (!bookingId || bookingId === 'undefined') {
-      return res.status(400).json({ success: false, message: 'Invalid or missing Booking ID.' });
-    }
-
-    const pool = await poolPromise;
-    if (!pool) return res.status(500).json({ success: false, message: 'Database connection offline' });
-
-    // 1. Resolve technician ID (supports both key styles)
-    const rawTechId = technician_ID !== undefined ? technician_ID : technicianId;
-    const techIdProvided = rawTechId !== undefined && rawTechId !== null && String(rawTechId).trim() !== '';
-    let validTechId = parseInt(rawTechId, 10);
-    if (isNaN(validTechId) || validTechId <= 0) validTechId = null;
-
-    // 2. Normalize incoming date/time — null means "leave unchanged"
-    //    6 Oct 2026: normalizeTimeToSql fixes the Invalid-string crash
-    let targetDate = normalizeDateToSql(booking_date);
-    let targetTime = normalizeTimeToSql(time);
-
-    // 3. Fallback: when assigning a tech, fill missing date/time from the booking
-    if (validTechId !== null && (!targetDate || !targetTime)) {
-      const currentBooking = await pool.request()
-        .input('bId', sql.Int, Number(bookingId))
-        .query(`
-          SELECT CONVERT(VARCHAR(10), [date], 120) AS bookingDate,
-                 CONVERT(VARCHAR(8),  [time], 108) AS bookingTime
-          FROM [new_jobBooking].[Booking] 
-          WHERE booking_ID = @bId
-        `);
-      if (currentBooking.recordset.length > 0) {
-        if (!targetDate) targetDate = currentBooking.recordset[0].bookingDate;
-        if (!targetTime) targetTime = currentBooking.recordset[0].bookingTime; // now a "HH:MM:SS" STRING
-      }
-    }
-
-    // 4. DOUBLE-BOOKING GUARD — 6 Oct 2026: compares date AND time (was
-    //    date-only, which wrongly blocked same-day different-time assignments)
-    if (validTechId !== null && targetDate && targetTime) {
-      const conflictCheck = await pool.request()
-        .input('techId',    sql.Int,         validTechId)
-        .input('dateVal',   sql.Date,        targetDate)
-        .input('timeVal',   sql.VarChar(8),  targetTime)
-        .input('bookingId', sql.Int,         Number(bookingId))
-        .query(`
-          SELECT COUNT(*) AS clashes
-          FROM [new_jobBooking].[Booking]
-          WHERE technician_ID = @techId
-            AND booking_ID <> @bookingId
-            AND [date] = @dateVal
-            AND CONVERT(VARCHAR(5), [time], 108) = LEFT(@timeVal, 5)
-            AND LOWER([status]) NOT IN ('cancelled')
-        `);
-
-      if (conflictCheck.recordset[0].clashes > 0) {
-        return res.status(409).json({
+      if (!userId) {
+        return res.status(400).json({
           success: false,
-          message: 'This technician already has a booking at that exact date and time. Choose a different technician or time slot.',
+          message: 'A valid user_ID is required when creating a new customer.'
+        });
+      }
+
+      const newCustomer = await pool.query(
+        `
+          INSERT INTO "user3"."newCustomer" (
+            customer_name,
+            customer_address,
+            "loyaltyPoints",
+            bought_packages,
+            "user_ID"
+          )
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING "customer_ID"
+        `,
+        [
+          nameToInsert,
+          'Singapore',
+          0,
+          0,
+          userId
+        ]
+      );
+
+      finalCustomerId = newCustomer.rows[0].customer_ID;
+    } else {
+      const customerCheck = await pool.query(
+        `
+          SELECT "customer_ID"
+          FROM "user3"."newCustomer"
+          WHERE "customer_ID" = $1
+        `,
+        [finalCustomerId]
+      );
+
+      if (customerCheck.rowCount === 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Customer #${finalCustomerId} does not exist.`
         });
       }
     }
 
-    // 5. UPDATE — null params mean "leave unchanged"
-    const updateQuery = `
-      UPDATE [new_jobBooking].[Booking]
-      SET status = ISNULL(@statusVal, status),
-          technician_ID = CASE WHEN @techIdProvided = 1 THEN @techId ELSE technician_ID END,
-          [date] = ISNULL(@dateVal, [date]),
-          [time] = ISNULL(CONVERT(TIME, @timeVal), [time]),
-assisting = @technician_ID_2
-      WHERE booking_ID = @bookingId
-    `;
+    // Validate technician.
+    let validTechId = normalizeId(technician_ID);
 
-    await pool.request()
-      .input('bookingId',      sql.Int,          Number(bookingId))
-      .input('statusVal',      sql.VarChar(100), status || null)
-      .input('techIdProvided', sql.Bit,          techIdProvided ? 1 : 0)
-      .input('techId',         sql.Int,          validTechId)
-      .input('dateVal',        sql.Date,         targetDate)
-      .input('timeVal',        sql.VarChar(8),   targetTime)
-      .input('technician_ID_2', sql.Int, technician_ID_2)
-      .query(updateQuery);
+    if (validTechId) {
+      const techCheck = await pool.query(
+        `
+          SELECT "technician_ID"
+          FROM "user3"."technician"
+          WHERE "technician_ID" = $1
+        `,
+        [validTechId]
+      );
 
-    // 6. 6 Oct 2026: guarantee the job link whenever a technician is assigned
-    if (techIdProvided && validTechId !== null) {
-      try { await ensureJobLink(pool, bookingId); } catch (e) {
-        console.error('[Cool Fix] ensureJobLink (assign) skipped:', e.message);
+      if (techCheck.rowCount === 0) {
+        validTechId = null;
       }
     }
-    //make booking clone for assisting, 
- //create the RR reserved mock booking -------------------------------------------
- /** if(req.params.numberOfUnits > 3){
-        console.log("there is 3+ aircon, making the clone booking for assisting");
- const pool2 = await poolPromise;
-    const result2 = await pool2.request()
-      .input("bookingId", sql.Int, bookingId)
 
-      } */
-     
-    console.log(`[Cool Fix] Updated booking #${bookingId} successfully!`);
-    return res.status(200).json({ success: true, message: 'Cool Fix booking updated successfully!' });
+    const formattedDate =
+      normalizeDateToSql(booking_date) || getTodayDate();
+
+    const formattedTime =
+      normalizeTimeToSql(time) || '09:00:00';
+
+    const inserted = await pool.query(
+      `
+        INSERT INTO "new_jobBooking"."Booking" (
+          "customer_ID",
+          "technician_ID",
+          "date",
+          "time",
+          "isFollowup",
+          location,
+          status,
+          comments
+        )
+        VALUES (
+          $1, $2, $3::date, $4::time, $5, $6, $7, $8
+        )
+        RETURNING "booking_ID"
+      `,
+      [
+        finalCustomerId,
+        validTechId,
+        formattedDate,
+        formattedTime,
+        Boolean(isFollowup),
+        location || 'Singapore Main Branch',
+        status || 'Pending',
+        comments || 'Service booking'
+      ]
+    );
+
+    const newBookingId = inserted.rows[0].booking_ID;
+
+    try {
+      await ensureJobLink(newBookingId);
+    } catch (err) {
+      console.error('[Cool Fix] ensureJobLink (create) skipped:', err.message);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Cool Fix booking created successfully!',
+      booking_ID: newBookingId
+    });
   } catch (err) {
-    console.error('[Cool Fix] SQL PUT Error:', err.message);
-    return res.status(500).json({ success: false, message: `SQL Error: ${err.message}` });
+    console.error('[Cool Fix] createBooking Error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: `Database Error: ${err.message}`
+    });
   }
-
-
-
-
 };
 
+/* ==========================================================================
+ * UPDATE BOOKING STATUS / TECHNICIAN / DATE / TIME
+ * ======================================================================== */
 
-//fuck above shit=====================================================================================
+/**
+ * PUT /api/admin/bookings/:bookingId/status
+ */
+exports.updateBookingStatus = async (req, res) => {
+  try {
+    const bookingId = normalizeId(req.params.bookingId);
+
+    const {
+      status,
+      technician_ID,
+      technicianId,
+      booking_date,
+      time,
+      technician_ID_2
+    } = req.body;
+
+    if (!bookingId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or missing Booking ID.'
+      });
+    }
+
+    const rawTechId =
+      technician_ID !== undefined ? technician_ID : technicianId;
+
+    const techIdProvided =
+      rawTechId !== undefined &&
+      rawTechId !== null &&
+      String(rawTechId).trim() !== '';
+
+    let validTechId = normalizeId(rawTechId);
+
+    if (techIdProvided && !validTechId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid technician ID.'
+      });
+    }
+
+    if (validTechId) {
+      const techCheck = await pool.query(
+        `
+          SELECT "technician_ID"
+          FROM "user3"."technician"
+          WHERE "technician_ID" = $1
+        `,
+        [validTechId]
+      );
+
+      if (techCheck.rowCount === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected technician does not exist.'
+        });
+      }
+    }
+
+    let targetDate = normalizeDateToSql(booking_date);
+    let targetTime = normalizeTimeToSql(time);
+
+    // Get existing booking date/time when assigning a technician
+    // without supplying a replacement date/time.
+    if (validTechId && (!targetDate || !targetTime)) {
+      const currentBooking = await pool.query(
+        `
+          SELECT
+            TO_CHAR("date", 'YYYY-MM-DD') AS "bookingDate",
+            TO_CHAR("time", 'HH24:MI:SS') AS "bookingTime"
+          FROM "new_jobBooking"."Booking"
+          WHERE "booking_ID" = $1
+        `,
+        [bookingId]
+      );
+
+      if (currentBooking.rowCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Booking not found.'
+        });
+      }
+
+      if (!targetDate) {
+        targetDate = currentBooking.rows[0].bookingDate;
+      }
+
+      if (!targetTime) {
+        targetTime = currentBooking.rows[0].bookingTime;
+      }
+    }
+
+    // Prevent technician double-booking at the same date AND time.
+    if (validTechId && targetDate && targetTime) {
+      const conflictCheck = await pool.query(
+        `
+          SELECT COUNT(*)::int AS clashes
+          FROM "new_jobBooking"."Booking"
+          WHERE "technician_ID" = $1
+            AND "booking_ID" <> $2
+            AND "date" = $3::date
+            AND "time" = $4::time
+            AND LOWER("status") <> 'cancelled'
+        `,
+        [
+          validTechId,
+          bookingId,
+          targetDate,
+          targetTime
+        ]
+      );
+
+      if (conflictCheck.rows[0].clashes > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'This technician already has a booking at that exact date and time. Choose a different technician or time slot.'
+        });
+      }
+    }
+
+    const assistingId =
+      technician_ID_2 === '' || technician_ID_2 === undefined
+        ? null
+        : normalizeId(technician_ID_2);
+
+    const updateResult = await pool.query(
+      `
+        UPDATE "new_jobBooking"."Booking"
+        SET
+          status = COALESCE($1, status),
+          "technician_ID" =
+            CASE WHEN $2::boolean THEN $3 ELSE "technician_ID" END,
+          "date" = COALESCE($4::date, "date"),
+          "time" = COALESCE($5::time, "time"),
+          assisting = $6
+        WHERE "booking_ID" = $7
+        RETURNING "booking_ID"
+      `,
+      [
+        status || null,
+        techIdProvided,
+        validTechId,
+        targetDate,
+        targetTime,
+        assistingId,
+        bookingId
+      ]
+    );
+
+    if (updateResult.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found.'
+      });
+    }
+
+    if (techIdProvided && validTechId !== null) {
+      try {
+        await ensureJobLink(bookingId);
+      } catch (err) {
+        console.error('[Cool Fix] ensureJobLink (assign) skipped:', err.message);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Cool Fix booking updated successfully!'
+    });
+  } catch (err) {
+    console.error('[Cool Fix] updateBookingStatus Error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: `Database Error: ${err.message}`
+    });
+  }
+};
+
+/* ==========================================================================
+ * REASSIGN CONFIRMED BOOKING
+ * ======================================================================== */
 
 /**
  * PUT /api/admin/bookings/:bookingId/reassign
  *
- * Workflow A:
- * Reassign the technician for a confirmed booking.
- * Changes technician_ID and reassignment_reason only.
+ * Changes technician_ID and reasonOfReassignment only.
  */
 exports.reassignConfirmedBooking = async (req, res) => {
-  console.log(req);
-  console.log(res);
   try {
-    const bookingId = Number(req.params.bookingId);
+    const bookingId = normalizeId(req.params.bookingId);
     const { technician_ID, reason } = req.body;
 
-    // 1. Validate request
-    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+    if (!bookingId) {
       return res.status(400).json({
         success: false,
-        message: "Invalid Booking ID.",
+        message: 'Invalid Booking ID.'
       });
     }
 
-    const technicianId = Number(technician_ID);
-    if (!Number.isInteger(technicianId) || technicianId <= 0) {
+    const technicianId = normalizeId(technician_ID);
+
+    if (!technicianId) {
       return res.status(400).json({
         success: false,
-        message: "A valid technician must be selected.",
+        message: 'A valid technician must be selected.'
       });
     }
 
-    const cleanReason = String(reason || "").trim();
+    const cleanReason = String(reason || '').trim();
+
     if (!cleanReason) {
       return res.status(400).json({
         success: false,
-        message: "A reason for reassignment is required.",
+        message: 'A reason for reassignment is required.'
       });
     }
 
-    const pool = await poolPromise;
-    if (!pool) {
-      return res.status(500).json({
-        success: false,
-        message: "Database connection offline.",
-      });
-    }
-
-    // 2. Load existing booking
-    const bookingResult = await pool.request()
-      .input("bookingId", sql.Int, bookingId)
-      .query(`
+    const bookingResult = await pool.query(
+      `
         SELECT
-          booking_ID,
-          technician_ID,
-          [date],
-          CONVERT(VARCHAR(8), [time], 108) AS bookingTime,
-          LOWER(LTRIM(RTRIM([status]))) AS bookingStatus
-        FROM [new_jobBooking].[Booking]
-        WHERE booking_ID = @bookingId
-      `);
+          "booking_ID",
+          "technician_ID",
+          "date",
+          TO_CHAR("time", 'HH24:MI:SS') AS "bookingTime",
+          LOWER(BTRIM(status)) AS "bookingStatus"
+        FROM "new_jobBooking"."Booking"
+        WHERE "booking_ID" = $1
+      `,
+      [bookingId]
+    );
 
-    if (bookingResult.recordset.length === 0) {
+    if (bookingResult.rowCount === 0) {
       return res.status(404).json({
         success: false,
-        message: "Booking not found.",
+        message: 'Booking not found.'
       });
     }
 
-    const booking = bookingResult.recordset[0];
+    const booking = bookingResult.rows[0];
 
-    // 3. Only confirmed bookings may use this workflow
-    if (booking.bookingStatus !== "confirmed") {
+    if (booking.bookingStatus !== 'confirmed') {
       return res.status(409).json({
         success: false,
-        message: "Only confirmed bookings can have their technician reassigned.",
+        message: 'Only confirmed bookings can have their technician reassigned.'
       });
     }
 
     if (Number(booking.technician_ID) === technicianId) {
       return res.status(400).json({
         success: false,
-        message: "Choose a different technician.",
+        message: 'Choose a different technician.'
       });
     }
 
-    // 4. Check whether the technician is already booked
-    const conflictResult = await pool.request()
-      .input("techId", sql.Int, technicianId)
-      .input("bookingId", sql.Int, bookingId)
-      .input("bookingDate", sql.Date, booking["date"])
-      .input("bookingTime", sql.VarChar(8), booking.bookingTime)
-      .query(`
-        SELECT COUNT(*) AS clashes
-        FROM [new_jobBooking].[Booking]
-        WHERE technician_ID = @techId
-          AND booking_ID <> @bookingId
-          AND [date] = @bookingDate
-          AND CONVERT(VARCHAR(5), [time], 108)
-              = LEFT(@bookingTime, 5)
-          AND LOWER(LTRIM(RTRIM([status]))) <> 'cancelled'
-      `);
+    const techCheck = await pool.query(
+      `
+        SELECT "technician_ID"
+        FROM "user3"."technician"
+        WHERE "technician_ID" = $1
+      `,
+      [technicianId]
+    );
 
-    if (conflictResult.recordset[0].clashes > 0) {
+    if (techCheck.rowCount === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Selected technician does not exist.'
+      });
+    }
+
+    const conflictResult = await pool.query(
+      `
+        SELECT COUNT(*)::int AS clashes
+        FROM "new_jobBooking"."Booking"
+        WHERE "technician_ID" = $1
+          AND "booking_ID" <> $2
+          AND "date" = $3::date
+          AND "time" = $4::time
+          AND LOWER(BTRIM(status)) <> 'cancelled'
+      `,
+      [
+        technicianId,
+        bookingId,
+        booking.date,
+        booking.bookingTime
+      ]
+    );
+
+    if (conflictResult.rows[0].clashes > 0) {
       return res.status(409).json({
         success: false,
-        message: "This technician already has a booking at that date and time.",
+        message: 'This technician already has a booking at that date and time.'
       });
     }
 
-    // 5. Update technician and reason ONLY
-    const updateResult = await pool.request()
-      .input("bookingId", sql.Int, bookingId)
-      .input("techId", sql.Int, technicianId)
-      .input("reason", sql.VarChar(100), cleanReason)  // THIS IS THE REASON
-      .query(`
-        UPDATE [new_jobBooking].[Booking]
-        SET technician_ID = @techId,
-            reasonOfReassignment = @reason   
-        WHERE booking_ID = @bookingId
-          AND LOWER(LTRIM(RTRIM([status]))) = 'confirmed'
-      `);
-console.log(cleanReason);
+    const updateResult = await pool.query(
+      `
+        UPDATE "new_jobBooking"."Booking"
+        SET
+          "technician_ID" = $1,
+          "reasonOfReassignment" = $2
+        WHERE "booking_ID" = $3
+          AND LOWER(BTRIM(status)) = 'confirmed'
+        RETURNING "booking_ID"
+      `,
+      [
+        technicianId,
+        cleanReason,
+        bookingId
+      ]
+    );
 
-    if (updateResult.rowsAffected[0] === 0) {
+    if (updateResult.rowCount === 0) {
       return res.status(409).json({
         success: false,
-        message: "The booking could not be reassigned. Refresh and try again.",
+        message: 'The booking could not be reassigned. Refresh and try again.'
       });
     }
 
-    // 6. Ensure the job link exists
     try {
-      await ensureJobLink(pool, bookingId);
+      await ensureJobLink(bookingId);
     } catch (err) {
-      console.error("[Cool Fix] ensureJobLink failed:", err.message);
-      // The technician update has already succeeded.
+      console.error('[Cool Fix] ensureJobLink failed:', err.message);
     }
 
     return res.status(200).json({
       success: true,
-      message: "Technician reassigned successfully.",
+      message: 'Technician reassigned successfully.'
     });
   } catch (err) {
-    console.error("[Cool Fix] reassignConfirmedBooking error:", err);
+    console.error('[Cool Fix] reassignConfirmedBooking error:', err);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to reassign technician.",
+      message: 'Failed to reassign technician.',
+      error: err.message
     });
   }
 };
 
-
-
-
-
+/* ==========================================================================
+ * RESCHEDULE REQUESTED BOOKING
+ * ======================================================================== */
 
 /**
- * PUT /api/admin/bookings/:bookingId/reschedule   -------------------------------------------
+ * PUT /api/admin/bookings/:bookingId/reschedule
  *
- * Workflow B:
- * Change the time of a booking awaiting rescheduling.
- * Changes [time] only.
+ * Changes the booking time and technician.
  */
 exports.rescheduleRequestedBooking = async (req, res) => {
   try {
-    const bookingId = Number(req.params.bookingId);
-const { time, technician_ID } = req.body;
-    // 1. Validate booking ID
-    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+    const bookingId = normalizeId(req.params.bookingId);
+    const { time, technician_ID } = req.body;
+
+    if (!bookingId) {
       return res.status(400).json({
         success: false,
-        message: "Invalid Booking ID.",
+        message: 'Invalid Booking ID.'
       });
     }
 
-    // 2. Validate and normalize requested time
-    if (typeof time !== "string" || !time.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "A new booking time is required.",
-      });
-    }
-
-    const targetTime = normalizeTimeToSql(time.trim());
+    const targetTime = normalizeTimeToSql(time);
 
     if (!targetTime) {
       return res.status(400).json({
         success: false,
-        message: "Invalid booking time.",
+        message: 'Invalid booking time.'
       });
     }
-const technicianId = Number(technician_ID);
 
-if (!Number.isInteger(technicianId) || technicianId <= 0) {
-  return res.status(400).json({
-    success: false,
-    message: "A valid new technician is required.",
-  });
-}
-    const pool = await poolPromise;
-    if (!pool) {
-      return res.status(500).json({
+    const technicianId = normalizeId(technician_ID);
+
+    if (!technicianId) {
+      return res.status(400).json({
         success: false,
-        message: "Database connection offline.",
+        message: 'A valid new technician is required.'
       });
     }
 
-    // 3. Load the existing booking
-    const bookingResult = await pool.request()
-      .input("bookingId", sql.Int, bookingId)
-      .query(`
+    const bookingResult = await pool.query(
+      `
         SELECT
-          booking_ID,
-          technician_ID,
-          [date],
-          CONVERT(VARCHAR(8), [time], 108) AS bookingTime,
-          LOWER(LTRIM(RTRIM([status]))) AS bookingStatus
-        FROM [new_jobBooking].[Booking]
-        WHERE booking_ID = @bookingId
-      `);
+          "booking_ID",
+          "technician_ID",
+          "date",
+          TO_CHAR("time", 'HH24:MI:SS') AS "bookingTime",
+          LOWER(BTRIM(status)) AS "bookingStatus"
+        FROM "new_jobBooking"."Booking"
+        WHERE "booking_ID" = $1
+      `,
+      [bookingId]
+    );
 
-    if (bookingResult.recordset.length === 0) {
+    if (bookingResult.rowCount === 0) {
       return res.status(404).json({
         success: false,
-        message: "Booking not found.",
+        message: 'Booking not found.'
       });
     }
 
-    const booking = bookingResult.recordset[0];
+    const booking = bookingResult.rows[0];
 
-    // 4. Only reschedule-request bookings may use this workflow
     const allowedStatuses = [
-      "request_reschedule",
-      "reschedule_requested",
+      'request_reschedule',
+      'reschedule_requested'
     ];
 
     if (!allowedStatuses.includes(booking.bookingStatus)) {
       return res.status(409).json({
         success: false,
-        message: "This booking is not awaiting rescheduling.",
+        message: 'This booking is not awaiting rescheduling.'
       });
     }
 
-    // 5. Reject the existing time
-    if (targetTime.slice(0, 5) === booking.bookingTime.slice(0, 5)) {
+    if (
+      targetTime.slice(0, 5) ===
+      String(booking.bookingTime).slice(0, 5)
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Choose a different booking time.",
+        message: 'Choose a different booking time.'
       });
     }
 
-    // 6. Check for a technician conflict, if one is assigned
-    if (technician_ID != null) {
-      const conflictResult = await pool.request()
-        .input("techId", sql.Int, technicianId)
-        .input("bookingId", sql.Int, bookingId)
-        .input("bookingDate", sql.Date, booking["date"])
-        .input("bookingTime", sql.VarChar(8), targetTime)
-        .query(`
-          SELECT COUNT(*) AS clashes
-          FROM [new_jobBooking].[Booking]
-          WHERE technician_ID = @techId
-            AND booking_ID <> @bookingId
-            AND [date] = @bookingDate
-            AND CONVERT(VARCHAR(5), [time], 108)
-                = LEFT(@bookingTime, 5)
-            AND LOWER(LTRIM(RTRIM([status]))) <> 'cancelled'
-        `);
+    const techCheck = await pool.query(
+      `
+        SELECT "technician_ID"
+        FROM "user3"."technician"
+        WHERE "technician_ID" = $1
+      `,
+      [technicianId]
+    );
 
-      if (conflictResult.recordset[0].clashes > 0) {
-        return res.status(409).json({
+    if (techCheck.rowCount === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Selected technician does not exist.'
+      });
+    }
+
+    const conflictResult = await pool.query(
+      `
+        SELECT COUNT(*)::int AS clashes
+        FROM "new_jobBooking"."Booking"
+        WHERE "technician_ID" = $1
+          AND "booking_ID" <> $2
+          AND "date" = $3::date
+          AND "time" = $4::time
+          AND LOWER(BTRIM(status)) <> 'cancelled'
+      `,
+      [
+        technicianId,
+        bookingId,
+        booking.date,
+        targetTime
+      ]
+    );
+
+    if (conflictResult.rows[0].clashes > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'The assigned technician already has a booking at that date and time.'
+      });
+    }
+
+    const updateResult = await pool.query(
+      `
+        UPDATE "new_jobBooking"."Booking"
+        SET
+          "time" = $1::time,
+          "technician_ID" = $2,
+          status = 'Assigned'
+        WHERE "booking_ID" = $3
+          AND LOWER(BTRIM(status))
+              IN ('request_reschedule', 'reschedule_requested')
+        RETURNING "booking_ID"
+      `,
+      [
+        targetTime,
+        technicianId,
+        bookingId
+      ]
+    );
+
+    if (updateResult.rowCount === 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'The booking could not be rescheduled. Refresh and try again.'
+      });
+    }
+
+    try {
+      await ensureJobLink(bookingId);
+    } catch (err) {
+      console.error('[Cool Fix] ensureJobLink (reschedule) failed:', err.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Booking time updated successfully.'
+    });
+  } catch (err) {
+    console.error('[Cool Fix] rescheduleRequestedBooking error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update booking time.',
+      error: err.message
+    });
+  }
+};
+
+/* ==========================================================================
+ * SUBMIT THREE RESCHEDULING ALTERNATIVES
+ * ======================================================================== */
+
+/**
+ * PUT /api/admin/bookings/:bookingId/alternatives
+ *
+ * Saves three alternatives and changes status to request_reschedule.
+ */
+exports.submitBookingAlternatives = async (req, res) => {
+  try {
+    const bookingId = normalizeId(req.params.bookingId);
+    const { alternatives } = req.body;
+
+    if (!bookingId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Booking ID.'
+      });
+    }
+
+    if (!Array.isArray(alternatives) || alternatives.length !== 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Exactly three booking alternatives are required.'
+      });
+    }
+
+    for (const [index, alternative] of alternatives.entries()) {
+      if (
+        !normalizeDateToSql(alternative.date) ||
+        !normalizeTimeToSql(alternative.time) ||
+        !normalizeId(alternative.technician_ID)
+      ) {
+        return res.status(400).json({
           success: false,
-          message: "The assigned technician already has a booking at that date and time.",
+          message: `Alternative ${index + 1} has invalid date, time or technician.`
         });
       }
     }
 
-    // 7. Update time and technician; return status to assigned.
-const updateResult = await pool.request()
-  .input("bookingId", sql.Int, bookingId)
-  .input("newTime", sql.VarChar(8), targetTime)
-  .input("technicianId", sql.Int, technicianId)
-  .query(`
-    UPDATE [new_jobBooking].[Booking]
-    SET
-      [time] = CONVERT(TIME, @newTime),
-      technician_ID = @technicianId,
-      [status] = 'Assigned'
-    WHERE booking_ID = @bookingId
-      AND LOWER(LTRIM(RTRIM([status])))
-          IN ('request_reschedule', 'reschedule_requested')
-  `);
+    const values = [
+      normalizeDateToSql(alternatives[0].date),
+      normalizeTimeToSql(alternatives[0].time),
+      normalizeId(alternatives[0].technician_ID),
+      normalizeId(alternatives[0].assisting),
 
-    if (updateResult.rowsAffected[0] === 0) {
-      return res.status(409).json({
+      normalizeDateToSql(alternatives[1].date),
+      normalizeTimeToSql(alternatives[1].time),
+      normalizeId(alternatives[1].technician_ID),
+      normalizeId(alternatives[1].assisting),
+
+      normalizeDateToSql(alternatives[2].date),
+      normalizeTimeToSql(alternatives[2].time),
+      normalizeId(alternatives[2].technician_ID),
+      normalizeId(alternatives[2].assisting),
+
+      normalizeDateToSql(alternatives[0].date),
+      bookingId
+    ];
+
+    const result = await pool.query(
+      `
+        UPDATE "new_jobBooking"."Booking"
+        SET
+          "RR1_date" = $1::date,
+          "RR1_time" = $2,
+          "RR1_technician" = $3,
+          "RR1_assisting" = $4,
+
+          "RR2_date" = $5::date,
+          "RR2_time" = $6,
+          "RR2_technician" = $7,
+          "RR2_assisting" = $8,
+
+          "RR3_date" = $9::date,
+          "RR3_time" = $10,
+          "RR3_technician" = $11,
+          "RR3_assisting" = $12,
+
+          "RR_expiry" = $13::date,
+          status = 'request_reschedule'
+
+        WHERE "booking_ID" = $14
+        RETURNING "booking_ID"
+      `,
+      values
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
         success: false,
-        message: "The booking could not be rescheduled. Refresh and try again.",
+        message: `Booking ${bookingId} was not found.`
       });
     }
 
     return res.status(200).json({
       success: true,
-      message: "Booking time updated successfully.",
+      message: 'Booking alternatives submitted successfully.'
     });
   } catch (err) {
-    console.error("[Cool Fix] rescheduleRequestedBooking error:", err);
+    console.error('[submitBookingAlternatives] Error:', err);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to update booking time.",
+      message: 'Failed to submit booking alternatives.',
+      error: err.message
     });
   }
 };
 
-
-//updates the booking status to request reschedule, all altenratives sent
-//below freshly paste, plz check
+/* ==========================================================================
+ * CREATE RESERVED RESCHEDULING SLOTS
+ * ======================================================================== */
 
 /**
- * PUT /api/admin/bookings/:bookingId/alternatives
+ * Creates six reserved placeholder bookings:
+ *   3 primary technician slots
+ *   3 assisting technician slots
  *
- * Saves three proposed booking options and updates the booking status.
+ * These are placeholders with status RR_reserved.
  */
-exports.submitBookingAlternatives = async (req, res) => {
-  console.log(
-  "[submitBookingAlternatives] Received body:",
-  JSON.stringify(req.body, null, 2)
-);
-  const bookingId = Number(req.params.bookingId);
-  const { alternatives } = req.body;
- try {
-    const pool = await poolPromise;
-    const result = await pool.request()
-  .input("bookingId", sql.Int, bookingId)
+exports.makeReservedSlots = async (req, res) => {
+  try {
+    const { customer_ID, alternativesWithMore } = req.body;
 
-  .input("RR1_date", sql.Date, alternatives[0].date)
-  .input("RR1_time", sql.VarChar(50), alternatives[0].time)
-  .input("RR1_technician", sql.Int, alternatives[0].technician_ID)
-  .input("assist_RR1", sql.Int, alternatives[0].assisting)
+    const customerId = normalizeId(customer_ID);
 
-  .input("RR2_date", sql.Date, alternatives[1].date)
-  .input("RR2_time", sql.VarChar(50), alternatives[1].time)
-  .input("RR2_technician", sql.Int, alternatives[1].technician_ID)
-    .input("assist_RR2", sql.Int, alternatives[1].assisting)
+    if (!customerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid customer ID is required.'
+      });
+    }
 
+    if (
+      !Array.isArray(alternativesWithMore) ||
+      alternativesWithMore.length !== 3
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Exactly three alternatives are required.'
+      });
+    }
 
-  .input("RR3_date", sql.Date, alternatives[2].date)
-  .input("RR3_time", sql.VarChar(50), alternatives[2].time)
-  .input("RR3_technician", sql.Int, alternatives[2].technician_ID)
-    .input("assist_RR3", sql.Int, alternatives[2].assisting)
+    for (const [index, alternative] of alternativesWithMore.entries()) {
+      if (
+        !normalizeDateToSql(alternative.date) ||
+        !normalizeTimeToSql(alternative.time) ||
+        !normalizeId(alternative.technician_ID)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: `Alternative ${index + 1} has invalid date, time or technician.`
+        });
+      }
+    }
 
+    const rowsToInsert = [];
 
-  .input("RR_expiry", sql.Date, alternatives[0].date)
+    // First three: primary technicians.
+    for (const alternative of alternativesWithMore) {
+      rowsToInsert.push({
+        date: normalizeDateToSql(alternative.date),
+        timing: normalizeTimeToSql(alternative.time),
+        technicianId: normalizeId(alternative.technician_ID)
+      });
+    }
 
-  .query(`
-    UPDATE [new_jobBooking].[Booking]
-    SET
+    // Next three: assisting technicians.
+    for (const alternative of alternativesWithMore) {
+      rowsToInsert.push({
+        date: normalizeDateToSql(alternative.date),
+        timing: normalizeTimeToSql(alternative.time),
+        technicianId: normalizeId(alternative.assisting)
+      });
+    }
 
-      RR1_date = @RR1_date,
-      RR1_time = @RR1_time,
-      RR1_technician = @RR1_technician,
-      RR1_assisting = @assist_RR1,
+    const values = [];
+    const placeholders = [];
 
-      RR2_date = @RR2_date,
-      RR2_time = @RR2_time,
-      RR2_technician = @RR2_technician,      
-      RR2_assisting = @assist_RR2,
+    for (const row of rowsToInsert) {
+      const start = values.length;
 
+      values.push(
+        customerId,
+        row.date,
+        row.timing,
+        'RR reserving...',
+        'RESERVED SLOT',
+        row.technicianId,
+        'RR_reserved',
+        '12:00:00',
+        0
+      );
 
-      RR3_date = @RR3_date,
-      RR3_time = @RR3_time,
-      RR3_technician = @RR3_technician,
-            RR3_assisting = @assist_RR3,
+      placeholders.push(
+        `(
+          $${start + 1},
+          $${start + 2}::date,
+          $${start + 3},
+          $${start + 4},
+          $${start + 5},
+          $${start + 6},
+          $${start + 7},
+          $${start + 8}::time,
+          $${start + 9}
+        )`
+      );
+    }
 
+    const insertQuery = `
+      INSERT INTO "new_jobBooking"."Booking" (
+        "customer_ID",
+        "date",
+        timing,
+        location,
+        comments,
+        "technician_ID",
+        status,
+        "time",
+        "numberOfUnits"
+      )
+      VALUES ${placeholders.join(', ')}
+      RETURNING "booking_ID"
+    `;
 
-      RR_expiry = @RR_expiry,
+    const result = await pool.query(insertQuery, values);
 
-      status = 'request_reschedule'
-
-    WHERE booking_ID = @bookingId
-  `);
-
-
-    
-
-
-
-
-if (result.rowsAffected[0] === 0) {throw new Error(`Booking ${bookingId} was not found or was not updated.`);};
-  
-  
-  return res.status(200).json({
+    return res.status(201).json({
       success: true,
-      message: "Booking time updated successfully.",
+      message: 'Reserved slots created successfully.',
+      booking_IDs: result.rows.map(row => row.booking_ID)
     });
-
-  }catch (err) {
-    console.error("[submitBookingAlternatives] Error:", err);
+  } catch (err) {
+    console.error('[makeReservedSlots] Error:', err);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to submit booking alternatives.",
+      message: 'Failed to create reserved slots.',
       error: err.message
     });
-  
-
   }
-
-
-
-
-     
-
-};//end of method - set alternatives
-
-//make reserved booking-----------------------
-
-exports.makeReservedSlots = async (req,res) => {
-  console.log(
-  "[makeReservedSlots] Received body:",
-  JSON.stringify(req.body, null, 2));
-
-  //FOLLOW CODE OF CLONE BOOKING
-const { customer_ID} = req.body; 
-
-const technician_ID_alt1 = req.body.alternativesWithMore[0].technician_ID //pull from array properly
-const booking_date_alt1= req.body.alternativesWithMore[0].date
-const timing_alt1 =req.body.alternativesWithMore[0].time
-
-const technician_ID_alt2 = req.body.alternativesWithMore[1].technician_ID 
-const booking_date_alt2= req.body.alternativesWithMore[1].date
-const timing_alt2 =req.body.alternativesWithMore[1].time
-
-const technician_ID_alt3 = req.body.alternativesWithMore[2].technician_ID 
-const booking_date_alt3= req.body.alternativesWithMore[2].date
-const timing_alt3 =req.body.alternativesWithMore[2].time
-
-//the assisting, can use the same code
-const assiting_alt1 = req.body.alternativesWithMore[0].assisting
-const assiting_alt2 = req.body.alternativesWithMore[1].assisting
-const assiting_alt3 = req.body.alternativesWithMore[2].assisting
-
-
-
-     const pool = await poolPromise;
-const result = await pool.request()
- .input('customer_ID', sql.Int, customer_ID)
-           
-  .input('location', sql.VarChar(100), 'RR reserving...')
-  .input('status',sql.VarChar(100), 'RR_reserved' )
-  .input('comments',sql.VarChar(500),'RESERVED SLOT')       
-        .input('time',sql.VarChar(8), '12:00:00')
-        .input('numberOfUnits',sql.Int,0)
-
-        //the 3 sets of booking dates
-         .input('technician_ID_alt1', sql.Int, technician_ID_alt1) 
-         .input('booking_date_alt1', sql.Date, booking_date_alt1)
-         .input('timing_alt1', sql.VarChar(50), timing_alt1)
-
-         .input('technician_ID_alt2', sql.Int, technician_ID_alt2) 
-         .input('booking_date_alt2', sql.Date, booking_date_alt2)
-         .input('timing_alt2', sql.VarChar(50), timing_alt2)
-
-         .input('technician_ID_alt3', sql.Int, technician_ID_alt3) 
-         .input('booking_date_alt3', sql.Date, booking_date_alt3)
-         .input('timing_alt3', sql.VarChar(50), timing_alt3)
-
-         .input('assiting_alt1', sql.Int, assiting_alt1) 
-         .input('assiting_alt2', sql.Int, assiting_alt2) 
-         .input('assiting_alt3', sql.Int, assiting_alt3) 
-
-         
-
-.query(`
- INSERT INTO [new_jobBooking].[Booking]
- (customer_ID,
-date,
-    timing,
-      location,
-      comments,
-       technician_ID,   
-       status,
-       time,numberOfUnits)
-
-  OUTPUT INSERTED.booking_ID
-                VALUES (
-                @customer_ID,
-                @booking_date_alt1,
-                @timing_alt1,
-                @location,
-               @comments,
-                @technician_ID_alt1,
-               @status,
-               @time,
-               @numberOfUnits
-                )  ,
-
-                 (
-                @customer_ID,
-                @booking_date_alt2,
-                @timing_alt2,
-                @location,
-               @comments,
-                @technician_ID_alt2,
-               @status,
-               @time,
-               @numberOfUnits             
-                )  ,
-               
-
-                (
-                @customer_ID,
-                @booking_date_alt3,
-                @timing_alt3,
-                @location,
-               @comments,
-                @technician_ID_alt3,
-               @status,
-               @time,
-               @numberOfUnits
-                ),
-
-               (
-                @customer_ID,
-                @booking_date_alt1,
-                @timing_alt1,
-                @location,
-               @comments,
-                @assiting_alt1,
-               @status,
-               @time,
-               @numberOfUnits
-                )  ,
-
-                      (
-                @customer_ID,
-                @booking_date_alt2,
-                @timing_alt2,
-                @location,
-               @comments,
-                @assiting_alt2,
-               @status,
-               @time,
-               @numberOfUnits             
-                )  ,
-               
-                     (
-                @customer_ID,
-                @booking_date_alt3,
-                @timing_alt3,
-                @location,
-               @comments,
-                @assiting_alt3,
-               @status,
-               @time,
-               @numberOfUnits
-                )
-               
-                `)
-}
-
-
+};

@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { poolPromise, sql } = require('../config/db');
+const pool = require('../config/supabaseDb'); // pg Pool (Supabase)
 
 // Verify the existing login token, then resolve an active Customer account.
 // Neither query-string IDs nor client-provided role/customer fields authorize access.
@@ -21,20 +21,22 @@ module.exports = async function authenticateCustomer(req, res, next) {
   }
 
   try {
-    const pool = await poolPromise;
-    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
-    const result = await pool.request().input('userId', sql.Int, claims.id).query(`
-      SELECT nc.customer_ID
-      FROM [user3].[topUser] u
-      JOIN [user3].[newCustomer] nc ON nc.user_ID = u.user_ID
-      WHERE u.user_ID = @userId AND u.isDeleted = 0 AND LOWER(u.accountType) = 'customer'
-    `);
-    if (result.recordset.length !== 1) {
+    // isDeleted is checked as text so it works whether the column is boolean, int or text
+    const result = await pool.query(`
+      SELECT nc."customer_ID"
+      FROM user3."topUser" u
+      JOIN user3."newCustomer" nc ON nc."user_ID" = u."user_ID"
+      WHERE u."user_ID" = $1
+        AND COALESCE(u."isDeleted"::text, 'false') IN ('0', 'false', 'f')
+        AND LOWER(u."accountType") = 'customer'
+    `, [claims.id]);
+    if (result.rows.length !== 1) {
       return res.status(403).json({ success: false, message: 'An active, unambiguous Customer account is required.' });
     }
-    req.ratingCustomer = { userID: claims.id, customerID: result.recordset[0].customer_ID };
+    req.ratingCustomer = { userID: claims.id, customerID: result.rows[0].customer_ID };
     return next();
-  } catch {
+  } catch (err) {
+    console.error('[Auth] Customer identity check failed:', err.message);
     return res.status(500).json({ success: false, message: 'Customer identity could not be verified.' });
   }
 };

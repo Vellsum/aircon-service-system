@@ -1,68 +1,139 @@
-const { poolPromise, sql } = require('../config/db');
 
-const REPORT_TABLE = '[new_jobBooking].[serviceReport]';
+const pool = require('../config/supabaseDb');
+
+const REPORT_TABLE = '"new_jobBooking"."serviceReport"';
 
 function truncate(str, maxLen) {
   if (!str) return null;
-  return str.length > maxLen ? str.substring(0, maxLen - 3) + '...' : str;
+
+  str = String(str);
+
+  return str.length > maxLen
+    ? str.substring(0, maxLen - 3) + '...'
+    : str;
 }
 
 function arrayToCsv(arr, maxLen) {
   if (!Array.isArray(arr) || arr.length === 0) return null;
+
   var csv = arr.join(', ');
   return truncate(csv, maxLen);
 }
 
 // =============================================================================
-// 6 Oct 2026 — FOLLOW-UP AUTO-BOOKING
-// When a report flags "follow-up required", create the return visit as a real
-// booking (isFollowup = 1) for the same customer, assigned to the same
-// technician, so it appears on their Follow-Up page and Assigned Jobs.
-// Creates the job + work link too — otherwise the completion gate blocks it.
+// FOLLOW-UP AUTO-BOOKING
+// Creates a real follow-up booking, job, and work link.
 // =============================================================================
-async function createFollowUpBooking(pool, { sourceBookingId, reasons, otherReason, followUpDate, priority }) {
-  const src = await pool.request()
-    .input('bid', sql.Int, Number(sourceBookingId))
-    .query(`SELECT customer_ID, technician_ID, location
-              FROM [new_jobBooking].[Booking] WHERE booking_ID = @bid`);
-  const s = src.recordset[0];
-  if (!s || !s.technician_ID) return null;
+async function createFollowUpBooking(
+  pool,
+  { sourceBookingId, reasons, otherReason, followUpDate, priority }
+) {
+  const client = await pool.connect();
 
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(followUpDate || ''))
-    ? String(followUpDate)
-    : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]; // fallback: +7 days
-  const comment = `Follow-up visit${priority ? ` (${priority} priority)` : ''}: ${
-    [...(reasons || []), otherReason].filter(Boolean).join(', ') || 'Recommended by technician'}`;
+  try {
+    await client.query('BEGIN');
 
-  const ins = await pool.request()
-    .input('cid', sql.Int, s.customer_ID)
-    .input('tid', sql.Int, s.technician_ID)
-    .input('date', sql.VarChar(10), date)
-    .input('loc', sql.VarChar(100), s.location)
-    .input('comment', sql.VarChar(500), comment)
-    .query(`INSERT INTO [new_jobBooking].[Booking] (customer_ID, technician_ID, [date], [time], isFollowup, location, [status], comments)
-            OUTPUT INSERTED.booking_ID
-            VALUES (@cid, @tid, @date, '09:00', 1, @loc, 'Scheduled', @comment)`);
-  const newBookingId = ins.recordset[0].booking_ID;
+    const src = await client.query(
+      `SELECT
+          "customer_ID",
+          "technician_ID",
+          location
+       FROM "new_jobBooking"."Booking"
+       WHERE "booking_ID" = $1`,
+      [Number(sourceBookingId)]
+    );
 
-  // job + work link (required for reports/completion later)
-  const svc = await pool.request().query(`SELECT TOP 1 service_id FROM [payables].[service] ORDER BY service_id`);
-  const j = await pool.request()
-    .input('svc', sql.Int, svc.recordset[0]?.service_id)
-    .query(`INSERT INTO [new_jobBooking].[job] (job_status, isFollowup, serviceID)
-            OUTPUT INSERTED.job_ID VALUES ('Pending', 1, @svc)`);
-  await pool.request()
-    .input('jid', sql.Int, j.recordset[0].job_ID)
-    .input('bid', sql.Int, newBookingId)
-    .query(`INSERT INTO [new_jobBooking].[work] (job_ID, booking_ID) VALUES (@jid, @bid)`);
+    const s = src.rows[0];
 
-  return newBookingId;
+    if (!s || !s.technician_ID) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(followUpDate || ''))
+      ? String(followUpDate)
+      : new Date(Date.now() + 7 * 86400000)
+          .toISOString()
+          .split('T')[0];
+
+    const comment = `Follow-up visit${priority ? ` (${priority} priority)` : ''}: ${
+      [...(reasons || []), otherReason]
+        .filter(Boolean)
+        .join(', ') || 'Recommended by technician'
+    }`;
+
+    // Confirmed service primary key: service_id
+    const svc = await client.query(
+      `SELECT service_id
+       FROM "payables".service
+       ORDER BY service_id
+       LIMIT 1`
+    );
+
+    if (svc.rows.length === 0) {
+      throw new Error('No service exists in payables.service.');
+    }
+
+    const ins = await client.query(
+      `INSERT INTO "new_jobBooking"."Booking"
+        (
+          "customer_ID",
+          "technician_ID",
+          "date",
+          "time",
+          "isFollowup",
+          location,
+          status,
+          comments
+        )
+       VALUES ($1, $2, $3::DATE, '09:00'::TIME, TRUE, $4, 'Scheduled', $5)
+       RETURNING "booking_ID"`,
+      [
+        s.customer_ID,
+        s.technician_ID,
+        date,
+        s.location,
+        comment
+      ]
+    );
+
+    const newBookingId = ins.rows[0].booking_ID;
+
+    const j = await client.query(
+      `INSERT INTO "new_jobBooking"."job"
+        (job_status, "isFollowup", "serviceID")
+       VALUES ('Pending', TRUE, $1)
+       RETURNING "job_ID"`,
+      [svc.rows[0].service_id]
+    );
+
+    const newJobId = j.rows[0].job_ID;
+
+    await client.query(
+      `INSERT INTO "new_jobBooking"."work"
+        ("job_ID", "booking_ID")
+       VALUES ($1, $2)`,
+      [newJobId, newBookingId]
+    );
+
+    await client.query('COMMIT');
+
+    return newBookingId;
+
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
 }
+
+
+// =============================================================================
+// SUBMIT SERVICE REPORT
+// =============================================================================
 var submitReport = async (req, res) => {
   try {
-    var pool = await poolPromise;
-    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
-
     var job_ID = req.body.job_ID;
     var findings = req.body.findings;
     var findingsOther = req.body.findingsOther;
@@ -81,40 +152,87 @@ var submitReport = async (req, res) => {
     var customerAcknowledged = req.body.customerAcknowledged;
     var internalNotes = req.body.internalNotes;
 
-    if (!job_ID) return res.status(400).json({ error: 'job_ID is required' });
-    if (!overallCondition) return res.status(400).json({ error: 'overallCondition is required' });
-    if (!Array.isArray(findings) || findings.length === 0) return res.status(400).json({ error: 'At least one finding is required' });
-    if (!Array.isArray(actionsTaken) || actionsTaken.length === 0) return res.status(400).json({ error: 'At least one action is required' });
+    if (!job_ID) {
+      return res.status(400).json({ error: 'job_ID is required' });
+    }
+
+    if (!overallCondition) {
+      return res.status(400).json({ error: 'overallCondition is required' });
+    }
+
+    if (!Array.isArray(findings) || findings.length === 0) {
+      return res.status(400).json({ error: 'At least one finding is required' });
+    }
+
+    if (!Array.isArray(actionsTaken) || actionsTaken.length === 0) {
+      return res.status(400).json({ error: 'At least one action is required' });
+    }
+
+    var bookingId = parseInt(job_ID, 10);
+
+    if (!Number.isSafeInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
 
     var descParts = [];
+
     if (findings.length > 0) descParts.push(findings[0]);
     if (actionsTaken.length > 0) descParts.push(actionsTaken[0]);
+
     var description = truncate(descParts.join(' + '), 100) || 'Service report';
 
-    var techResult = await pool.request()
-      .input('bookingId', sql.Int, parseInt(job_ID))
-      .query('SELECT technician_ID FROM [new_jobBooking].[Booking] WHERE booking_ID = @bookingId');
+    var techResult = await pool.query(
+      `SELECT "technician_ID"
+       FROM "new_jobBooking"."Booking"
+       WHERE "booking_ID" = $1`,
+      [bookingId]
+    );
 
-    if (techResult.recordset.length === 0) {
+    if (techResult.rows.length === 0) {
       return res.status(400).json({ error: 'Booking not found' });
     }
-    var technicianID = techResult.recordset[0].technician_ID;
+
+    var technicianID = techResult.rows[0].technician_ID;
 
     var findingsArr = findings.slice();
-    if (findingsOther && findingsOther.trim()) findingsArr.push(findingsOther.trim());
+
+    if (findingsOther && findingsOther.trim()) {
+      findingsArr.push(findingsOther.trim());
+    }
+
     var findingsStr = arrayToCsv(findingsArr, 200);
 
     var actionsArr = actionsTaken.slice();
-    if (actionsOther && actionsOther.trim()) actionsArr.push(actionsOther.trim());
+
+    if (actionsOther && actionsOther.trim()) {
+      actionsArr.push(actionsOther.trim());
+    }
+
     var actionsStr = arrayToCsv(actionsArr, 200);
 
     var recommendationsStr = null;
-    if (followUpRequired && Array.isArray(followUpReasons) && followUpReasons.length > 0) {
+
+    if (
+      followUpRequired &&
+      Array.isArray(followUpReasons) &&
+      followUpReasons.length > 0
+    ) {
       var recParts = [];
+
       recParts.push(followUpReasons.join(', '));
-      if (followUpOtherReason) recParts.push(followUpOtherReason);
-      if (followUpPriority) recParts.push('Priority: ' + followUpPriority);
-      if (followUpDate) recParts.push('By: ' + followUpDate);
+
+      if (followUpOtherReason) {
+        recParts.push(followUpOtherReason);
+      }
+
+      if (followUpPriority) {
+        recParts.push('Priority: ' + followUpPriority);
+      }
+
+      if (followUpDate) {
+        recParts.push('By: ' + followUpDate);
+      }
+
       recommendationsStr = truncate(recParts.join(' | '), 200);
     }
 
@@ -124,61 +242,87 @@ var submitReport = async (req, res) => {
       ? truncate(new Date(completionDateTime).toISOString(), 100)
       : truncate(new Date().toISOString(), 100);
 
-    var reportQuery = 'INSERT INTO ' + REPORT_TABLE + ' (description, technicianID, isFollowup, findings, actionsTaken, AC_condition, recommendations, notes, serviceChecklist, comepletedDateTime, materialsTotal, customerAcknowledged, job_ID) OUTPUT INSERTED.reportID VALUES (@description, @technicianID, @isFollowup, @findings, @actionsTaken, @AC_condition, @recommendations, @notes, @serviceChecklist, @comepletedDateTime, @materialsTotal, @customerAcknowledged, @job_ID)';
+    // Insert report.
+    const reportResult = await pool.query(
+      `INSERT INTO ${REPORT_TABLE}
+        (
+          description,
+          "technicianID",
+          "isFollowup",
+          findings,
+          "actionsTaken",
+          "AC_condition",
+          recommendations,
+          notes,
+          "serviceChecklist",
+          "comepletedDateTime",
+          "materialsTotal",
+          "customerAcknowledged",
+          "job_ID"
+        )
+       VALUES (
+          $1, $2, $3, $4, $5, $6, $7,
+          $8, $9, $10, $11, $12, $13
+       )
+       RETURNING "reportID"`,
+      [
+        description,
+        technicianID,
+        Boolean(followUpRequired),
+        findingsStr,
+        actionsStr,
+        truncate(overallCondition, 200),
+        recommendationsStr,
+        truncate(internalNotes, 200),
+        checklistStr,
+        completedStr,
+        Number(materialsTotal) || 0,
+        Boolean(customerAcknowledged),
+        bookingId
+      ]
+    );
 
-    var reportRequest = pool.request();
-    reportRequest.input('description', sql.VarChar(100), description);
-    reportRequest.input('technicianID', sql.Int, technicianID);
-    reportRequest.input('isFollowup', sql.Bit, followUpRequired ? 1 : 0);
-    reportRequest.input('findings', sql.VarChar(200), findingsStr);
-    reportRequest.input('actionsTaken', sql.VarChar(200), actionsStr);
-    reportRequest.input('AC_condition', sql.VarChar(200), truncate(overallCondition, 200));
-    reportRequest.input('recommendations', sql.VarChar(200), recommendationsStr);
-    reportRequest.input('notes', sql.VarChar(200), truncate(internalNotes, 200));
-    reportRequest.input('serviceChecklist', sql.VarChar(200), checklistStr);
-    reportRequest.input('comepletedDateTime', sql.VarChar(100), completedStr);
-    reportRequest.input('materialsTotal', sql.Decimal(10, 2), materialsTotal || 0);
-    reportRequest.input('customerAcknowledged', sql.Bit, customerAcknowledged ? 1 : 0);
-    reportRequest.input('job_ID', sql.Int, parseInt(job_ID));
+    var reportID = reportResult.rows[0].reportID;
 
-    var reportResult = await reportRequest.query(reportQuery);
-    var reportID = reportResult.recordset[0].reportID;
-
+    // Save materials used.
     if (Array.isArray(materials) && materials.length > 0) {
       for (var i = 0; i < materials.length; i++) {
         var material = materials[i];
+
         if (!material.itemID) continue;
-        await pool.request()
-          .input('reportID', sql.Int, reportID)
-          .input('itemID', sql.Int, parseInt(material.itemID))
-          .input('quantityUsed', sql.Int, Number(material.quantity) || 1)   // 6 Oct 2026: persist qty (column exists now)
-          .input('unitCost', sql.Float, Number(material.unitCost) || 0)     // 6 Oct 2026: persist cost
-          .query('INSERT INTO [new_jobBooking].[partsUsed] (reportID, itemID, quantityUsed, unitCost) VALUES (@reportID, @itemID, @quantityUsed, @unitCost)');
+
+        await pool.query(
+          `INSERT INTO "new_jobBooking"."partsUsed"
+            ("reportID", "itemID", "quantityUsed", "unitCost")
+           VALUES ($1, $2, $3, $4)`,
+          [
+            reportID,
+            parseInt(material.itemID, 10),
+            Number(material.quantity) || 1,
+            Number(material.unitCost) || 0
+          ]
+        );
       }
     }
 
-    // =====================================================================
-    // 6 Oct 2026 — CHANGED: report no longer auto-completes the booking.
-    // Flow is now: Start → submit report (In Progress) → technician clicks
-    // Complete → updateJobStatus's report gate verifies and completes.
-    // The old "UPDATE ... SET status = 'Completed'" here bypassed the gate
-    // and made report-before-complete impossible.
-    // =====================================================================
+    // Report submission does not automatically complete the booking.
+    // Technician must click Complete separately.
 
-    // 6 Oct 2026 — create the return visit if the report flags follow-up
-    // (helper defined at the top of this file — was previously never called)
+    // Create follow-up booking if required.
     if (followUpRequired) {
       try {
         await createFollowUpBooking(pool, {
-          sourceBookingId: job_ID,
+          sourceBookingId: bookingId,
           reasons: followUpReasons,
           otherReason: followUpOtherReason,
           followUpDate: followUpDate,
-          priority: followUpPriority,
+          priority: followUpPriority
         });
       } catch (fuErr) {
-        console.error('[Cool Fix] Follow-up booking creation skipped:', fuErr.message);
-        // non-fatal: the report itself is already saved
+        console.error(
+          '[Cool Fix] Follow-up booking creation skipped:',
+          fuErr.message
+        );
       }
     }
 
@@ -190,100 +334,204 @@ var submitReport = async (req, res) => {
 
   } catch (err) {
     console.error('[Cool Fix] POST Report Error:', err.message);
-    res.status(500).json({ success: false, message: err.message });
+
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };
 
-// A report can be linked through several service jobs for the same booking.
-// Collapse those links, but never choose between distinct booking identities.
-const REPORT_BOOKING_CTE = `WITH ReportBookings AS (
-  SELECT j.serviceReport AS reportID,
-         COUNT(DISTINCT w.booking_ID) AS bookingCount,
-         CASE WHEN COUNT(DISTINCT w.booking_ID) = 1
-              THEN MIN(w.booking_ID) END AS bookingID
-  FROM [new_jobBooking].[job] j
-  LEFT JOIN [new_jobBooking].[work] w ON w.job_ID = j.job_ID
-  WHERE j.serviceReport IS NOT NULL
-  GROUP BY j.serviceReport
-) `;
+
+// =============================================================================
+// REPORT → BOOKING MAPPING
+// =============================================================================
+const REPORT_BOOKING_CTE = `
+  WITH ReportBookings AS (
+    SELECT
+      j."serviceReport" AS "reportID",
+      COUNT(DISTINCT w."booking_ID")::INTEGER AS "bookingCount",
+      CASE
+        WHEN COUNT(DISTINCT w."booking_ID") = 1
+        THEN MIN(w."booking_ID")
+      END AS "bookingID"
+    FROM "new_jobBooking"."job" j
+    LEFT JOIN "new_jobBooking"."work" w
+      ON w."job_ID" = j."job_ID"
+    WHERE j."serviceReport" IS NOT NULL
+    GROUP BY j."serviceReport"
+  )
+`;
 
 function verifiedBookingRows(rows, bookingField) {
-  if (rows.some(row => row._bookingCount !== 1
-    || !Number.isSafeInteger(row[bookingField]) || row[bookingField] <= 0)) {
+  if (
+    rows.some(row =>
+      Number(row._bookingCount) !== 1 ||
+      !Number.isSafeInteger(Number(row[bookingField])) ||
+      Number(row[bookingField]) <= 0
+    )
+  ) {
     throw new Error('Report booking mapping is unavailable or ambiguous.');
   }
+
   return rows.map(({ _bookingCount, ...row }) => row);
 }
 
+
+// =============================================================================
+// GET ALL REPORTS
+// =============================================================================
 var getReports = async (req, res) => {
   try {
-    var pool = await poolPromise;
-    if (!pool) return res.status(200).json({ success: true, reports: [] });
-
     var techId = parseInt(req.query.techId, 10) || 1;
 
-    var result = await pool.request()
-      .input('techId', sql.Int, techId)
-      .query(REPORT_BOOKING_CTE + 'SELECT sr.*, b.booking_ID AS job_ID, b.status AS jobStatus, rb.bookingCount AS _bookingCount FROM ' + REPORT_TABLE + ' sr LEFT JOIN ReportBookings rb ON rb.reportID = sr.reportID LEFT JOIN [new_jobBooking].[Booking] b ON b.booking_ID = rb.bookingID WHERE sr.technicianID = @techId ORDER BY sr.reportID DESC');
+    var result = await pool.query(
+      REPORT_BOOKING_CTE +
+      ` SELECT
+          sr.*,
+          b."booking_ID" AS job_ID,
+          b.status AS "jobStatus",
+          rb."bookingCount" AS "_bookingCount"
+        FROM ${REPORT_TABLE} sr
+        LEFT JOIN ReportBookings rb
+          ON rb."reportID" = sr."reportID"
+        LEFT JOIN "new_jobBooking"."Booking" b
+          ON b."booking_ID" = rb."bookingID"
+        WHERE sr."technicianID" = $1
+        ORDER BY sr."reportID" DESC`,
+      [techId]
+    );
 
-    res.json({ success: true, reports: verifiedBookingRows(result.recordset, 'job_ID') });
+    res.json({
+      success: true,
+      reports: verifiedBookingRows(result.rows, 'job_ID')
+    });
 
   } catch (err) {
     console.error('[Cool Fix] GET Reports Error:', err.message);
-    res.status(500).json({ success: false, message: err.message });
+
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };
 
+
+// =============================================================================
+// GET REPORT BY ID
+// =============================================================================
 var getReportById = async (req, res) => {
   try {
-    var pool = await poolPromise;
-    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
+    var reportId = parseInt(req.params.id, 10);
 
-    var result = await pool.request()
-      .input('reportId', sql.Int, parseInt(req.params.id))
-      .query(REPORT_BOOKING_CTE + 'SELECT sr.*, b.booking_ID AS job_ID, b.status AS jobStatus, c.customer_name, rb.bookingCount AS _bookingCount FROM ' + REPORT_TABLE + ' sr LEFT JOIN ReportBookings rb ON rb.reportID = sr.reportID LEFT JOIN [new_jobBooking].[Booking] b ON b.booking_ID = rb.bookingID LEFT JOIN [user3].[newCustomer] c ON b.customer_ID = c.customer_ID WHERE sr.reportID = @reportId');
+    var result = await pool.query(
+      REPORT_BOOKING_CTE +
+      ` SELECT
+          sr.*,
+          b."booking_ID" AS job_ID,
+          b.status AS "jobStatus",
+          c.customer_name,
+          rb."bookingCount" AS "_bookingCount"
+        FROM ${REPORT_TABLE} sr
+        LEFT JOIN ReportBookings rb
+          ON rb."reportID" = sr."reportID"
+        LEFT JOIN "new_jobBooking"."Booking" b
+          ON b."booking_ID" = rb."bookingID"
+        LEFT JOIN "user3"."newCustomer" c
+          ON b."customer_ID" = c."customer_ID"
+        WHERE sr."reportID" = $1`,
+      [reportId]
+    );
 
-    if (result.recordset.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Report not found' });
     }
 
-    res.json({ success: true, report: verifiedBookingRows(result.recordset, 'job_ID')[0] });
+    res.json({
+      success: true,
+      report: verifiedBookingRows(result.rows, 'job_ID')[0]
+    });
 
   } catch (err) {
     console.error('[Cool Fix] GET Report Error:', err.message);
-    res.status(500).json({ success: false, message: err.message });
+
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };
 
+
+// =============================================================================
+// GET PARTS LOG
+// =============================================================================
 var getPartsLog = async (req, res) => {
   try {
-    var pool = await poolPromise;
-    if (!pool) return res.status(200).json({ success: true, records: [] });
-
     var techId = parseInt(req.query.techId, 10) || 1;
 
-    var query = REPORT_BOOKING_CTE + 'SELECT sr.reportID, pu.itemID, ii.itemName, ii.price, 1 AS quantity_used, ISNULL(ii.stock, 0) AS currentStock, ii.itemType, ii.description AS itemDesc, sr.technicianID, b.booking_ID AS bookingID, b.booking_ID AS jobID, rb.bookingCount AS _bookingCount, b.status AS jobStatus, ISNULL(c.customer_name, \'Guest Customer\') AS customerName, \'Aircon Servicing\' AS serviceName, CONVERT(VARCHAR(10), b.[date], 120) AS bookingDate, b.location, CONVERT(varchar(8), b.[time], 108) AS bookingTime FROM [new_jobBooking].[serviceReport] sr INNER JOIN [new_jobBooking].[partsUsed] pu ON sr.reportID = pu.reportID INNER JOIN [inventory].[inventoryItem] ii ON pu.itemID = ii.itemID LEFT JOIN ReportBookings rb ON rb.reportID = sr.reportID LEFT JOIN [new_jobBooking].[Booking] b ON b.booking_ID = rb.bookingID LEFT JOIN [user3].[newCustomer] c ON b.customer_ID = c.customer_ID WHERE sr.technicianID = @techId ORDER BY sr.reportID DESC, ii.itemName ASC';
+    var query = REPORT_BOOKING_CTE +
+      ` SELECT
+          sr."reportID",
+          pu."itemID",
+          ii."itemName",
+          ii.price,
+          COALESCE(pu."quantityUsed", 1) AS quantity_used,
+          COALESCE(ii.stock, 0) AS "currentStock",
+          ii."itemType",
+          ii.description AS "itemDesc",
+          sr."technicianID",
+          b."booking_ID" AS "bookingID",
+          b."booking_ID" AS "jobID",
+          rb."bookingCount" AS "_bookingCount",
+          b.status AS "jobStatus",
+          COALESCE(c.customer_name, 'Guest Customer') AS "customerName",
+          'Aircon Servicing' AS "serviceName",
+          TO_CHAR(b."date", 'YYYY-MM-DD') AS "bookingDate",
+          b.location,
+          TO_CHAR(b."time", 'HH24:MI:SS') AS "bookingTime"
+        FROM ${REPORT_TABLE} sr
+        INNER JOIN "new_jobBooking"."partsUsed" pu
+          ON sr."reportID" = pu."reportID"
+        INNER JOIN "inventory"."inventoryItem" ii
+          ON pu."itemID" = ii."itemID"
+        LEFT JOIN ReportBookings rb
+          ON rb."reportID" = sr."reportID"
+        LEFT JOIN "new_jobBooking"."Booking" b
+          ON b."booking_ID" = rb."bookingID"
+        LEFT JOIN "user3"."newCustomer" c
+          ON b."customer_ID" = c."customer_ID"
+        WHERE sr."technicianID" = $1
+        ORDER BY sr."reportID" DESC, ii."itemName" ASC`;
 
-    var result = await pool.request()
-      .input('techId', sql.Int, techId)
-      .query(query);
+    var result = await pool.query(query, [techId]);
 
-    var records = verifiedBookingRows(result.recordset, 'bookingID').map(function(row) {
+    var records = verifiedBookingRows(result.rows, 'bookingID').map(function(row) {
       var displayTime = '-';
-      // SQL TIME is a wall-clock value, not an instant to convert between timezones.
+
+      // SQL TIME is a wall-clock value, not an instant.
       var clock = typeof row.bookingTime === 'string'
         ? /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/.exec(row.bookingTime)
         : null;
+
       if (clock) {
         var hour = Number(clock[1]);
-        displayTime = (hour % 12 || 12) + ':' + clock[2] + (hour >= 12 ? ' PM' : ' AM');
+
+        displayTime =
+          (hour % 12 || 12) +
+          ':' +
+          clock[2] +
+          (hour >= 12 ? ' PM' : ' AM');
       }
 
       return {
         reportID: row.reportID,
         itemID: row.itemID,
         itemName: row.itemName,
-        itemDescription: row.itemDesc || (row.itemName + ' - $' + Number(row.price || 0).toFixed(2) + ' per unit'),
+        itemDescription:
+          row.itemDesc ||
+          (row.itemName + ' - $' + Number(row.price || 0).toFixed(2) + ' per unit'),
         itemType: row.itemType || 'General',
         currentStock: row.currentStock,
         quantityUsed: row.quantity_used,
@@ -302,17 +550,26 @@ var getPartsLog = async (req, res) => {
       };
     });
 
-    res.json({ success: true, records: records });
+    res.json({
+      success: true,
+      records: records
+    });
 
   } catch (err) {
     console.error('[Cool Fix] GET Parts Log Error:', err.message);
-    res.status(500).json({ success: false, message: err.message, records: [] });
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+      records: []
+    });
   }
 };
 
+
 module.exports = {
-  submitReport: submitReport,
-  getReports: getReports,
-  getReportById: getReportById,
-  getPartsLog: getPartsLog
+  submitReport,
+  getReports,
+  getReportById,
+  getPartsLog
 };
