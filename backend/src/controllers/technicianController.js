@@ -83,7 +83,14 @@ const getAssignedJobs = async (req, res) => {
         b.comments,
         ISNULL(b.isFollowup, 0) AS isFollowup,
         ISNULL(c.customer_name, 'Guest Customer') AS customer_name,
-        ISNULL(c.customer_address, b.location) AS address
+        ISNULL(c.customer_address, b.location) AS address,
+        COALESCE((SELECT DISTINCT j.serviceID, s.service_name AS serviceName
+         FROM [new_jobBooking].[work] w
+         INNER JOIN [new_jobBooking].[job] j ON j.job_ID = w.job_ID
+         LEFT JOIN [payables].[service] s ON s.service_id = j.serviceID
+         WHERE w.booking_ID = b.booking_ID
+         ORDER BY j.serviceID, s.service_name
+         FOR JSON PATH, INCLUDE_NULL_VALUES), '[]') AS servicesJson
       FROM [new_jobBooking].[Booking] b
       LEFT JOIN [user3].[newCustomer] c ON b.customer_ID = c.customer_ID
       WHERE b.technician_ID = @techId
@@ -116,6 +123,7 @@ const getAssignedJobs = async (req, res) => {
         customer_ID: row.customer_ID,
         customerName: row.customer_name || 'Guest Customer',
         serviceType: 'Aircon Servicing',
+        services: JSON.parse(row.servicesJson),
         unitType: 'Wall-Mounted Split System',
         date: jobDate,
         formattedDate,
@@ -358,11 +366,17 @@ const getTechnicianProfile = async (req, res) => {
           t.specialty,
           t.jobsDone,
           ratings.customerRatingAverage,
-          ratings.customerReviewCount
+          ratings.customerReviewCount,
+          ratings.star1, ratings.star2, ratings.star3, ratings.star4, ratings.star5
         FROM [user3].[technician] t
         OUTER APPLY (
           SELECT AVG(CAST(r.stars AS DECIMAL(10, 4))) AS customerRatingAverage,
-                 COUNT(*) AS customerReviewCount
+                 COUNT(*) AS customerReviewCount,
+                 COUNT(CASE WHEN r.stars = 1 THEN 1 END) AS star1,
+                 COUNT(CASE WHEN r.stars = 2 THEN 1 END) AS star2,
+                 COUNT(CASE WHEN r.stars = 3 THEN 1 END) AS star3,
+                 COUNT(CASE WHEN r.stars = 4 THEN 1 END) AS star4,
+                 COUNT(CASE WHEN r.stars = 5 THEN 1 END) AS star5
           FROM [new_jobBooking].[bookingRating] r
           WHERE r.technician_ID = t.technician_ID AND r.stars BETWEEN 1 AND 5
         ) ratings
@@ -382,6 +396,9 @@ const getTechnicianProfile = async (req, res) => {
         technicianRating: row.technician_rating,
         customerRatingAverage: row.customerRatingAverage,
         customerReviewCount: row.customerReviewCount,
+        customerRatingDistribution: [1, 2, 3, 4, 5].map(stars => ({
+          stars, count: row[`star${stars}`],
+        })),
         specialty: row.specialty || '',
         jobsDone: row.jobsDone || 0,
       },
