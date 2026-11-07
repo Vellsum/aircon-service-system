@@ -3,6 +3,10 @@ const pool = require('../config/supabaseDb');
 
 const REPORT_TABLE = '"new_jobBooking"."serviceReport"';
 
+// =============================================================================
+// HELPERS
+// =============================================================================
+
 function truncate(str, maxLen) {
   if (!str) return null;
 
@@ -16,144 +20,133 @@ function truncate(str, maxLen) {
 function arrayToCsv(arr, maxLen) {
   if (!Array.isArray(arr) || arr.length === 0) return null;
 
-  var csv = arr.join(', ');
-  return truncate(csv, maxLen);
+  return truncate(arr.join(', '), maxLen);
+}
+
+function getTechnicianId(req, res) {
+  const techId = Number.parseInt(req.query.techId, 10);
+
+  if (!Number.isSafeInteger(techId) || techId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: 'A valid technician ID is required.'
+    });
+
+    return null;
+  }
+
+  return techId;
 }
 
 // =============================================================================
 // FOLLOW-UP AUTO-BOOKING
-// Creates a real follow-up booking, job, and work link.
 // =============================================================================
-async function createFollowUpBooking(
-  pool,
-  { sourceBookingId, reasons, otherReason, followUpDate, priority }
-) {
-  const client = await pool.connect();
 
-  try {
-    await client.query('BEGIN');
+async function createFollowUpBooking(pool, {
+  sourceBookingId,
+  reasons,
+  otherReason,
+  followUpDate,
+  priority
+}) {
+  const src = await pool.query(
+    `SELECT "customer_ID", "technician_ID", location
+     FROM "new_jobBooking"."Booking"
+     WHERE "booking_ID" = $1`,
+    [Number(sourceBookingId)]
+  );
 
-    const src = await client.query(
-      `SELECT
-          "customer_ID",
-          "technician_ID",
-          location
-       FROM "new_jobBooking"."Booking"
-       WHERE "booking_ID" = $1`,
-      [Number(sourceBookingId)]
-    );
+  const s = src.rows[0];
 
-    const s = src.rows[0];
+  if (!s || !s.technician_ID) return null;
 
-    if (!s || !s.technician_ID) {
-      await client.query('ROLLBACK');
-      return null;
-    }
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(followUpDate || ''))
+    ? String(followUpDate)
+    : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(followUpDate || ''))
-      ? String(followUpDate)
-      : new Date(Date.now() + 7 * 86400000)
-          .toISOString()
-          .split('T')[0];
+  const comment = `Follow-up visit${priority ? ` (${priority} priority)` : ''}: ${
+    [...(reasons || []), otherReason]
+      .filter(Boolean)
+      .join(', ') || 'Recommended by technician'
+  }`;
 
-    const comment = `Follow-up visit${priority ? ` (${priority} priority)` : ''}: ${
-      [...(reasons || []), otherReason]
-        .filter(Boolean)
-        .join(', ') || 'Recommended by technician'
-    }`;
+  const ins = await pool.query(
+    `INSERT INTO "new_jobBooking"."Booking"
+      ("customer_ID", "technician_ID", "date", "time",
+       "isFollowup", location, status, comments)
+     VALUES ($1, $2, $3, '09:00', TRUE, $4, 'Scheduled', $5)
+     RETURNING "booking_ID"`,
+    [
+      s.customer_ID,
+      s.technician_ID,
+      date,
+      s.location,
+      comment
+    ]
+  );
 
-    // Confirmed service primary key: service_id
-    const svc = await client.query(
-      `SELECT service_id
-       FROM "payables".service
-       ORDER BY service_id
-       LIMIT 1`
-    );
+  const newBookingId = ins.rows[0].booking_ID;
 
-    if (svc.rows.length === 0) {
-      throw new Error('No service exists in payables.service.');
-    }
+  // Create job
+  const svc = await pool.query(
+    `SELECT service_id
+     FROM "payables".service
+     ORDER BY service_id
+     LIMIT 1`
+  );
 
-    const ins = await client.query(
-      `INSERT INTO "new_jobBooking"."Booking"
-        (
-          "customer_ID",
-          "technician_ID",
-          "date",
-          "time",
-          "isFollowup",
-          location,
-          status,
-          comments
-        )
-       VALUES ($1, $2, $3::DATE, '09:00'::TIME, TRUE, $4, 'Scheduled', $5)
-       RETURNING "booking_ID"`,
-      [
-        s.customer_ID,
-        s.technician_ID,
-        date,
-        s.location,
-        comment
-      ]
-    );
-
-    const newBookingId = ins.rows[0].booking_ID;
-
-    const j = await client.query(
-      `INSERT INTO "new_jobBooking"."job"
-        (job_status, "isFollowup", "serviceID")
-       VALUES ('Pending', TRUE, $1)
-       RETURNING "job_ID"`,
-      [svc.rows[0].service_id]
-    );
-
-    const newJobId = j.rows[0].job_ID;
-
-    await client.query(
-      `INSERT INTO "new_jobBooking"."work"
-        ("job_ID", "booking_ID")
-       VALUES ($1, $2)`,
-      [newJobId, newBookingId]
-    );
-
-    await client.query('COMMIT');
-
-    return newBookingId;
-
-  } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
-    throw err;
-  } finally {
-    client.release();
+  if (!svc.rows[0]) {
+    throw new Error('No service found for follow-up booking.');
   }
-}
 
+  const j = await pool.query(
+    `INSERT INTO "new_jobBooking".job
+      (job_status, "isFollowup", "serviceID")
+     VALUES ('Pending', TRUE, $1)
+     RETURNING "job_ID"`,
+    [svc.rows[0].service_id]
+  );
+
+  // Link job to booking
+  await pool.query(
+    `INSERT INTO "new_jobBooking".work
+      ("job_ID", "booking_ID")
+     VALUES ($1, $2)`,
+    [j.rows[0].job_ID, newBookingId]
+  );
+
+  return newBookingId;
+}
 
 // =============================================================================
 // SUBMIT SERVICE REPORT
 // =============================================================================
-var submitReport = async (req, res) => {
-  try {
-    var job_ID = req.body.job_ID;
-    var findings = req.body.findings;
-    var findingsOther = req.body.findingsOther;
-    var actionsTaken = req.body.actionsTaken;
-    var actionsOther = req.body.actionsOther;
-    var overallCondition = req.body.overallCondition;
-    var checklistItems = req.body.checklistItems;
-    var materials = req.body.materials;
-    var materialsTotal = req.body.materialsTotal;
-    var followUpRequired = req.body.followUpRequired;
-    var followUpReasons = req.body.followUpReasons;
-    var followUpOtherReason = req.body.followUpOtherReason;
-    var followUpDate = req.body.followUpDate;
-    var followUpPriority = req.body.followUpPriority;
-    var completionDateTime = req.body.completionDateTime;
-    var customerAcknowledged = req.body.customerAcknowledged;
-    var internalNotes = req.body.internalNotes;
 
-    if (!job_ID) {
-      return res.status(400).json({ error: 'job_ID is required' });
+const submitReport = async (req, res) => {
+  try {
+    const job_ID = Number.parseInt(req.body.job_ID, 10);
+
+    const {
+      findings,
+      findingsOther,
+      actionsTaken,
+      actionsOther,
+      overallCondition,
+      checklistItems,
+      materials,
+      materialsTotal,
+      followUpRequired,
+      followUpReasons,
+      followUpOtherReason,
+      followUpDate,
+      followUpPriority,
+      completionDateTime,
+      customerAcknowledged,
+      internalNotes
+    } = req.body;
+
+    if (!Number.isSafeInteger(job_ID) || job_ID <= 0) {
+      return res.status(400).json({ error: 'Valid job_ID is required' });
     }
 
     if (!overallCondition) {
@@ -161,63 +154,63 @@ var submitReport = async (req, res) => {
     }
 
     if (!Array.isArray(findings) || findings.length === 0) {
-      return res.status(400).json({ error: 'At least one finding is required' });
+      return res.status(400).json({
+        error: 'At least one finding is required'
+      });
     }
 
     if (!Array.isArray(actionsTaken) || actionsTaken.length === 0) {
-      return res.status(400).json({ error: 'At least one action is required' });
+      return res.status(400).json({
+        error: 'At least one action is required'
+      });
     }
 
-    var bookingId = parseInt(job_ID, 10);
-
-    if (!Number.isSafeInteger(bookingId) || bookingId <= 0) {
-      return res.status(400).json({ error: 'Invalid booking ID' });
-    }
-
-    var descParts = [];
+    const descParts = [];
 
     if (findings.length > 0) descParts.push(findings[0]);
     if (actionsTaken.length > 0) descParts.push(actionsTaken[0]);
 
-    var description = truncate(descParts.join(' + '), 100) || 'Service report';
+    const description =
+      truncate(descParts.join(' + '), 100) || 'Service report';
 
-    var techResult = await pool.query(
+    // The submitted job_ID is used as the booking ID in this existing workflow.
+    const techResult = await pool.query(
       `SELECT "technician_ID"
        FROM "new_jobBooking"."Booking"
        WHERE "booking_ID" = $1`,
-      [bookingId]
+      [job_ID]
     );
 
     if (techResult.rows.length === 0) {
       return res.status(400).json({ error: 'Booking not found' });
     }
 
-    var technicianID = techResult.rows[0].technician_ID;
+    const technicianID = techResult.rows[0].technician_ID;
 
-    var findingsArr = findings.slice();
+    const findingsArr = findings.slice();
 
     if (findingsOther && findingsOther.trim()) {
       findingsArr.push(findingsOther.trim());
     }
 
-    var findingsStr = arrayToCsv(findingsArr, 200);
+    const findingsStr = arrayToCsv(findingsArr, 200);
 
-    var actionsArr = actionsTaken.slice();
+    const actionsArr = actionsTaken.slice();
 
     if (actionsOther && actionsOther.trim()) {
       actionsArr.push(actionsOther.trim());
     }
 
-    var actionsStr = arrayToCsv(actionsArr, 200);
+    const actionsStr = arrayToCsv(actionsArr, 200);
 
-    var recommendationsStr = null;
+    let recommendationsStr = null;
 
     if (
       followUpRequired &&
       Array.isArray(followUpReasons) &&
       followUpReasons.length > 0
     ) {
-      var recParts = [];
+      const recParts = [];
 
       recParts.push(followUpReasons.join(', '));
 
@@ -236,33 +229,23 @@ var submitReport = async (req, res) => {
       recommendationsStr = truncate(recParts.join(' | '), 200);
     }
 
-    var checklistStr = arrayToCsv(checklistItems, 200);
+    const checklistStr = arrayToCsv(checklistItems, 200);
 
-    var completedStr = completionDateTime
+    const completedStr = completionDateTime
       ? truncate(new Date(completionDateTime).toISOString(), 100)
       : truncate(new Date().toISOString(), 100);
 
-    // Insert report.
+    // Insert report
     const reportResult = await pool.query(
       `INSERT INTO ${REPORT_TABLE}
-        (
-          description,
-          "technicianID",
-          "isFollowup",
-          findings,
-          "actionsTaken",
-          "AC_condition",
-          recommendations,
-          notes,
-          "serviceChecklist",
-          "comepletedDateTime",
-          "materialsTotal",
-          "customerAcknowledged",
-          "job_ID"
-        )
+        ("description", "technicianID", "isFollowup",
+         "findings", "actionsTaken", "AC_condition",
+         "recommendations", "notes", "serviceChecklist",
+         "completedDateTime", "materialsTotal",
+         "customerAcknowledged", "job_ID")
        VALUES (
-          $1, $2, $3, $4, $5, $6, $7,
-          $8, $9, $10, $11, $12, $13
+         $1, $2, $3, $4, $5, $6, $7,
+         $8, $9, $10, $11, $12, $13
        )
        RETURNING "reportID"`,
       [
@@ -278,17 +261,15 @@ var submitReport = async (req, res) => {
         completedStr,
         Number(materialsTotal) || 0,
         Boolean(customerAcknowledged),
-        bookingId
+        job_ID
       ]
     );
 
-    var reportID = reportResult.rows[0].reportID;
+    const reportID = reportResult.rows[0].reportID;
 
-    // Save materials used.
+    // Insert materials used
     if (Array.isArray(materials) && materials.length > 0) {
-      for (var i = 0; i < materials.length; i++) {
-        var material = materials[i];
-
+      for (const material of materials) {
         if (!material.itemID) continue;
 
         await pool.query(
@@ -297,7 +278,7 @@ var submitReport = async (req, res) => {
            VALUES ($1, $2, $3, $4)`,
           [
             reportID,
-            parseInt(material.itemID, 10),
+            Number.parseInt(material.itemID, 10),
             Number(material.quantity) || 1,
             Number(material.unitCost) || 0
           ]
@@ -305,17 +286,14 @@ var submitReport = async (req, res) => {
       }
     }
 
-    // Report submission does not automatically complete the booking.
-    // Technician must click Complete separately.
-
-    // Create follow-up booking if required.
+    // Follow-up booking is non-fatal if creation fails.
     if (followUpRequired) {
       try {
         await createFollowUpBooking(pool, {
-          sourceBookingId: bookingId,
+          sourceBookingId: job_ID,
           reasons: followUpReasons,
           otherReason: followUpOtherReason,
-          followUpDate: followUpDate,
+          followUpDate,
           priority: followUpPriority
         });
       } catch (fuErr) {
@@ -326,37 +304,37 @@ var submitReport = async (req, res) => {
       }
     }
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      reportID: reportID,
+      reportID,
       message: 'Service report submitted successfully. You can now mark the job as completed.'
     });
 
   } catch (err) {
-    console.error('[Cool Fix] POST Report Error:', err.message);
+    console.error('[Cool Fix] POST Report Error:', err);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: err.message
     });
   }
 };
 
+// =============================================================================
+// REPORT-TO-BOOKING MAPPING
+// =============================================================================
 
-// =============================================================================
-// REPORT → BOOKING MAPPING
-// =============================================================================
 const REPORT_BOOKING_CTE = `
-  WITH ReportBookings AS (
+  WITH report_bookings AS (
     SELECT
-      j."serviceReport" AS "reportID",
-      COUNT(DISTINCT w."booking_ID")::INTEGER AS "bookingCount",
+      j."serviceReport" AS report_id,
+      COUNT(DISTINCT w."booking_ID")::INTEGER AS booking_count,
       CASE
         WHEN COUNT(DISTINCT w."booking_ID") = 1
         THEN MIN(w."booking_ID")
-      END AS "bookingID"
-    FROM "new_jobBooking"."job" j
-    LEFT JOIN "new_jobBooking"."work" w
+      END AS booking_id
+    FROM "new_jobBooking".job j
+    LEFT JOIN "new_jobBooking".work w
       ON w."job_ID" = j."job_ID"
     WHERE j."serviceReport" IS NOT NULL
     GROUP BY j."serviceReport"
@@ -366,81 +344,91 @@ const REPORT_BOOKING_CTE = `
 function verifiedBookingRows(rows, bookingField) {
   if (
     rows.some(row =>
-      Number(row._bookingCount) !== 1 ||
-      !Number.isSafeInteger(Number(row[bookingField])) ||
-      Number(row[bookingField]) <= 0
+      row._bookingCount !== 1 ||
+      !Number.isSafeInteger(row[bookingField]) ||
+      row[bookingField] <= 0
     )
   ) {
-    throw new Error('Report booking mapping is unavailable or ambiguous.');
+    throw new Error(
+      'Report booking mapping is unavailable or ambiguous.'
+    );
   }
 
   return rows.map(({ _bookingCount, ...row }) => row);
 }
 
-
 // =============================================================================
 // GET ALL REPORTS
 // =============================================================================
-var getReports = async (req, res) => {
-  try {
-    var techId = parseInt(req.query.techId, 10) || 1;
 
-    var result = await pool.query(
-      REPORT_BOOKING_CTE +
-      ` SELECT
+const getReports = async (req, res) => {
+  try {
+    const techId = getTechnicianId(req, res);
+
+    if (techId === null) return;
+
+    const result = await pool.query(
+      REPORT_BOOKING_CTE + `
+        SELECT
           sr.*,
-          b."booking_ID" AS job_ID,
+          b."booking_ID" AS "job_ID",
           b.status AS "jobStatus",
-          rb."bookingCount" AS "_bookingCount"
+          rb.booking_count AS "_bookingCount"
         FROM ${REPORT_TABLE} sr
-        LEFT JOIN ReportBookings rb
-          ON rb."reportID" = sr."reportID"
+        LEFT JOIN report_bookings rb
+          ON rb.report_id = sr."reportID"
         LEFT JOIN "new_jobBooking"."Booking" b
-          ON b."booking_ID" = rb."bookingID"
+          ON b."booking_ID" = rb.booking_id
         WHERE sr."technicianID" = $1
-        ORDER BY sr."reportID" DESC`,
+        ORDER BY sr."reportID" DESC
+      `,
       [techId]
     );
 
-    res.json({
+    return res.json({
       success: true,
       reports: verifiedBookingRows(result.rows, 'job_ID')
     });
 
   } catch (err) {
-    console.error('[Cool Fix] GET Reports Error:', err.message);
+    console.error('[Cool Fix] GET Reports Error:', err);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: err.message
     });
   }
 };
 
-
 // =============================================================================
 // GET REPORT BY ID
 // =============================================================================
-var getReportById = async (req, res) => {
-  try {
-    var reportId = parseInt(req.params.id, 10);
 
-    var result = await pool.query(
-      REPORT_BOOKING_CTE +
-      ` SELECT
+const getReportById = async (req, res) => {
+  try {
+    const reportId = Number.parseInt(req.params.id, 10);
+
+    if (!Number.isSafeInteger(reportId) || reportId <= 0) {
+      return res.status(400).json({ error: 'Invalid report ID' });
+    }
+
+    const result = await pool.query(
+      REPORT_BOOKING_CTE + `
+        SELECT
           sr.*,
-          b."booking_ID" AS job_ID,
+          b."booking_ID" AS "job_ID",
           b.status AS "jobStatus",
           c.customer_name,
-          rb."bookingCount" AS "_bookingCount"
+          rb.booking_count AS "_bookingCount"
         FROM ${REPORT_TABLE} sr
-        LEFT JOIN ReportBookings rb
-          ON rb."reportID" = sr."reportID"
+        LEFT JOIN report_bookings rb
+          ON rb.report_id = sr."reportID"
         LEFT JOIN "new_jobBooking"."Booking" b
-          ON b."booking_ID" = rb."bookingID"
+          ON b."booking_ID" = rb.booking_id
         LEFT JOIN "user3"."newCustomer" c
           ON b."customer_ID" = c."customer_ID"
-        WHERE sr."reportID" = $1`,
+        WHERE sr."reportID" = $1
+      `,
       [reportId]
     );
 
@@ -448,80 +436,93 @@ var getReportById = async (req, res) => {
       return res.status(404).json({ error: 'Report not found' });
     }
 
-    res.json({
+    return res.json({
       success: true,
       report: verifiedBookingRows(result.rows, 'job_ID')[0]
     });
 
   } catch (err) {
-    console.error('[Cool Fix] GET Report Error:', err.message);
+    console.error('[Cool Fix] GET Report Error:', err);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: err.message
     });
   }
 };
 
-
 // =============================================================================
 // GET PARTS LOG
 // =============================================================================
-var getPartsLog = async (req, res) => {
+
+const getPartsLog = async (req, res) => {
   try {
-    var techId = parseInt(req.query.techId, 10) || 1;
+    const techId = getTechnicianId(req, res);
 
-    var query = REPORT_BOOKING_CTE +
-      ` SELECT
-          sr."reportID",
-          pu."itemID",
-          ii."itemName",
-          ii.price,
-          COALESCE(pu."quantityUsed", 1) AS quantity_used,
-          COALESCE(ii.stock, 0) AS "currentStock",
-          ii."itemType",
-          ii.description AS "itemDesc",
-          sr."technicianID",
-          b."booking_ID" AS "bookingID",
-          b."booking_ID" AS "jobID",
-          rb."bookingCount" AS "_bookingCount",
-          b.status AS "jobStatus",
-          COALESCE(c.customer_name, 'Guest Customer') AS "customerName",
-          'Aircon Servicing' AS "serviceName",
-          TO_CHAR(b."date", 'YYYY-MM-DD') AS "bookingDate",
-          b.location,
-          TO_CHAR(b."time", 'HH24:MI:SS') AS "bookingTime"
-        FROM ${REPORT_TABLE} sr
-        INNER JOIN "new_jobBooking"."partsUsed" pu
-          ON sr."reportID" = pu."reportID"
-        INNER JOIN "inventory"."inventoryItem" ii
-          ON pu."itemID" = ii."itemID"
-        LEFT JOIN ReportBookings rb
-          ON rb."reportID" = sr."reportID"
-        LEFT JOIN "new_jobBooking"."Booking" b
-          ON b."booking_ID" = rb."bookingID"
-        LEFT JOIN "user3"."newCustomer" c
-          ON b."customer_ID" = c."customer_ID"
-        WHERE sr."technicianID" = $1
-        ORDER BY sr."reportID" DESC, ii."itemName" ASC`;
+    if (techId === null) return;
 
-    var result = await pool.query(query, [techId]);
+    const query = REPORT_BOOKING_CTE + `
+      SELECT
+        sr."reportID",
+        pu."itemID",
+        ii."itemName",
+        ii.price,
+        1 AS quantity_used,
+        COALESCE(ii.stock, 0) AS "currentStock",
+        ii."itemType",
+        ii.description AS "itemDesc",
+        sr."technicianID",
+        b."booking_ID" AS "bookingID",
+        b."booking_ID" AS "jobID",
+        rb.booking_count AS "_bookingCount",
+        b.status AS "jobStatus",
+        COALESCE(c.customer_name, 'Guest Customer') AS "customerName",
+        'Aircon Servicing' AS "serviceName",
+        TO_CHAR(b."date", 'YYYY-MM-DD') AS "bookingDate",
+        b.location,
+        TO_CHAR(b."time", 'HH24:MI:SS') AS "bookingTime"
 
-    var records = verifiedBookingRows(result.rows, 'bookingID').map(function(row) {
-      var displayTime = '-';
+      FROM ${REPORT_TABLE} sr
 
-      // SQL TIME is a wall-clock value, not an instant.
-      var clock = typeof row.bookingTime === 'string'
+      INNER JOIN "new_jobBooking"."partsUsed" pu
+        ON sr."reportID" = pu."reportID"
+
+      INNER JOIN "inventory"."inventoryItem" ii
+        ON pu."itemID" = ii."itemID"
+
+      LEFT JOIN report_bookings rb
+        ON rb.report_id = sr."reportID"
+
+      LEFT JOIN "new_jobBooking"."Booking" b
+        ON b."booking_ID" = rb.booking_id
+
+      LEFT JOIN "user3"."newCustomer" c
+        ON b."customer_ID" = c."customer_ID"
+
+      WHERE sr."technicianID" = $1
+
+      ORDER BY sr."reportID" DESC, ii."itemName" ASC
+    `;
+
+    const result = await pool.query(query, [techId]);
+
+    const records = verifiedBookingRows(
+      result.rows,
+      'bookingID'
+    ).map(row => {
+      let displayTime = '-';
+
+      // SQL TIME is a wall-clock value, not a timezone-aware instant.
+      const clock = typeof row.bookingTime === 'string'
         ? /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/.exec(row.bookingTime)
         : null;
 
       if (clock) {
-        var hour = Number(clock[1]);
+        const hour = Number(clock[1]);
 
         displayTime =
           (hour % 12 || 12) +
-          ':' +
-          clock[2] +
+          ':' + clock[2] +
           (hour >= 12 ? ' PM' : ' AM');
       }
 
@@ -529,15 +530,27 @@ var getPartsLog = async (req, res) => {
         reportID: row.reportID,
         itemID: row.itemID,
         itemName: row.itemName,
+
         itemDescription:
           row.itemDesc ||
-          (row.itemName + ' - $' + Number(row.price || 0).toFixed(2) + ' per unit'),
+          (
+            row.itemName +
+            ' - $' +
+            Number(row.price || 0).toFixed(2) +
+            ' per unit'
+          ),
+
         itemType: row.itemType || 'General',
         currentStock: row.currentStock,
         quantityUsed: row.quantity_used,
         unitCost: row.price,
+
         jobID: row.jobID || row.bookingID,
-        displayJobCode: '#BK' + String(row.jobID || row.bookingID).padStart(3, '0'),
+
+        displayJobCode:
+          '#BK' +
+          String(row.jobID || row.bookingID).padStart(3, '0'),
+
         bookingID: row.bookingID,
         technicianID: row.technicianID,
         jobStatus: row.jobStatus,
@@ -550,15 +563,15 @@ var getPartsLog = async (req, res) => {
       };
     });
 
-    res.json({
+    return res.json({
       success: true,
-      records: records
+      records
     });
 
   } catch (err) {
-    console.error('[Cool Fix] GET Parts Log Error:', err.message);
+    console.error('[Cool Fix] GET Parts Log Error:', err);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: err.message,
       records: []
@@ -566,6 +579,9 @@ var getPartsLog = async (req, res) => {
   }
 };
 
+// =============================================================================
+// EXPORTS
+// =============================================================================
 
 module.exports = {
   submitReport,

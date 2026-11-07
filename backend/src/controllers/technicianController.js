@@ -1,21 +1,35 @@
+
 /**
  * Cool Fix - Technician Controller
- * Supabase PostgreSQL schemas:
- *   "new_jobBooking"
- *   "user3"
- *   "payables"
+ * Supabase / PostgreSQL version
+ *
+ * Database: Supabase PostgreSQL
+ * Connection: ../config/supabaseDb
+ *
+ * Preserved features:
+ * 1. Get assigned technician jobs
+ * 2. Get technician job statistics
+ * 3. Update booking status
+ * 4. Start-time gate
+ * 5. Sequence gate
+ * 6. Service-report completion gate
+ * 7. Get technician profile and customer ratings
+ * 8. Submit service report
+ * 9. Attach report to all linked jobs
+ * 10. Record materials used
+ * 11. Create follow-up bookings
  */
 
 const pool = require('../config/supabaseDb');
 
-// 6 Oct 2026 — set false if time-strictness is too harsh for demos
+// Set false if time-strictness is too harsh for demos.
 const ENFORCE_START_TIME = true;
 
 /* ---------------------------------------------------------------------------
- * HELPERS
+ * Helpers
  * ------------------------------------------------------------------------- */
 
-// Local date/time as strings (server timezone)
+// Local date/time using the backend server timezone.
 function localDateStr(d = new Date()) {
   const pad = (n) => String(n).padStart(2, '0');
 
@@ -28,7 +42,7 @@ function localTimeStr(d = new Date()) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// Format "HH:MM:SS" → "2:00 PM"
+// Format "HH:MM:SS" into "2:00 PM".
 function formatTimeDisplay(raw, fallback = '09:00 AM') {
   if (!raw) return fallback;
 
@@ -47,7 +61,7 @@ function formatTimeDisplay(raw, fallback = '09:00 AM') {
   return `${h % 12 || 12}:${min} ${h >= 12 ? 'PM' : 'AM'}`;
 }
 
-// Extract booking ID from values such as 1006 or "#BK1006"
+// Handles 1006, "1006", and "#BK1006".
 function parseBookingId(value) {
   if (value === null || value === undefined) return NaN;
 
@@ -56,8 +70,16 @@ function parseBookingId(value) {
   return m ? Number(m[1]) : NaN;
 }
 
-// Safely rollback a PostgreSQL transaction
-async function rollbackTransaction(client) {
+// Convert PostgreSQL integer values safely for validation.
+function isPositiveSafeInteger(value) {
+  const n = Number(value);
+  return Number.isSafeInteger(n) && n > 0;
+}
+
+// PostgreSQL transaction rollback helper.
+async function rollbackTransaction(client, transactionOpen) {
+  if (!transactionOpen) return;
+
   try {
     await client.query('ROLLBACK');
   } catch (err) {
@@ -66,20 +88,20 @@ async function rollbackTransaction(client) {
 }
 
 /* ---------------------------------------------------------------------------
- * 1. GET ASSIGNED JOBS
  * GET /api/technician/jobs
+ * Returns formatted jobs and technician information.
  * ------------------------------------------------------------------------- */
 
 const getAssignedJobs = async (req, res) => {
   try {
     const techId = parseInt(req.query.techId, 10) || 1;
 
-    // 1. Fetch Technician Name
+    // 1. Fetch technician name.
     const techResult = await pool.query(
       `
         SELECT
           "technician_ID",
-          "technician_name"
+          technician_name
         FROM "user3"."technician"
         WHERE "technician_ID" = $1
       `,
@@ -89,7 +111,7 @@ const getAssignedJobs = async (req, res) => {
     const techName =
       techResult.rows[0]?.technician_name || 'Technician';
 
-    // 2. Fetch Assigned Bookings
+    // 2. Fetch assigned bookings.
     const query = `
       SELECT
         b."booking_ID",
@@ -102,16 +124,36 @@ const getAssignedJobs = async (req, res) => {
         b.location,
         b.status,
         b.comments,
-        b."servicesBooked",
 
         COALESCE(b."isFollowup", FALSE) AS "isFollowup",
 
         COALESCE(c.customer_name, 'Guest Customer') AS customer_name,
-        COALESCE(c.customer_address, b.location) AS address
+        COALESCE(c.customer_address, b.location) AS address,
 
-      FROM "new_jobBooking"."Booking" AS b
+        (
+          SELECT COALESCE(
+            json_agg(
+              to_jsonb(service_row)
+              ORDER BY service_row."serviceID", service_row."serviceName"
+            ),
+            '[]'::json
+          )::text
+          FROM (
+            SELECT DISTINCT
+              j."serviceID",
+              s.service_name AS "serviceName"
+            FROM "new_jobBooking"."work" w
+            INNER JOIN "new_jobBooking"."job" j
+              ON j."job_ID" = w."job_ID"
+            LEFT JOIN "payables".service s
+              ON s.service_id = j."serviceID"
+            WHERE w."booking_ID" = b."booking_ID"
+          ) AS service_row
+        ) AS "servicesJson"
 
-      LEFT JOIN "user3"."newCustomer" AS c
+      FROM "new_jobBooking"."Booking" b
+
+      LEFT JOIN "user3"."newCustomer" c
         ON b."customer_ID" = c."customer_ID"
 
       WHERE b."technician_ID" = $1
@@ -121,16 +163,17 @@ const getAssignedJobs = async (req, res) => {
 
     const result = await pool.query(query, [techId]);
 
+    // Use local date rather than UTC.
     const todayStr = localDateStr();
 
-    const mappedJobs = (result.rows || []).map((row) => {
-      // Date formatting
+    const mappedJobs = result.rows.map((row) => {
+      // Date formatting.
       const jobDate = row.cleanDate || todayStr;
 
       let formattedDate = jobDate;
 
       try {
-        const d = new Date(jobDate + 'T00:00:00');
+        const d = new Date(`${jobDate}T00:00:00`);
 
         if (!isNaN(d.getTime())) {
           formattedDate = d.toLocaleDateString('en-SG', {
@@ -141,7 +184,7 @@ const getAssignedJobs = async (req, res) => {
           });
         }
       } catch {
-        // Keep raw date
+        // Keep the raw date if formatting fails.
       }
 
       return {
@@ -152,12 +195,17 @@ const getAssignedJobs = async (req, res) => {
         customerName: row.customer_name || 'Guest Customer',
 
         serviceType: 'Aircon Servicing',
+
+        services: JSON.parse(row.servicesJson || '[]'),
+
         unitType: 'Wall-Mounted Split System',
 
         date: jobDate,
         formattedDate,
 
         time: formatTimeDisplay(row.rawTime),
+
+        // Used by the frontend start gate.
         time24: String(row.rawTime || '09:00:00').slice(0, 5),
 
         estimatedDuration: '60 mins',
@@ -175,7 +223,6 @@ const getAssignedJobs = async (req, res) => {
         isFollowup: Boolean(row.isFollowup),
 
         notes: row.comments || 'No special instructions.',
-        servicesBooked: row.servicesBooked,
       };
     });
 
@@ -186,18 +233,20 @@ const getAssignedJobs = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('[Cool Fix] GET Technician Jobs Error:', err.message);
+    console.error(
+      '[Cool Fix] GET Technician Jobs Error:',
+      err.message
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: err.message,
-      jobs: []
+      jobs: [],
     });
   }
 };
 
 /* ---------------------------------------------------------------------------
- * 2. GET TECHNICIAN STATS
  * GET /api/technician/stats
  * ------------------------------------------------------------------------- */
 
@@ -208,15 +257,15 @@ const getTechnicianStats = async (req, res) => {
     const result = await pool.query(
       `
         SELECT
-          COUNT(*) AS "totalAssigned",
+          COUNT(*)::INTEGER AS "totalAssigned",
 
           COUNT(*) FILTER (
-            WHERE LOWER("status") IN ('pending', 'assigned')
-          ) AS "pendingJobs",
+            WHERE LOWER(status) IN ('pending', 'assigned')
+          )::INTEGER AS "pendingJobs",
 
           COUNT(*) FILTER (
-            WHERE LOWER("status") = 'completed'
-          ) AS "completedJobs"
+            WHERE LOWER(status) = 'completed'
+          )::INTEGER AS "completedJobs"
 
         FROM "new_jobBooking"."Booking"
 
@@ -227,193 +276,79 @@ const getTechnicianStats = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      stats: result.rows[0] || {}
+      stats: result.rows[0] || {},
     });
 
   } catch (err) {
-    console.error('[Cool Fix] GET Technician Stats Error:', err.message);
+    console.error(
+      '[Cool Fix] GET Technician Stats Error:',
+      err.message
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: err.message
+      message: err.message,
     });
   }
 };
 
 /* ---------------------------------------------------------------------------
- * 3. UPDATE JOB STATUS
  * PUT /api/technician/jobs/:bookingId/status
  *
- * Rules:
- *   A. START GATE    — cannot start before booking date/time
- *   B. SEQUENCE GATE — cannot complete unless In Progress
- *   C. REPORT GATE   — cannot complete without a service report
+ * Business rules:
+ *
+ * A. START GATE:
+ *    Cannot start before the booking date/time.
+ *
+ * B. SEQUENCE GATE:
+ *    Can only complete a booking currently In Progress.
+ *
+ * C. REPORT GATE:
+ *    Cannot complete without a linked service report.
+ *
+ * All status checks and updates run inside one transaction.
  * ------------------------------------------------------------------------- */
 
 const updateJobStatus = async (req, res) => {
+  const bookingId = parseBookingId(req.params.bookingId);
+  const { status, comments } = req.body || {};
+
   let client;
   let transactionOpen = false;
 
   try {
-    const { bookingId } = req.params;
-    const { status, comments } = req.body;
-
-    const newStatus = String(status || '').trim();
-    const normalizedStatus = newStatus.toLowerCase();
-
-    const numericBookingId = Number(bookingId);
-
-    if (!Number.isInteger(numericBookingId) || numericBookingId <= 0) {
+    if (!isPositiveSafeInteger(bookingId)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid booking ID.'
+        message: 'Invalid booking ID.',
       });
     }
 
-    // -----------------------------------------------------------------------
-    // A. START GATE
-    // -----------------------------------------------------------------------
+    const newStatus = String(status || '').trim();
 
-    if (normalizedStatus === 'in progress') {
-      const b = await pool.query(
-        `
-          SELECT
-            TO_CHAR("date", 'YYYY-MM-DD') AS d,
-            TO_CHAR("time", 'HH24:MI') AS t
-
-          FROM "new_jobBooking"."Booking"
-
-          WHERE "booking_ID" = $1
-        `,
-        [numericBookingId]
-      );
-
-      const row = b.rows[0];
-
-      if (!row) {
-        return res.status(404).json({
-          success: false,
-          message: 'Booking not found'
-        });
-      }
-
-      const today = localDateStr();
-      const nowTime = localTimeStr();
-
-      if (row.d > today) {
-        console.error(
-          `[Cool Fix] START GATE rejected booking #${bookingId}: scheduled for ${row.d}.`
-        );
-
-        return res.status(400).json({
-          success: false,
-          message: `This job is scheduled for ${row.d} — it cannot be started before its booking date.`
-        });
-      }
-
-      if (
-        ENFORCE_START_TIME &&
-        row.d === today &&
-        row.t > nowTime
-      ) {
-        console.error(
-          `[Cool Fix] START GATE rejected booking #${bookingId}: scheduled for today at ${row.t}.`
-        );
-
-        return res.status(400).json({
-          success: false,
-          message: `This job is scheduled for today at ${row.t} — starting unlocks at that time.`
-        });
-      }
+    if (!newStatus) {
+      return res.status(400).json({
+        success: false,
+        message: 'A status is required.',
+      });
     }
-
-    // -----------------------------------------------------------------------
-    // B. SEQUENCE GATE
-    // -----------------------------------------------------------------------
-
-    if (normalizedStatus === 'completed') {
-      const cur = await pool.query(
-        `
-          SELECT LOWER("status") AS s
-
-          FROM "new_jobBooking"."Booking"
-
-          WHERE "booking_ID" = $1
-        `,
-        [numericBookingId]
-      );
-
-      const s = cur.rows[0]?.s;
-
-      if (s !== 'in progress') {
-        console.error(
-          `[Cool Fix] SEQUENCE GATE rejected booking #${bookingId}: status '${s || 'unknown'}', not In Progress.`
-        );
-
-        return res.status(400).json({
-          success: false,
-          message: `This job hasn't been started yet (status: ${s || 'unknown'}). Start it on its booking date, submit the report, then complete.`
-        });
-      }
-    }
-
-    // -----------------------------------------------------------------------
-    // C. REPORT GATE
-    // -----------------------------------------------------------------------
-
-    if (normalizedStatus === 'completed') {
-      const check = await pool.query(
-        `
-          SELECT sr."reportID"
-
-          FROM "new_jobBooking"."serviceReport" AS sr
-
-          WHERE sr."reportID" IN (
-            SELECT j."serviceReport"
-
-            FROM "new_jobBooking"."work" AS w
-
-            JOIN "new_jobBooking"."job" AS j
-              ON j."job_ID" = w."job_ID"
-
-            WHERE w."booking_ID" = $1
-              AND j."serviceReport" IS NOT NULL
-          )
-
-          LIMIT 1
-        `,
-        [numericBookingId]
-      );
-
-      if (check.rows.length === 0) {
-        console.error(
-          `[Cool Fix] REPORT GATE rejected booking #${bookingId}: no report found.`
-        );
-
-        return res.status(400).json({
-          success: false,
-          message: 'A service report must be submitted BEFORE completing this job. Submit the report first, then mark it completed.'
-        });
-      }
-
-      console.log(
-        `[Cool Fix] REPORT GATE passed for booking #${bookingId} (report #${check.rows[0].reportID}).`
-      );
-    }
-
-    // -----------------------------------------------------------------------
-    // TRANSACTION
-    // -----------------------------------------------------------------------
 
     client = await pool.connect();
 
-    await client.query('BEGIN');
+    await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE');
     transactionOpen = true;
 
-    // Lock booking row before updating it
-    const lockedBooking = await client.query(
+    /* -----------------------------------------------------------------------
+     * Lock booking before checking or changing its status.
+     * --------------------------------------------------------------------- */
+
+    const bookingResult = await client.query(
       `
-        SELECT "booking_ID"
+        SELECT
+          "booking_ID",
+          status,
+          TO_CHAR("date", 'YYYY-MM-DD') AS booking_date,
+          TO_CHAR("time", 'HH24:MI') AS booking_time
 
         FROM "new_jobBooking"."Booking"
 
@@ -421,39 +356,66 @@ const updateJobStatus = async (req, res) => {
 
         FOR UPDATE
       `,
-      [numericBookingId]
+      [bookingId]
     );
 
-    if (lockedBooking.rows.length === 0) {
-      throw Object.assign(
-        new Error('Booking not found'),
-        { statusCode: 404 }
-      );
+    const booking = bookingResult.rows[0];
+
+    if (!booking) {
+      const err = new Error('Booking not found.');
+      err.statusCode = 404;
+      throw err;
     }
 
-    // -----------------------------------------------------------------------
-    // START JOB
-    // -----------------------------------------------------------------------
+    /* -----------------------------------------------------------------------
+     * (A) START GATE
+     * --------------------------------------------------------------------- */
 
-    if (normalizedStatus === 'in progress') {
+    if (newStatus.toLowerCase() === 'in progress') {
+      const today = localDateStr();
+      const nowTime = localTimeStr();
+
+      if (booking.booking_date > today) {
+        throw Object.assign(
+          new Error(
+            `This job is scheduled for ${booking.booking_date} — it cannot be started before its booking date.`
+          ),
+          { statusCode: 400 }
+        );
+      }
+
+      if (
+        ENFORCE_START_TIME &&
+        booking.booking_date === today &&
+        booking.booking_time > nowTime
+      ) {
+        throw Object.assign(
+          new Error(
+            `This job is scheduled for today at ${booking.booking_time} — starting unlocks at that time.`
+          ),
+          { statusCode: 400 }
+        );
+      }
+
+      /* ---------------------------------------------------------------------
+       * Validate independent job links before starting.
+       * ------------------------------------------------------------------- */
+
       const startLinks = await client.query(
         `
           SELECT
             j."job_ID",
 
             (
-              SELECT COUNT(*)::int
-
-              FROM "new_jobBooking"."work" AS otherWork
-
+              SELECT COUNT(*)::INTEGER
+              FROM "new_jobBooking"."work" otherWork
               WHERE otherWork."job_ID" = w."job_ID"
                 AND otherWork."booking_ID" <> $1
-
             ) AS "otherBookingCount"
 
-          FROM "new_jobBooking"."work" AS w
+          FROM "new_jobBooking"."work" w
 
-          JOIN "new_jobBooking"."job" AS j
+          INNER JOIN "new_jobBooking"."job" j
             ON j."job_ID" = w."job_ID"
 
           WHERE w."booking_ID" = $1
@@ -462,15 +424,17 @@ const updateJobStatus = async (req, res) => {
 
           FOR UPDATE OF w, j
         `,
-        [numericBookingId]
+        [bookingId]
       );
 
+      const linkedJobs = startLinks.rows;
+
       if (
-        !startLinks.rows.length ||
-        startLinks.rows.some((job) =>
-          !Number.isSafeInteger(job.job_ID) ||
-          job.job_ID <= 0 ||
-          Number(job.otherBookingCount) !== 0
+        !linkedJobs.length ||
+        linkedJobs.some(
+          (job) =>
+            !isPositiveSafeInteger(job.job_ID) ||
+            Number(job.otherBookingCount) !== 0
         )
       ) {
         throw Object.assign(
@@ -481,60 +445,114 @@ const updateJobStatus = async (req, res) => {
         );
       }
 
-      // Update linked jobs to In Progress
+      // Mark all linked service jobs as In Progress.
       await client.query(
         `
-          UPDATE "new_jobBooking"."job" AS j
+          UPDATE "new_jobBooking"."job" j
 
-          SET "job_status" = 'In Progress'
+          SET job_status = 'In Progress'
 
-          FROM "new_jobBooking"."work" AS w
+          FROM "new_jobBooking"."work" w
 
           WHERE w."job_ID" = j."job_ID"
             AND w."booking_ID" = $1
         `,
-        [numericBookingId]
+        [bookingId]
+      );
+
+      console.log(
+        `[Cool Fix] START GATE passed for booking #${bookingId}.`
       );
     }
 
-    // -----------------------------------------------------------------------
-    // COMPLETE JOB
-    // -----------------------------------------------------------------------
+    /* -----------------------------------------------------------------------
+     * (B) SEQUENCE GATE
+     * --------------------------------------------------------------------- */
 
-    if (normalizedStatus === 'completed') {
+    if (newStatus.toLowerCase() === 'completed') {
+      const currentStatus = String(booking.status || '').toLowerCase();
+
+      if (currentStatus !== 'in progress') {
+        throw Object.assign(
+          new Error(
+            `This job hasn't been started yet (status: ${currentStatus || 'unknown'}). Start it on its booking date, submit the report, then complete.`
+          ),
+          { statusCode: 400 }
+        );
+      }
+
+      /* ---------------------------------------------------------------------
+       * (C) REPORT GATE
+       * ------------------------------------------------------------------- */
+
+      const check = await client.query(
+        `
+          SELECT sr."reportID"
+
+          FROM "new_jobBooking"."work" w
+
+          INNER JOIN "new_jobBooking"."job" j
+            ON j."job_ID" = w."job_ID"
+
+          INNER JOIN "new_jobBooking"."serviceReport" sr
+            ON sr."reportID" = j."serviceReport"
+
+          WHERE w."booking_ID" = $1
+
+          ORDER BY sr."reportID"
+
+          LIMIT 1
+        `,
+        [bookingId]
+      );
+
+      if (check.rows.length === 0) {
+        throw Object.assign(
+          new Error(
+            'A service report must be submitted BEFORE completing this job. Submit the report first, then mark it completed.'
+          ),
+          { statusCode: 400 }
+        );
+      }
+
+      // Mark linked service jobs as Finished.
       await client.query(
         `
-          UPDATE "new_jobBooking"."job" AS j
+          UPDATE "new_jobBooking"."job" j
 
-          SET "job_status" = 'Finished'
+          SET job_status = 'Finished'
 
-          FROM "new_jobBooking"."work" AS w
+          FROM "new_jobBooking"."work" w
 
           WHERE w."job_ID" = j."job_ID"
             AND w."booking_ID" = $1
         `,
-        [numericBookingId]
+        [bookingId]
+      );
+
+      console.log(
+        `[Cool Fix] REPORT GATE passed for booking #${bookingId} (report #${check.rows[0].reportID}).`
       );
     }
 
-    // -----------------------------------------------------------------------
-    // UPDATE BOOKING STATUS
-    // -----------------------------------------------------------------------
+    /* -----------------------------------------------------------------------
+     * Update the booking itself.
+     * --------------------------------------------------------------------- */
 
     await client.query(
       `
         UPDATE "new_jobBooking"."Booking"
 
         SET
-          "status" = COALESCE($1, "status"),
-          "comments" = COALESCE($2, "comments")
+          status = COALESCE($1, status),
+          comments = COALESCE($2, comments)
 
         WHERE "booking_ID" = $3
       `,
       [
         newStatus || null,
         comments || null,
-        numericBookingId
+        bookingId,
       ]
     );
 
@@ -545,33 +563,32 @@ const updateJobStatus = async (req, res) => {
       `[Cool Fix] Booking #${bookingId} status set to '${newStatus}'.`
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: 'Status updated successfully!'
+      message: 'Status updated successfully!',
     });
 
   } catch (err) {
-    if (transactionOpen && client) {
-      await rollbackTransaction(client);
-    }
+    await rollbackTransaction(client, transactionOpen);
 
-    console.error('[Cool Fix] PUT Technician Status Error:', err.message);
+    console.error(
+      '[Cool Fix] PUT Technician Status Error:',
+      err.message
+    );
 
-    res.status(err.statusCode || 500).json({
+    return res.status(err.statusCode || 500).json({
       success: false,
-      message: err.message
+      message: err.message,
     });
 
   } finally {
-    if (client) {
-      client.release();
-    }
+    if (client) client.release();
   }
 };
 
 /* ---------------------------------------------------------------------------
- * 4. GET TECHNICIAN PROFILE
  * GET /api/technician/profile
+ * Returns technician profile information and customer ratings.
  * ------------------------------------------------------------------------- */
 
 const getTechnicianProfile = async (req, res) => {
@@ -582,27 +599,39 @@ const getTechnicianProfile = async (req, res) => {
       `
         SELECT
           t."technician_ID",
-          t."technician_name",
+          t.technician_name,
           t.technician_rating,
           t.specialty,
           t."jobsDone",
 
           ratings."customerRatingAverage",
-          ratings."customerReviewCount"
+          ratings."customerReviewCount",
 
-        FROM "user3"."technician" AS t
+          ratings.star1,
+          ratings.star2,
+          ratings.star3,
+          ratings.star4,
+          ratings.star5
+
+        FROM "user3"."technician" t
 
         LEFT JOIN LATERAL (
           SELECT
             AVG(r.stars::DECIMAL(10, 4)) AS "customerRatingAverage",
-            COUNT(*) AS "customerReviewCount"
 
-          FROM "new_jobBooking"."bookingRating" AS r
+            COUNT(*)::INTEGER AS "customerReviewCount",
+
+            COUNT(*) FILTER (WHERE r.stars = 1)::INTEGER AS star1,
+            COUNT(*) FILTER (WHERE r.stars = 2)::INTEGER AS star2,
+            COUNT(*) FILTER (WHERE r.stars = 3)::INTEGER AS star3,
+            COUNT(*) FILTER (WHERE r.stars = 4)::INTEGER AS star4,
+            COUNT(*) FILTER (WHERE r.stars = 5)::INTEGER AS star5
+
+          FROM "new_jobBooking"."bookingRating" r
 
           WHERE r."technician_ID" = t."technician_ID"
             AND r.stars BETWEEN 1 AND 5
-
-        ) AS ratings ON TRUE
+        ) ratings ON TRUE
 
         WHERE t."technician_ID" = $1
       `,
@@ -612,22 +641,30 @@ const getTechnicianProfile = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Technician not found'
+        message: 'Technician not found',
       });
     }
 
     const row = result.rows[0];
 
-    res.json({
+    return res.json({
       success: true,
 
       profile: {
         technicianID: row.technician_ID,
         technicianName: row.technician_name,
+
         technicianRating: row.technician_rating,
 
         customerRatingAverage: row.customerRatingAverage,
         customerReviewCount: row.customerReviewCount,
+
+        customerRatingDistribution: [1, 2, 3, 4, 5].map(
+          (stars) => ({
+            stars,
+            count: row[`star${stars}`],
+          })
+        ),
 
         specialty: row.specialty || '',
         jobsDone: row.jobsDone || 0,
@@ -635,37 +672,43 @@ const getTechnicianProfile = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('[Cool Fix] GET Technician Profile Error:', err.message);
+    console.error(
+      '[Cool Fix] GET Technician Profile Error:',
+      err.message
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: err.message
+      message: err.message,
     });
   }
 };
 
 /* ---------------------------------------------------------------------------
- * 5. SUBMIT SERVICE REPORT
  * POST /api/technician/reports
  *
- * Contract = TechnicianSubmitReport.jsx buildReportPayload():
- *   {
- *     job_ID,
- *     findings[],
- *     findingsOther,
- *     actionsTaken[],
- *     actionsOther,
- *     overallCondition,
- *     checklistItems[],
- *     materials[],
- *     materialsTotal,
- *     followUpRequired,
- *     followUpReasons[],
- *     followUpDate,
- *     followUpPriority,
- *     completionDateTime,
- *     customerAcknowledged
- *   }
+ * Expected frontend payload:
+ *
+ * {
+ *   job_ID,
+ *   findings[],
+ *   findingsOther,
+ *   actionsTaken[],
+ *   actionsOther,
+ *   overallCondition,
+ *   checklistItems[],
+ *   materials[],
+ *   materialsTotal,
+ *   followUpRequired,
+ *   followUpReasons[],
+ *   followUpDate,
+ *   followUpPriority,
+ *   completionDateTime,
+ *   customerAcknowledged
+ * }
+ *
+ * Report relationship:
+ * job.serviceReport -> serviceReport.reportID
  * ------------------------------------------------------------------------- */
 
 const submitReport = async (req, res) => {
@@ -677,10 +720,10 @@ const submitReport = async (req, res) => {
 
     const bookingId = parseBookingId(body.job_ID);
 
-    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+    if (!isPositiveSafeInteger(bookingId)) {
       return res.status(400).json({
         success: false,
-        error: 'A valid job/booking reference is required.'
+        error: 'A valid job/booking reference is required.',
       });
     }
 
@@ -689,9 +732,9 @@ const submitReport = async (req, res) => {
     await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE');
     transactionOpen = true;
 
-    // -----------------------------------------------------------------------
-    // 1. LOCK AND FETCH BOOKING
-    // -----------------------------------------------------------------------
+    /* -----------------------------------------------------------------------
+     * 1. Fetch and lock the booking.
+     * --------------------------------------------------------------------- */
 
     const b = await client.query(
       `
@@ -733,69 +776,77 @@ const submitReport = async (req, res) => {
       );
     }
 
-    // -----------------------------------------------------------------------
-    // 2. LOCK SERVICE JOB LINKS
-    // -----------------------------------------------------------------------
-const linked = await client.query(
-  `
-    SELECT
-      j."job_ID",
-      j."serviceID",
-      j."serviceReport",
+    /* -----------------------------------------------------------------------
+     * 2. Lock and validate the booking's service job links.
+     *
+     * A shared job would attach this report to another booking.
+     * --------------------------------------------------------------------- */
 
-      s.service_id AS "linkedServiceID",
+    const linked = await client.query(
+      `
+        SELECT
+          j."job_ID",
+          j."serviceID",
+          j."serviceReport",
 
-      (
-        SELECT COUNT(*)::int
+          s.service_id AS "linkedServiceID",
 
-        FROM "new_jobBooking"."work" AS otherWork
+          (
+            SELECT COUNT(*)::INTEGER
+            FROM "new_jobBooking"."work" otherWork
+            WHERE otherWork."job_ID" = w."job_ID"
+              AND otherWork."booking_ID" <> $1
+          ) AS "otherBookingCount"
 
-        WHERE otherWork."job_ID" = w."job_ID"
-          AND otherWork."booking_ID" <> $1
+        FROM "new_jobBooking"."work" w
 
-      ) AS "otherBookingCount"
+        INNER JOIN "new_jobBooking"."job" j
+          ON j."job_ID" = w."job_ID"
 
-    FROM "new_jobBooking"."work" AS w
+        LEFT JOIN "payables".service s
+          ON s.service_id = j."serviceID"
 
-    JOIN "new_jobBooking"."job" AS j
-      ON j."job_ID" = w."job_ID"
+        WHERE w."booking_ID" = $1
 
-    LEFT JOIN "payables".service AS s
-      ON s.service_id = j."serviceID"
+        ORDER BY j."job_ID"
 
-    WHERE w."booking_ID" = $1
+        FOR UPDATE OF w, j
+      `,
+      [bookingId]
+    );
 
-    ORDER BY j."job_ID"
+    const linkedJobs = linked.rows;
 
-    FOR UPDATE OF w, j
-  `,
-  [bookingId]
-);
+    if (
+      !linkedJobs.length ||
+      linkedJobs.some(
+        (job) =>
+          !isPositiveSafeInteger(job.job_ID) ||
+          !isPositiveSafeInteger(job.serviceID) ||
+          Number(job.linkedServiceID) !== Number(job.serviceID) ||
+          Number(job.otherBookingCount) !== 0
+      )
+    ) {
+      throw Object.assign(
+        new Error(
+          'Cannot save report: this booking requires valid, independent service job links.'
+        ),
+        { statusCode: 400 }
+      );
+    }
 
-const linkedJobs = linked.rows;
+    if (linkedJobs.some((job) => job.serviceReport != null)) {
+      throw Object.assign(
+        new Error(
+          'Cannot save report: a service report is already linked to this booking.'
+        ),
+        { statusCode: 409 }
+      );
+    }
 
-if (
-  !linkedJobs.length ||
-  linkedJobs.some((job) =>
-    !Number.isSafeInteger(job.job_ID) ||
-    job.job_ID <= 0 ||
-    !Number.isSafeInteger(job.serviceID) ||
-    job.serviceID <= 0 ||
-    Number(job.linkedServiceID) !== job.serviceID ||
-    Number(job.otherBookingCount) !== 0
-  )
-) {
-  throw Object.assign(
-    new Error(
-      'Cannot save report: this booking requires valid, independent service job links.'
-    ),
-    { statusCode: 400 }
-  );
-}
-
-    // -----------------------------------------------------------------------
-    // 3. PREPARE REPORT DATA
-    // -----------------------------------------------------------------------
+    /* -----------------------------------------------------------------------
+     * 3. Flatten frontend arrays into report columns.
+     * --------------------------------------------------------------------- */
 
     const arr = (v) =>
       Array.isArray(v)
@@ -865,11 +916,13 @@ if (
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(body.completionDateTime)
     ) {
       completionVal = body.completionDateTime.slice(0, 19).replace('T', ' ');
+    } else {
+      completionVal = new Date();
     }
 
-    // -----------------------------------------------------------------------
-    // 4. INSERT SERVICE REPORT
-    // -----------------------------------------------------------------------
+    /* -----------------------------------------------------------------------
+     * 4. Insert service report.
+     * --------------------------------------------------------------------- */
 
     const inserted = await client.query(
       `
@@ -889,8 +942,7 @@ if (
 
         VALUES (
           $1, $2, $3, $4, $5,
-          $6, $7, $8, $9,
-          COALESCE($10::TIMESTAMP, CURRENT_TIMESTAMP)
+          $6, $7, $8, $9, $10
         )
 
         RETURNING "reportID"
@@ -905,23 +957,23 @@ if (
         recommendationsText || null,
         notesText || null,
         checklistText || null,
-        completionVal
+        completionVal,
       ]
     );
 
     const reportID = inserted.rows[0].reportID;
 
-    // -----------------------------------------------------------------------
-    // 5. ATTACH REPORT TO ALL SERVICE JOBS
-    // -----------------------------------------------------------------------
+    /* -----------------------------------------------------------------------
+     * 5. Attach the report to every service job belonging to this booking.
+     * --------------------------------------------------------------------- */
 
     const attached = await client.query(
       `
-        UPDATE "new_jobBooking"."job" AS j
+        UPDATE "new_jobBooking"."job" j
 
         SET "serviceReport" = $1
 
-        FROM "new_jobBooking"."work" AS w
+        FROM "new_jobBooking"."work" w
 
         WHERE w."job_ID" = j."job_ID"
           AND w."booking_ID" = $2
@@ -932,29 +984,31 @@ if (
     );
 
     const attachedJobIDs = new Set(
-      attached.rows.map((job) => job.job_ID)
+      attached.rows.map((job) => Number(job.job_ID))
     );
 
     if (
       attached.rows.length !== linkedJobs.length ||
       attachedJobIDs.size !== linkedJobs.length ||
-      linkedJobs.some((job) => !attachedJobIDs.has(job.job_ID))
+      linkedJobs.some(
+        (job) => !attachedJobIDs.has(Number(job.job_ID))
+      )
     ) {
       throw new Error(
         'Service report could not be attached to all of this booking\'s service jobs.'
       );
     }
 
-    // -----------------------------------------------------------------------
-    // 6. INSERT MATERIAL LINKS
-    // -----------------------------------------------------------------------
+    /* -----------------------------------------------------------------------
+     * 6. Insert material links.
+     * --------------------------------------------------------------------- */
 
     const uniqueItemIds = [
       ...new Set(
         materialRows
           .map((m) => parseInt(m.itemID, 10))
           .filter((n) => Number.isInteger(n) && n > 0)
-      )
+      ),
     ];
 
     for (const itemId of uniqueItemIds) {
@@ -969,9 +1023,9 @@ if (
       );
     }
 
-    // -----------------------------------------------------------------------
-    // 7. CREATE FOLLOW-UP BOOKING IF REQUIRED
-    // -----------------------------------------------------------------------
+    /* -----------------------------------------------------------------------
+     * 7. Create a follow-up booking if requested.
+     * --------------------------------------------------------------------- */
 
     let followUpBookingId = null;
 
@@ -1017,19 +1071,25 @@ if (
           techId,
           body.followUpDate,
           booking.location || 'Singapore',
-          `Follow-up visit (${body.followUpPriority || 'Normal'} priority): ${fuReasons}`.slice(0, 500)
+          `Follow-up visit (${body.followUpPriority || 'Normal'} priority): ${fuReasons}`.slice(0, 500),
         ]
       );
 
       followUpBookingId = fu.rows[0].booking_ID;
 
-      // Create fresh service jobs for the follow-up booking
+      /* ---------------------------------------------------------------------
+       * Create fresh independent jobs for the follow-up booking.
+       *
+       * Preserve the source booking's service jobs and their multiplicity.
+       * Do not reuse the original job IDs or report links.
+       * ------------------------------------------------------------------- */
+
       for (const sourceJob of linkedJobs) {
         const followUpJob = await client.query(
           `
             INSERT INTO "new_jobBooking"."job"
             (
-              "job_status",
+              job_status,
               "isFollowup",
               "serviceReport",
               "serviceID"
@@ -1047,6 +1107,8 @@ if (
           [sourceJob.serviceID]
         );
 
+        const newJobId = followUpJob.rows[0].job_ID;
+
         await client.query(
           `
             INSERT INTO "new_jobBooking"."work"
@@ -1054,17 +1116,14 @@ if (
 
             VALUES ($1, $2)
           `,
-          [
-            followUpJob.rows[0].job_ID,
-            followUpBookingId
-          ]
+          [newJobId, followUpBookingId]
         );
       }
     }
 
-    // -----------------------------------------------------------------------
-    // 8. COMMIT
-    // -----------------------------------------------------------------------
+    /* -----------------------------------------------------------------------
+     * 8. Commit the entire report operation.
+     * --------------------------------------------------------------------- */
 
     await client.query('COMMIT');
     transactionOpen = false;
@@ -1081,31 +1140,30 @@ if (
       success: true,
       message: 'Service report submitted!',
       reportID,
-      followUpBookingId
+      followUpBookingId,
     });
 
   } catch (err) {
-    if (transactionOpen && client) {
-      await rollbackTransaction(client);
-    }
+    await rollbackTransaction(client, transactionOpen);
 
-    console.error('[Cool Fix] Submit Report Error:', err.message);
+    console.error(
+      '[Cool Fix] Submit Report Error:',
+      err.message
+    );
 
     return res.status(err.statusCode || 500).json({
       success: false,
-      error: err.message
+      error: err.message,
     });
 
   } finally {
-    if (client) {
-      client.release();
-    }
+    if (client) client.release();
   }
 };
 
-// ==========================================
-// EXPORTS
-// ==========================================
+/* ---------------------------------------------------------------------------
+ * Exports
+ * ------------------------------------------------------------------------- */
 
 module.exports = {
   getAssignedJobs,
