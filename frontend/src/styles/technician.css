@@ -13051,6 +13051,54 @@ textarea.report-control {
   background: #fbfdfc;
 }
 
+.technician-performance-page .tech-performance-analytics > section {
+  min-width: 0;
+  padding: 1rem 1.15rem;
+}
+
+.technician-performance-page .tech-performance-analytics > section + section {
+  border-top: 1px solid var(--cf-border);
+}
+
+.technician-performance-page .tech-performance-analytics h3 {
+  margin: 0.75rem 0 0.5rem;
+  color: var(--cf-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.technician-performance-page .tech-performance-analytics h3:first-child {
+  margin-top: 0;
+}
+
+.technician-performance-page .tech-performance-analytics p,
+.technician-performance-page .tech-performance-completed-body p {
+  color: var(--cf-text);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.technician-performance-page .tech-performance-analytics .tech-performance-analytics-note,
+.technician-performance-page .tech-performance-completed-body .tech-performance-analytics-note {
+  margin: 0.7rem 0 0;
+  font-size: 0.75rem;
+}
+
+.technician-performance-page .tech-performance-history-list {
+  padding: 0;
+}
+
+.technician-performance-page .tech-performance-history-list dt,
+.technician-performance-page .tech-performance-recent-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.technician-performance-page .tech-performance-history-list dd {
+  flex-shrink: 0;
+}
+
 .tech-performance-availability .tech-performance-panel-header {
   background: #f6faf8;
 }

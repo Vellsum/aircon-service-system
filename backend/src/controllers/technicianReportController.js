@@ -383,6 +383,9 @@ function verifiedBookingRows(rows, bookingField) {
 // =============================================================================
 var getReports = async (req, res) => {
   try {
+    var pool = await poolPromise;
+    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
+
     var techId = parseInt(req.query.techId, 10) || 1;
 
     var result = await pool.query(

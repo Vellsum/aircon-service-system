@@ -164,9 +164,23 @@ GET /technician/jobs?techId=104
 "estimatedDuration": "60 mins", "timeframe": "this-week",  
 "status": "Scheduled", "address": "...", "isFollowup": false, "notes": "..." } ] }
 
+Each jobs entry also includes `services: [{ "serviceID": 12, "serviceName": "Chemical Wash" }]`.
+Services come from stored Booking → work → job.serviceID → payables.service links,
+deduplicated by service ID/name within the booking. Repeated service jobs/units do not
+multiply booking rows. Existing fields, including legacy `serviceType`, are preserved.
+An empty services array means no linked services were returned; missing/invalid service
+IDs or names must be shown as unavailable, not replaced with a generic service.
+Performance counts each completed current booking once per linked service; multi-service
+bookings can appear in several categories. Stored links do not prove customer selection.
+
 GET /technician/profile?techId=104 preserves existing profile fields and adds
 `customerRatingAverage` (decimal number or null) and `customerReviewCount` (integer).
 Example: average 4.5 / count 2. Successful no-review result: null / 0.
+The additive `customerRatingDistribution` is an array of exactly five
+`{ "stars": 1, "count": 0 }` entries, one for every integer score 1–5.
+It uses the same directly attributed bookingRating rows, independently of job/work joins.
+All five counts are zero only after successful retrieval confirms no reviews. Their sum
+equals `customerReviewCount`; malformed/missing distribution data means unavailable.
 These aggregates come only from valid bookingRating rows, once per rated booking,
 without joining job/work rows. `technicianRating` remains the legacy stored score
 for compatibility; it is not customer feedback and is excluded from the aggregate.
@@ -175,7 +189,23 @@ This profile GET retains its existing identity/access contract; it has not gaine
 server-side owner authorization in this phase. Technician Dashboard, Performance and
 Profile now display the genuine customer average/review count, distinguish loading,
 no reviews and unavailable data, and never substitute the stored profile score.
-Rating edits and detailed customer-feedback analytics are not provided by this flow.
+Rating edits are not provided. Performance shows a star distribution, not a derived
+satisfaction percentage. Existing average/count consumers retain their contract.
+
+GET /technician/reports?techId=104 preserves `{ success: true, reports: [...] }`,
+one report per valid report/booking mapping, filtered by `serviceReport.technicianID`.
+`reportID` identifies the report; legacy `job_ID` identifies its BOOKING, not a service job.
+Database unavailability returns HTTP 500 `{ success: false, message: "Database offline" }`,
+never a successful empty result. Existing mapping/query errors also remain errors.
+Performance counts distinct reportIDs and groups existing `AC_condition` values;
+missing conditions are explicitly unavailable, not assumed to be Good.
+“Reported service completion by month” groups valid `completedDateTime` calendar values
+without timezone conversion. Missing/invalid values are excluded and counted separately.
+These are report-entered SQL DATETIME2 values (the submission handler can default a missing
+value to its current time), not independently recorded Complete-action or submission times.
+The driver's serialized Z suffix does not add a stored timezone to DATETIME2.
+There is no arrival-time metric or true completion-event history in this Performance view.
+Assignment, profile and report loading/error/empty states remain independent.
 
 PUT /technician/jobs/:bookingId/status
 { "status": "In Progress" }
