@@ -6,4 +6,7 @@ router.get('/', adminInventoryController.getAllInventory);
 router.post('/', adminInventoryController.createItem);
 router.put('/:itemId', adminInventoryController.updateItem);
 
+//see parts used
+router.get('/parts',adminInventoryController.partsUsed)
+
 module.exports = router;

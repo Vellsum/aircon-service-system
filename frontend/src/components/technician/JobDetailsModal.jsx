@@ -1,4 +1,5 @@
 import React, { useRef } from 'react'
+import { Link } from 'react-router-dom'
 import Modal from 'react-bootstrap/Modal'
 import JobStatusBadge from './JobStatusBadge'
 import { evaluateJobStart } from '../../utils/jobSchedule'
@@ -51,6 +52,10 @@ function JobDetailsModal({
   const normalizedStatus = String(job.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
   const canStart = ['upcoming', 'assigned', 'pending'].includes(normalizedStatus)
   const canComplete = normalizedStatus === 'in progress'
+  // The jobs API exposes the booking reference as job_ID; the report route uses that reference.
+  const bookingID = Number(job.job_ID)
+  const reportFormPath = Number.isSafeInteger(bookingID) && bookingID > 0
+    ? `/technician/submit-report?job=${bookingID}` : '/technician/submit-report'
   const gate = evaluateJobStart(job)
   const startDisabledReason = actionPending
     ? 'A status update for this booking is already in progress.'
@@ -173,6 +178,19 @@ function JobDetailsModal({
           <section className="cf-modal-notes">
             <span>Technician Instructions &amp; Notes</span>
             <p>{job.notes}</p>
+          </section>
+        )}
+        {canComplete && (
+          <section className="cf-modal-notes" aria-labelledby="job-report-guidance-title">
+            <span id="job-report-guidance-title">Service report before completion</span>
+            <p>Submit the service report before completing this job. If you have already submitted it, you can complete the service.</p>
+            {actionPending ? (
+              <span className="cf-button cf-button-secondary" role="link" aria-disabled="true">
+                Open Report Form
+              </span>
+            ) : (
+              <Link className="cf-button cf-button-secondary" to={reportFormPath}>Open Report Form</Link>
+            )}
           </section>
         )}
         {actionError && (

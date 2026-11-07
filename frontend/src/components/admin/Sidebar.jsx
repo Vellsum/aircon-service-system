@@ -3,6 +3,9 @@ import { NavLink, useNavigate } from "react-router-dom";
 import CoolFixLogo from "../common/CoolFixLogo";
 import "../../styles/Sidebar.css";
 
+//THIS IS THE ADMIN'S SIDEBAR
+
+//the options
 const navItems = [
   {
     label: "Dashboard", path: "/admin/dashboard",
@@ -17,7 +20,7 @@ const navItems = [
     ),
   },
   {
-    label: "Manage Bookings", path: "/admin/bookings",
+    label: "Assign Bookings", path: "/admin/bookings",
     section: "Management",
     icon: (
       <>
@@ -44,24 +47,41 @@ const navItems = [
       </>
     ),
   },
-  {
-   
-    section: "Service Setup",
+  //manage admins button
+
+
+  /** i just comment it first, dont know if really nexccessary*/
+    {
+    label: "Manage Admins", path: "/admin/admins",
     icon: (
       <>
-        <rect x="2" y="5" width="20" height="13" rx="2" />
-        <path d="M7 10h10M7 14h10M8 21v-1m8 1v-1" />
+        <circle cx="8" cy="8" r="3" />
+        <path d="M2 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6M18 15a5 5 0 0 1 4 5" />
       </>
     ),
   },
+
+
+     /**i cant believe this type of shit meet take so long to do 
+      * {
+      
+        
+         icon: (
+          <>
+            <rect x="2" y="5" width="20" height="13" rx="2" />
+            <path d="M7 10h10M7 14h10M8 21v-1m8 1v-1" />
+          </>
+        ), 
+      
+      },*/
   {
-    label: "Manage Services", path: "/admin/services",
+    label: "Manage Services", path: "/admin/services",section: "Service Setup",
     icon: (
       <path d="M21 3a6 6 0 0 1-7.9 7.9l-6.9 6.9a2 2 0 1 1-2.8-2.8l6.9-6.9A6 6 0 0 1 18.2 2L15 5l4 4 2-6Z" />
     ),
   },
   {
-    label: "Manage Packages", path: "/admin/packages",
+    label: "Manage Subscriptions", path: "/admin/packages",
     icon: (
       <path d="m3 7 9-4 9 4-9 4-9-4ZM3 7v10l9 4 9-4V7M12 11v10" />
     ),
@@ -94,6 +114,7 @@ const navItems = [
   },
 ];
 
+//the component itself
 const Sidebar = () => {
   const navigate = useNavigate();
 

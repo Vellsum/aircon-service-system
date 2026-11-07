@@ -185,7 +185,7 @@ export const PACKAGES = Object.freeze([
       "10% off all parts",
       "Same-day emergency response",
     ]),
-    featured: true,
+    featured: false,
   }),
   Object.freeze({
     package_ID: 3,

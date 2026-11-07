@@ -14,10 +14,11 @@ import {
   getAddresses,
   getMyUnits,
   getPromotions,
-  getServices,
-} from "../../api/customerApi";
+  getServices,helpMyID,getOtherAddresses,
+} from "../../api/customerApi"; // WE CALL CUSTOMER API EXPORTED METHODS
+const PROMO_TONES = ["accent", "success", "warning"];
 
-const STEPS = [
+const STEPS = [ //steps to do here
   { id: 1, label: "Service" },
   { id: 2, label: "Units" },
   { id: 3, label: "Date & time" },
@@ -44,9 +45,12 @@ function slotStartTime(label) {
   return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }
 
+//the component itself =====================================================================================
 const CustomerBookService = () => {
   const navigate = useNavigate();
-  const [numberOfUnits, setNumOfUnits]=useState(); //change unit selection to just how many
+    const [error, setError] = useState("");
+  
+  const [numberOfUnits, setNumOfUnits]=useState(); //change unit selection to just how many, number of units from 1-3
   const [searchParams] = useSearchParams();
 
   // Deep links from the catalogue and unit cards preselect the draft,
@@ -54,19 +58,28 @@ const CustomerBookService = () => {
   const presetServiceId = Number(searchParams.get("service")) || null;
   const presetUnitId = Number(searchParams.get("unit")) || null;
 
+
   const [step, setStep] = useState(1);
   const [serviceId, setServiceId] = useState(presetServiceId);
   const [serviceIds, setServiceIds] = useState([]);   //this is to hold multiple services in a single booking
   const [unitIds, setUnitIds] = useState(presetUnitId ? [presetUnitId] : []);
   const [date, setDate] = useState("");
-  const [slotId, setSlotId] = useState(null);
+  const [slotId, setSlotId] = useState(null); //morning or afternoon
+
+  //estimated total time n cost
+  const [estimatedtotaltime, setestimatedtotatltime]=useState("");
+    const [estimatedtotalcost, setestimatedtotatlcost]=useState("");
+
+    //customer id
+    const [customerid,setcustomerid]=useState(""); //where dafuq do i find the customer id??
+
   const [addressId, setAddressId] = useState(null);
   const [notes, setNotes] = useState("");
   const [promoInput, setPromoInput] = useState("");
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [promoError, setPromoError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
+  const [submitError, setSubmitError] = useState("");   //which fucking var is the data?
   const [confirmed, setConfirmed] = useState(null);
 
   // Live data
@@ -77,49 +90,155 @@ const CustomerBookService = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
+  /* Real data — services, plans and promotions all from the database */
+    useEffect(() => {
+      let alive = true;
+      const load = async () => {
+        try {
+          const [svcRes, planRes, promoRes] = await Promise.all([
+            getServices(),
+            getPlans(),
+            getPromotions(),
+          ]);
+          if (!alive) return;
+          setServices(svcRes?.services || []);
+          setPlans(planRes?.plans || []);
+          setPromotions(promoRes?.promotions || []);
+        } catch (err) {
+          if (alive) setError(err.message || "Server error");
+        } finally {
+          if (alive) setLoading(false);
+        }
+      };
+      load();
+      return () => { alive = false; };
+    }, []);
+
+  //when component mounts...
   useEffect(() => {
-    let alive = true;
-    Promise.all([getServices(), getMyUnits(), getPromotions(), getAddresses()])
-      .then(([svcRes, unitRes, promoRes, addrRes]) => {
-        if (!alive) return;
-        setServices(svcRes.services || []);
-        setUnits(unitRes.units || []);
-        setPromotions(promoRes.promotions || []);
-        setAddresses(addrRes.addresses || []);
-        const defaultAddr = (addrRes.addresses || []).find((a) => a.isDefault) || (addrRes.addresses || [])[0];
-        if (defaultAddr) setAddressId(defaultAddr.address_ID);
-      })
-      .catch((err) => alive && setLoadError(err.message))
-      .finally(() => alive && setLoading(false));
-    return () => { alive = false; };
+    //get my customer id
+      let my_id;
+        my_id=helpMyID();
+        console.log(my_id);
+      //watever the fuck logic here
+
+
+      setcustomerid(my_id);
+      
+ let alive = true;
+
+Promise.all([
+  getServices(),
+  getMyUnits(),
+  getPromotions(),
+  getAddresses(),
+  getOtherAddresses(),
+])
+  .then(([svcRes, unitRes, promoRes, addrRes, extraAddrRes]) => {
+    if (!alive) return;
+
+    setServices(svcRes.services || []);
+    setUnits(unitRes.units || []);
+    setPromotions(promoRes.promotions || []);
+
+    // Main addresses
+    const mainAddresses = (addrRes.addresses || []).map((entry) => ({
+      ...entry,
+      selectionId: `main-${entry.address_ID}`,
+      type: "main",
+    }));
+
+    // Extra addresses
+    const extraAddresses = (extraAddrRes.addresses || []).map((entry) => ({
+      ...entry,
+      selectionId: `extra-${entry.address_ID}`,
+      label: entry.label || "Extra Address",
+      line:
+        entry.customer_address ||
+        entry.extra_address ||
+        entry.address ||
+        entry.line ||
+        "",
+      postal: entry.postal || "",
+      type: "extra",
+    }));
+
+    // Combine both lists
+    const combinedAddresses = [
+      ...mainAddresses,
+      ...extraAddresses,
+    ];
+
+    setAddresses(combinedAddresses);
+
+    // Select default main address, or first available address
+    const defaultAddr =
+      mainAddresses.find((entry) => entry.isDefault) ||
+      mainAddresses[0] ||
+      extraAddresses[0];
+
+    if (defaultAddr) {
+      setAddressId(defaultAddr.selectionId);
+    }
+  })
+  .catch((err) => alive && setLoadError(err.message))
+  .finally(() => alive && setLoading(false));
+
+return () => {
+  alive = false;
+};
+      
   }, []);
 
   const service = useMemo(() => findService(serviceId, services), [serviceId, services]);
   //const slot = TIME_SLOTS.find((entry) => entry.id === slotId) || null;
   const slot = slotId || null;
-  const address = addresses.find((entry) => entry.address_ID === addressId) || null;
+
+
+const address =
+  addresses.find((entry) => entry.selectionId === addressId) || null;
+
+
   const selectedUnits = units.filter((unit) => unitIds.includes(unit.installed_ID));
   
+  //we have this pricing method?
 const pricing = useMemo(() => {
-    const unitCount = Number(numberOfUnits) || 0;
-    const selectedServices = services.filter((s) => serviceIds.includes(s.service_id));
-    const subtotal = selectedServices.reduce((acc, svc) => acc + (svc.price * unitCount), 0);
-    
-    // Calculate discount based on your appliedPromo logic
-    let discount = 0;
-    if (appliedPromo) {
-      if (appliedPromo.type === "percentage") {
-        discount = subtotal * (appliedPromo.value / 100);
-      } else {
-        discount = appliedPromo.value || 0;
-      }
-    }
-    
-    const total = Math.max(0, subtotal - discount);
-    return { subtotal, discount, total };
-  }, [serviceIds, services, numberOfUnits, appliedPromo]);
+  const unitCount = Number(numberOfUnits) || 0;
+  const selectedServices = services.filter((s) =>
+    serviceIds.includes(s.service_id)
+  );
 
-  // Each step gates the "Continue" button until it has what it needs.
+  const subtotal = selectedServices.reduce(
+    (acc, svc) => acc + (Number(svc.price) * unitCount), 0
+  );
+
+  let discount = 0;
+
+  if (step === 5 && appliedPromo) {
+    const discountType = appliedPromo.discount_type;
+    const discountValue = Number(appliedPromo.discount_value) || 0;
+
+    if (discountType === "percent") {
+      discount = subtotal * (discountValue / 100);
+    } else {
+      discount = discountValue;
+    }
+  }
+
+  const total = Math.max(0, subtotal - discount);
+
+  return { subtotal, discount, total };
+}, [serviceIds, services, numberOfUnits, appliedPromo, step]);
+
+      //method for total estimated time, var kept
+      const totalEstimatedTime = useMemo(() => {
+      const unitCount = Number(numberOfUnits) || 0;
+      const selectedServices = services.filter((s) => serviceIds.includes(s.service_id));
+      const baseMinutes = selectedServices.reduce((acc, svc) => acc + (svc.duration_mins || 0), 0);
+      return baseMinutes * unitCount;
+    }, [serviceIds, services, numberOfUnits]);
+
+  // Each step gates the "Continue" button until it has what it needs. this part decides if user input is enough to go to the next step
   const stepComplete = {
     1:serviceIds.length > 0,
     2: numberOfUnits > 0,
@@ -127,10 +246,21 @@ const pricing = useMemo(() => {
     4: Boolean(address),
     5: true,
   };
+const discountLabel = (promo) =>
+    promo.discount_type === "percent"
+      ? `${promo.discount_value}% off`
+      : `${formatMoney(promo.discount_value)} off`;
 
+  if (loading) {
+    return (
+      <section className="cust-panel" style={{ padding: 48, textAlign: "center" }}>
+        <p style={{ color: "var(--text-secondary)" }}>Loading our services…</p>
+      </section>
+    );
+  }
   //method to link set amount to database or something, replaces below method
 const setNumberUnits= (amount)=>{
-
+//wtf??? did that pussy scott wrote this shit?
 };
 
   const toggleUnit = (installedId) => {
@@ -152,23 +282,40 @@ const setNumberUnits= (amount)=>{
     }
   };
 
+  //methods for the step
   const goNext = () => setStep((current) => Math.min(current + 1, STEPS.length));
   const goBack = () => setStep((current) => Math.max(current - 1, 1));
 
   {/** this is the method to take all the data in this frontend to  backend */}
+
+  //limpeh needs to change this to give newer data but backend also need to touch
 const submitBooking = async () => {    
     if (serviceIds.length === 0 || !date || !slot || !address) return;
     setSubmitting(true);
     setSubmitError("");
     try {
+
+          // Save the final calculated values
+  //  setEstimatedTotalTime(totalEstimatedTime);
+    //setEstimatedTotalCost(pricing.total); 
+const selectedServiceNames = services
+  .filter((service) => serviceIds.includes(service.service_id))
+  .map((service) => service.service_name)
+  .join(", ");
+
       const res = await createBooking({
-        serviceIds: serviceIds,
-        numberOfUnits: Number(numberOfUnits),
+        customer_ID: helpMyID(),//it should be customer id, not service id
+       // serviceIds: serviceIds,     
+         services: selectedServiceNames, // ADD THIS
+
+        numberOfUnits: numberOfUnits,  //number of units to update in controller
         date,
-        time: slot,
+        time: slot,  //morning or afternooon thats going into timing column
         location: `${address.line}${address.postal ? `, Singapore ${address.postal}` : ""}`,
         comments: notes || null,
         promoCode: appliedPromo?.code || null,
+        estimatedtotalcost: pricing.total,    //the new data of estimated total time n cost
+        estimatedtotaltime: totalEstimatedTime
       });
       setConfirmed({ reference: res.reference, total: pricing.total });
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -176,6 +323,8 @@ const submitBooking = async () => {
       setSubmitError(err.message || "Could not create the booking. Please try again.");
     } finally {
       setSubmitting(false);
+      console.log(totalEstimatedTime  + ' min'); //so i can get the var directly from below
+      console.log(pricing.total+ ' $');
     }
   };
 
@@ -378,38 +527,68 @@ const handleChange = (e) => {
           )}
 
 
-          {/* Step 2 —  number units */}
+          {/* Step 2 —  number units ------------------------------------------------*/}
+   {/* Step 2 —  number units, original */}
           {step === 2 && (
             <section className="cust-panel">
               <div className="cust-panel-head">
-              <div>
-  <h2>How many units need attention?</h2>
-  <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-    {[1, 2, 3].map((num) => {
-      const isSelected = Number(numberOfUnits) === num;
-      return (
-        <button
-          type="button"
-          key={num}
-          className={`dash-btn ${isSelected ? "dash-btn-primary" : "dash-btn-outline"}`}
-          style={{ flex: 1, padding: "12px 0" }}
-          onClick={() => setNumOfUnits(num)}
-        >
-          {num} unit{num !== 1 ? "s" : ""}
-        </button>
-      );
-    })}
+                <div>
+                  <h2>How many units need attention?</h2>
+                  <input
+                    id="amount"
+                    type="number"
+                    value={numberOfUnits}
+                    onChange={handleChange}
+                    min="1"
+                    max="6"    
+                    step="1"
+      /><p>You entered: {numberOfUnits}</p>
+      {/**we do a max of 6 first so when overload, just 1 extra technician assisting */}
+
+      {/**now with clause for 3+ units*/}
+      {Number(numberOfUnits) > 3 && (
+  <div className="cust-panel">
+Note: An additional technician will be provided for more than 3 aircons.  
+A maximum of 6 aircons is permitted.  
   </div>
-  
-  <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)" }}>
-    You selected: {numberOfUnits || "None"}
-  </p>
-</div>
+)}
+                </div>
+              </div></section> )}
+
+
+          {/** most recent, replaced with original to allow 3+ aircon
+           *   {step === 2 && (
+            <section className="cust-panel">
+              <div className="cust-panel-head">
+                <div>
+                    <h2>How many units need attention?</h2>
+                    <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                      {[1, 2, 3].map((num) => {
+                        const isSelected = Number(numberOfUnits) === num;
+                        return (
+                          <button
+                            type="button"
+                            key={num}
+                            className={`dash-btn ${isSelected ? "dash-btn-primary" : "dash-btn-outline"}`}
+                            style={{ flex: 1, padding: "12px 0" }}
+                            onClick={() => setNumOfUnits(num)}
+                          >
+                            {num} unit{num !== 1 ? "s" : ""}
+                          </button>
+                        );
+                      })}
+                    </div>
+    
+                  <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)" }}>
+                    You selected: {numberOfUnits || "None"}
+                  </p>
+                </div>
               </div>
-             
-             
             </section>
-          )} {/**end of step 2, select number of units   */}
+          )} 
+           */}
+        
+          {/**end of step 2, select number of units   */}
 
 
 
@@ -442,7 +621,7 @@ const handleChange = (e) => {
                   <p className="cust-slot-period">Time</p>
                   <div className="cust-slots">
                     {["Morning", "Afternoon"].map((period) => {
-                      const isAfternoonDisabled = period === "Afternoon" && Number(numberOfUnits) === 3;
+                      const isAfternoonDisabled = period === "Afternoon" && Number(numberOfUnits) >= 3;
                       return (
                         <button
                           type="button"
@@ -469,7 +648,7 @@ const handleChange = (e) => {
 
 
 
-          {/* Step 4 — address and notes */}
+          {/* Step 4 — address and notes-------------------------------------------------------- */}
           {step === 4 && (
             <section className="cust-panel">
               <div className="cust-panel-head">
@@ -480,15 +659,20 @@ const handleChange = (e) => {
               </div>
 
               <div className="cust-choice-grid" style={{ marginBottom: 18 }}>
-                {addresses.map((entry) => (
-                  <button
-                    type="button"
-                    key={entry.address_ID}
-                    className={`cust-choice${
-                      addressId === entry.address_ID ? " is-selected" : ""
-                    }`}
-                    onClick={() => setAddressId(entry.address_ID)}
-                  >
+              {addresses.map((entry) => (
+  <button
+    type="button"
+    key={entry.selectionId}
+    className={`cust-choice${
+      addressId === entry.selectionId ? " is-selected" : ""
+    }`}
+    onClick={() => setAddressId(entry.selectionId)}
+  >
+    {addressId === entry.selectionId && (
+      <span className="cust-choice-tick">
+        <Icon name="check" size={12} strokeWidth={3} />
+      </span>
+    )}
                     {addressId === entry.address_ID && (
                       <span className="cust-choice-tick">
                         <Icon name="check" size={12} strokeWidth={3} />
@@ -571,10 +755,39 @@ const handleChange = (e) => {
                   <span className="cust-summary-label">Notes</span>
                   <span className="cust-summary-value is-muted">{notes}</span>
                 </div>
+
+                
               )}
 
         
-            
+            {/* Promo code — Step 5 only */}
+<div className="cust-promo-entry">
+  <input
+    type="text"
+    placeholder="Promo code"
+    value={promoInput}
+    onChange={(event) => setPromoInput(event.target.value)}
+    onKeyDown={(event) => event.key === "Enter" && applyPromo()}
+    aria-label="Promo code"
+  />
+  <button
+    type="button"
+    className="dash-btn dash-btn-outline"
+    onClick={applyPromo}
+  >
+    Apply
+  </button>
+</div>
+
+{appliedPromo && (
+  <p className="cust-promo-msg is-ok">
+    {appliedPromo.title} applied.
+  </p>
+)}
+
+{promoError && (
+  <p className="cust-promo-msg is-bad">{promoError}</p>
+)}
           
               {/**
               {service && (
@@ -659,33 +872,67 @@ const handleChange = (e) => {
               </span>
             </div>
 
+                      
             {serviceIds.length > 0 && numberOfUnits && (
-              <>
-                {services
+              <>                      {/** estimated total cost -------------------- */}
+
+                                    {/**how about we send estimate total time n cost on the final confirm booking button */}
+               {services
+    .filter((s) => serviceIds.includes(s.service_id))
+    .map((svc) => {
+      const unitCount = Number(numberOfUnits) || 0;
+      const itemTotal = svc.price * unitCount;
+      return (
+        <div key={svc.service_id} className="cust-summary-row">
+          <span className="cust-summary-label">
+            {svc.service_name} ({formatMoney(svc.price)} × {unitCount})
+          </span>
+          <span className="cust-summary-value dash-mono">
+            {formatMoney(itemTotal)}
+          </span>
+        </div>
+      );
+    })}
+                {/**  {services
                   .filter((s) => serviceIds.includes(s.service_id))
                   .map((svc) => {
                     const unitCount = Number(numberOfUnits) || 0;
                     const itemTotal = svc.price * unitCount;
+                   // setestimatedtotatlcost(svc.price * unitCount);
                     return (
                       <div key={svc.service_id} className="cust-summary-row">
                         <span className="cust-summary-label">
                           {svc.service_name} ({formatMoney(svc.price)} × {unitCount})
                         </span>
                         <span className="cust-summary-value dash-mono">
-                          {formatMoney(itemTotal)}
+                          {formatMoney(itemTotal)} 
                         </span>
                       </div>
                     );
-                  })}
+                  })} */}
+              
 
-                <div className="cust-summary-row">
+                      {/** estimated total time -------------------- */}
+                        {/* estimated total time , ai code*/}
+                        <div className="cust-summary-row">
+                          <span className="cust-summary-label">Total Estimated Time</span>
+                          <span className="cust-summary-value">
+                            {totalEstimatedTime} mins
+                          </span>
+                        </div>
+                        {/** the estimated total is not a var number here */}
+                      {/**      <div className="cust-summary-row">
                   <span className="cust-summary-label">Total Estimated Time</span>
                   <span className="cust-summary-value">
+                    
+                
                     {services
                       .filter((s) => serviceIds.includes(s.service_id))
-                      .reduce((acc, svc) => acc + (svc.duration_mins || 0), 0) * (Number(numberOfUnits) || 0)} mins
+                      .reduce((acc, svc) => acc + (svc.duration_mins || 0), 0) * (Number(numberOfUnits) || 0)}
+                    {estimatedtotalcost} mins
                   </span>
-                </div>
+                </div> ***/}
+          
 
                 {appliedPromo && (
                   <div className="cust-summary-row">
@@ -700,7 +947,7 @@ const handleChange = (e) => {
               </>
             )}
 
-            <div className="cust-promo-entry">
+{/** <div className="cust-promo-entry">
               <input
                 type="text"
                 placeholder="Promo code"
@@ -712,13 +959,15 @@ const handleChange = (e) => {
               <button className="dash-btn dash-btn-outline" onClick={applyPromo}>
                 Apply
               </button>
-            </div>
-            {appliedPromo && (
+            </div>*/}
+            
+            {/** {appliedPromo && (
               <p className="cust-promo-msg is-ok">
                 {appliedPromo.title} applied.
               </p>
             )}
-            {promoError && <p className="cust-promo-msg is-bad">{promoError}</p>}
+            {promoError && <p className="cust-promo-msg is-bad">{promoError}</p>} */}
+           
           </div>
 
           <div className="cust-summary-total">
@@ -730,6 +979,34 @@ const handleChange = (e) => {
 
 
       </div>
+
+       {/* Promotions — real data from payables.promotions ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/}
+           {/**ITS NOW REAL DATA, actually always was */} <section className="cust-panel">
+              <div className="cust-panel-head">
+                <div>
+                  <h2>Current promotions</h2>
+                  <p>Apply any of these codes at the last step of booking.</p>
+                </div>
+              </div>
+      
+              <div className="cust-choice-grid">
+                {promotions.map((promo, idx) => (
+                  <div
+                    className={`cust-promo-card tone-${PROMO_TONES[idx % PROMO_TONES.length]}`}
+                    key={promo.promo_id}
+                  >
+                    <span className="cust-promo-code">{promo.code}</span>
+                    <h3>{promo.title}</h3>
+                    <p>{promo.description}</p>
+                    <span className="cust-promo-valid">
+                      <Icon name="tag" size={12} />
+                      {discountLabel(promo)}
+                      {promo.valid_until ? ` · Valid until ${promo.valid_until}` : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
     </>
   );
 };

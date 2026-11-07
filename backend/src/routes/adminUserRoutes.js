@@ -14,4 +14,12 @@ router.post('/users/customers', adminUserController.createCustomer);
 router.put('/users/customers/:id', adminUserController.updateCustomer);
 router.delete('/users/customers/:id', adminUserController.deleteCustomer);
 
+//admin
+router.get('/users/admins', adminUserController.getAdmins);
+router.post('/users/newAdmin', adminUserController.addAdmin);
+router.put('/users/editAdmin', adminUserController.editAdmin);
+
+
+
+
 module.exports = router;

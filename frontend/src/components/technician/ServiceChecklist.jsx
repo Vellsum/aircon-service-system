@@ -1,6 +1,6 @@
 import React from 'react'
 
-const CHECKLIST_ITEMS = [
+export const CHECKLIST_ITEMS = [
   { id: 'filters', label: 'Filters checked / cleaned' },
   { id: 'drainage', label: 'Drainage checked' },
   { id: 'coolingPerformance', label: 'Cooling performance tested' },
@@ -11,7 +11,11 @@ const CHECKLIST_ITEMS = [
   { id: 'noiseVibration', label: 'Unusual noise / vibration checked' },
 ]
 
-function ServiceChecklist({ values, onChange }) {
+function ServiceChecklist({ values, onChange, visibleItemIDs, error }) {
+  const items = visibleItemIDs
+    ? CHECKLIST_ITEMS.filter((item) => visibleItemIDs.includes(item.id))
+    : CHECKLIST_ITEMS
+
   return (
     <section className="report-section" aria-labelledby="service-checklist-title">
       <div className="report-section-heading">
@@ -22,7 +26,7 @@ function ServiceChecklist({ values, onChange }) {
       </div>
 
       <div className="service-checklist-grid">
-        {CHECKLIST_ITEMS.map((item) => (
+        {items.map((item) => (
           <label className="service-checklist-item" key={item.id}>
             <input
               type="checkbox"
@@ -33,6 +37,7 @@ function ServiceChecklist({ values, onChange }) {
           </label>
         ))}
       </div>
+      {error && <span className="report-field-error">{error}</span>}
     </section>
   )
 }

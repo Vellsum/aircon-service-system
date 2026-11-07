@@ -1,9 +1,9 @@
 /**
  * Cool Fix - Admin Payables & Services Controller
- * Schema focus: [payables] / Catalog
+ * Supabase PostgreSQL schema: "payables"
  */
 
-const { poolPromise, sql } = require('../config/db');
+const pool = require('../config/supabaseDb');
 
 // ==========================================
 // 1. SERVICES MANAGEMENT
@@ -14,24 +14,33 @@ const { poolPromise, sql } = require('../config/db');
  */
 exports.getAllServices = async (req, res) => {
   try {
-    const pool = await poolPromise;
-    if (!pool) return res.status(200).json({ success: true, services: [] });
+    if (!pool) {
+      return res.status(200).json({ success: true, services: [] });
+    }
 
     const query = `
-      SELECT 
+      SELECT
         service_ID,
         service_name,
         description,
         price
-      FROM [payables].[service]
+      FROM "payables".service
       ORDER BY service_ID DESC
     `;
 
-    const result = await pool.request().query(query);
-    res.status(200).json({ success: true, services: result.recordset || [] });
+    const result = await pool.query(query);
+
+    res.status(200).json({
+      success: true,
+      services: result.rows || []
+    });
   } catch (err) {
     console.error('[Cool Fix] GET Services Error:', err.message);
-    res.status(500).json({ success: false, message: err.message, services: [] });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+      services: []
+    });
   }
 };
 
@@ -42,10 +51,15 @@ exports.createService = async (req, res) => {
   try {
     const { service_name, description, price } = req.body;
 
-    const pool = await poolPromise;
-    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
+    if (!pool) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database offline'
+      });
+    }
 
     let cleanPrice = 0.0;
+
     if (typeof price === 'string') {
       cleanPrice = parseFloat(price.replace(/[^0-9.]/g, '')) || 0.0;
     } else if (typeof price === 'number') {
@@ -53,22 +67,28 @@ exports.createService = async (req, res) => {
     }
 
     const query = `
-      INSERT INTO [payables].[service] 
+      INSERT INTO "payables".service
         (service_name, description, price)
-      VALUES 
-        (@name, @desc, @price)
+      VALUES
+        ($1, $2, $3)
     `;
 
-    await pool.request()
-      .input('name', sql.VarChar(100), service_name || 'Standard Servicing')
-      .input('desc', sql.VarChar(255), description || 'Aircon servicing & maintenance')
-      .input('price', sql.Float, cleanPrice)
-      .query(query);
+    await pool.query(query, [
+      service_name || 'Standard Servicing',
+      description || 'Aircon servicing & maintenance',
+      cleanPrice
+    ]);
 
-    res.status(201).json({ success: true, message: 'Service created successfully!' });
+    res.status(201).json({
+      success: true,
+      message: 'Service created successfully!'
+    });
   } catch (err) {
     console.error('[Cool Fix] POST Service Error:', err.message);
-    res.status(500).json({ success: false, message: `SQL Error: ${err.message}` });
+    res.status(500).json({
+      success: false,
+      message: `SQL Error: ${err.message}`
+    });
   }
 };
 
@@ -80,31 +100,45 @@ exports.updateService = async (req, res) => {
     const { id } = req.params;
     const { service_name, description, price } = req.body;
 
-    const pool = await poolPromise;
-    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
+    if (!pool) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database offline'
+      });
+    }
 
     let cleanPrice = price;
+
     if (typeof price === 'string') {
       cleanPrice = parseFloat(price.replace(/[^0-9.]/g, '')) || 0.0;
     }
 
-    await pool.request()
-      .input('id', sql.Int, id)
-      .input('name', sql.VarChar(100), service_name)
-      .input('desc', sql.VarChar(255), description)
-      .input('price', sql.Float, cleanPrice)
-      .query(`
-        UPDATE [payables].[service]
-        SET service_name = ISNULL(@name, service_name),
-            description = ISNULL(@desc, description),
-            price = ISNULL(@price, price)
-        WHERE service_ID = @id
-      `);
+    const query = `
+      UPDATE "payables".service
+      SET
+        service_name = COALESCE($1, service_name),
+        description = COALESCE($2, description),
+        price = COALESCE($3, price)
+      WHERE service_ID = $4
+    `;
 
-    return res.status(200).json({ success: true, message: 'Service updated successfully!' });
+    await pool.query(query, [
+      service_name ?? null,
+      description ?? null,
+      cleanPrice ?? null,
+      id
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Service updated successfully!'
+    });
   } catch (err) {
     console.error('[Cool Fix] PUT Service Error:', err.message);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };
 
@@ -115,17 +149,28 @@ exports.deleteService = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const pool = await poolPromise;
-    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
+    if (!pool) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database offline'
+      });
+    }
 
-    await pool.request()
-      .input('id', sql.Int, id)
-      .query(`DELETE FROM [payables].[service] WHERE service_ID = @id`);
+    await pool.query(
+      `DELETE FROM "payables".service WHERE service_ID = $1`,
+      [id]
+    );
 
-    return res.status(200).json({ success: true, message: 'Service removed successfully!' });
+    return res.status(200).json({
+      success: true,
+      message: 'Service removed successfully!'
+    });
   } catch (err) {
     console.error('[Cool Fix] DELETE Service Error:', err.message);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };
 
@@ -138,25 +183,37 @@ exports.deleteService = async (req, res) => {
  */
 exports.getAllPackages = async (req, res) => {
   try {
-    const pool = await poolPromise;
-    if (!pool) return res.status(200).json({ success: true, packages: [] });
+    if (!pool) {
+      return res.status(200).json({
+        success: true,
+        packages: []
+      });
+    }
 
     const query = `
-      SELECT 
+      SELECT
         package_ID,
         package_name,
         description,
         price,
         service_count
-      FROM [payables].[package]
+      FROM "payables".package
       ORDER BY package_ID DESC
     `;
 
-    const result = await pool.request().query(query);
-    res.status(200).json({ success: true, packages: result.recordset || [] });
+    const result = await pool.query(query);
+
+    res.status(200).json({
+      success: true,
+      packages: result.rows || []
+    });
   } catch (err) {
     console.error('[Cool Fix] GET Packages Error:', err.message);
-    res.status(500).json({ success: false, message: err.message, packages: [] });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+      packages: []
+    });
   }
 };
 
@@ -165,12 +222,22 @@ exports.getAllPackages = async (req, res) => {
  */
 exports.createPackage = async (req, res) => {
   try {
-    const { package_name, description, price, service_count } = req.body;
+    const {
+      package_name,
+      description,
+      price,
+      service_count
+    } = req.body;
 
-    const pool = await poolPromise;
-    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
+    if (!pool) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database offline'
+      });
+    }
 
     let cleanPrice = 0.0;
+
     if (typeof price === 'string') {
       cleanPrice = parseFloat(price.replace(/[^0-9.]/g, '')) || 0.0;
     } else if (typeof price === 'number') {
@@ -178,22 +245,28 @@ exports.createPackage = async (req, res) => {
     }
 
     const query = `
-      INSERT INTO [payables].[package] 
+      INSERT INTO "payables".package
         (package_name, description, price, service_count)
-      VALUES 
-        (@name, @desc, @price, @count)
+      VALUES
+        ($1, $2, $3, $4)
     `;
 
-    await pool.request()
-      .input('name', sql.VarChar(100), package_name || 'New Package')
-      .input('desc', sql.VarChar(255), description || 'Aircon service package')
-      .input('price', sql.Float, cleanPrice)
-      .input('count', sql.Int, parseInt(service_count, 10) || 3)
-      .query(query);
+    await pool.query(query, [
+      package_name || 'New Package',
+      description || 'Aircon service package',
+      cleanPrice,
+      parseInt(service_count, 10) || 3
+    ]);
 
-    res.status(201).json({ success: true, message: 'Package created successfully!' });
+    res.status(201).json({
+      success: true,
+      message: 'Package created successfully!'
+    });
   } catch (err) {
     console.error('[Cool Fix] POST Package Error:', err.message);
-    res.status(500).json({ success: false, message: `SQL Error: ${err.message}` });
+    res.status(500).json({
+      success: false,
+      message: `SQL Error: ${err.message}`
+    });
   }
 };

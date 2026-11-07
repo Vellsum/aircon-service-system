@@ -1,92 +1,258 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
 
-const statusTone = {
-  Active: "success",
-  Inactive: "warning",
-};
-
-const initialPackages = [
-  { id: "#PK001", name: "Basic Care", services: "Aircon Servicing x1", price: "$55", validity: "1 month", status: "Active" },
-  { id: "#PK002", name: "Seasonal Saver", services: "Aircon Servicing x3", price: "$150", validity: "6 months", status: "Active" },
-  { id: "#PK003", name: "Deep Clean Bundle", services: "Chemical Cleaning + Servicing", price: "$165", validity: "3 months", status: "Active" },
-  { id: "#PK004", name: "Annual Plan", services: "Aircon Servicing x4 + Gas Top-up", price: "$420", validity: "12 months", status: "Active" },
-  { id: "#PK005", name: "Repair & Maintain", services: "Aircon Repair + Servicing x2", price: "$230", validity: "6 months", status: "Inactive" },
-  { id: "#PK006", name: "New Home Starter", services: "Installation + Servicing x1", price: "$380", validity: "3 months", status: "Inactive" },
+// Subscription fields based on payables.subscription
+const subscriptionFields = [
+  {
+    key: "name",
+    label: "Subscription Name",
+    type: "text",
+    required: true,
+  },
+  {
+    key: "description",
+    label: "Description",
+    type: "textarea",
+    required: true,
+  },
+  {
+    key: "recurringServiceID",
+    label: "Recurring Service",
+    type: "select",
+    options: [], // API NEEDED: Retrieve existing services
+    required: true,
+  },
+  {
+    key: "timeTillNextService",
+    label: "Interval (Days)",
+    type: "number",
+    required: true,
+  },
+  {
+    key: "numberOfBookings",
+    label: "Number of Bookings",
+    type: "number",
+    required: true,
+  },
 ];
 
-const statusFilters = ["All", "Active", "Inactive"];
-
-const packageFields = [
-  { key: "name", label: "Package Name", type: "text" },
-  { key: "services", label: "Included Services", type: "text" },
-  { key: "price", label: "Price", type: "text" },
-  { key: "validity", label: "Validity", type: "text" },
-  { key: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
+const subscriptionViewFields = [
+  { key: "subscriptionID", label: "Subscription ID" },
+  ...subscriptionFields,
 ];
 
-const packageViewFields = [{ key: "id", label: "Package ID" }, ...packageFields];
-
-const ManagePackages = () => {
-  const [packages, setPackages] = useState(initialPackages);
+const ManageSubscriptions = () => {
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [activeStatus, setActiveStatus] = useState("All");
   const [modal, setModal] = useState(null);
+  const [toast, setToast] = useState(null);
 
-  const filtered = packages.filter((pkg) => {
-    const matchesStatus = activeStatus === "All" || pkg.status === activeStatus;
-    const matchesSearch =
-      pkg.name.toLowerCase().includes(search.toLowerCase()) ||
-      pkg.id.toLowerCase().includes(search.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
-
-  const handleSave = (formData) => {
-    if (modal.mode === "create") {
-      const newId = `#PK${String(packages.length + 1).padStart(3, "0")}`;
-      setPackages([{ ...formData, id: newId }, ...packages]);
-    } else {
-      setPackages(packages.map((p) => (p.id === modal.record.id ? { ...p, ...formData } : p)));
-    }
-    setModal(null);
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
   };
 
-  const handleDeactivate = (pkg) => {
-    setPackages(packages.map((p) => (p.id === pkg.id ? { ...p, status: "Inactive" } : p)));
+  // GET: Load subscriptions
+  const fetchSubscriptions = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      const token = localStorage.getItem("token") || "";
+
+      const res = await fetch(
+        "http://localhost:5000/api/admin/bookings/subscriptions",  /// <---  THIS GET ALL FROM TABLE
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to load subscriptions");
+      }
+
+      if (data.success && Array.isArray(data.subscriptions)) {
+        setSubscriptions(data.subscriptions);
+      } else {
+        setSubscriptions([]);
+      }
+    } catch (err) {
+      console.error("Error fetching subscriptions:", err);
+      showToast(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // GET: Load existing services for dropdown
+  const fetchServices = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token") || "";
+
+      const res = await fetch(
+        "http://localhost:5000/api/admin/bookings/subscriptions/services",/// <---  THIS GET ALL services FROM TABLE
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to load services");
+      }
+
+      if (data.success && Array.isArray(data.services)) {
+        setServices(data.services);
+      }
+    } catch (err) {
+      console.error("Error fetching services:", err);
+      showToast(`Error loading services: ${err.message}`);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSubscriptions();
+    fetchServices();
+  }, [fetchSubscriptions, fetchServices]);
+
+  // Prepare service dropdown options
+  const serviceOptions = services.map((service) => ({
+    value: service.service_id,
+    label: service.service_name,
+  }));
+
+  const fieldsWithServices = subscriptionFields.map((field) =>
+    field.key === "recurringServiceID"
+      ? { ...field, options: serviceOptions }
+      : field
+  );
+
+  const viewFieldsWithServices = [
+    { key: "subscriptionID", label: "Subscription ID" },
+    ...fieldsWithServices,
+  ];
+
+  // Search subscriptions
+  const filtered = subscriptions.filter((sub) =>
+    (sub.name || "").toLowerCase().includes(search.toLowerCase()) ||
+    String(sub.subscriptionID || "").includes(search)
+  );
+
+  // POST: Create subscription
+  const handleAdd = async (formData) => {
+    if (modal?.mode !== "create") return;
+
+    try {
+      const token = localStorage.getItem("token") || "";
+
+      const res = await fetch(
+        "http://localhost:5000/api/admin/bookings/subscriptions",  /// <---  make new subscription
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description,
+            recurringServiceID: formData.recurringServiceID,
+            timeTillNextService: formData.timeTillNextService,
+            numberOfBookings: formData.numberOfBookings,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to create subscription");
+      }
+
+      showToast("Subscription created successfully!");
+      setModal(null);
+      fetchSubscriptions();
+    } catch (err) {
+      showToast(`Error: ${err.message}`);
+    }
+  };
+
+  // PUT: Edit subscription
+  const handleSave = async (formData) => {
+    if (modal?.mode !== "edit") return;
+
+    try {
+      const token = localStorage.getItem("token") || "";
+      const subscriptionID = modal.record.subscriptionID;
+
+      const res = await fetch(
+        `http://localhost:5000/api/admin/bookings/subscriptions/${subscriptionID}`,  // <-- edit subscription
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            subscriptionID,
+            name: formData.name,
+            description: formData.description,
+            recurringServiceID: formData.recurringServiceID,
+            timeTillNextService: formData.timeTillNextService,
+            numberOfBookings: formData.numberOfBookings,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to update subscription");
+      }
+
+      showToast("Subscription updated successfully!");
+      setModal(null);
+      fetchSubscriptions();
+    } catch (err) {
+      showToast(`Error: ${err.message}`);
+    }
   };
 
   return (
     <div className="dash">
-      <Sidebar active="Manage Packages" />
+      <Sidebar active="Manage Subscriptions" />
 
       <main className="dash-main">
         <header className="dash-header">
           <div>
-            <h1>Manage Packages</h1>
-            <p>View and manage bundled service packages</p>
+            <h1>Manage Subscriptions</h1>
+            <p>Manage recurring service packages and booking cycles</p>
           </div>
-          <button className="dash-btn dash-btn-primary" onClick={() => setModal({ mode: "create", record: {} })}>
-            + Add Package
+
+          <button
+            className="dash-btn dash-btn-primary"
+            onClick={() => setModal({ mode: "create", record: {} })}
+          >
+            + Add Subscription
           </button>
         </header>
 
         <section className="dash-stats">
           <div className="dash-stat dash-stat-accent">
-            <p className="dash-stat-label">Total Packages</p>
-            <p className="dash-stat-value">{packages.length}</p>
-            <p className="dash-stat-delta">Available bundles</p>
-          </div>
-          <div className="dash-stat dash-stat-success">
-            <p className="dash-stat-label">Active Packages</p>
-            <p className="dash-stat-value">{packages.filter((p) => p.status === "Active").length}</p>
-            <p className="dash-stat-delta">Currently purchasable</p>
-          </div>
-          <div className="dash-stat dash-stat-cyan">
-            <p className="dash-stat-label">Top Seller</p>
-            <p className="dash-stat-value" style={{ fontSize: "18px" }}>Seasonal Saver</p>
-            <p className="dash-stat-delta">Most purchased this month</p>
+            <p className="dash-stat-label">Total Subscriptions</p>
+            <p className="dash-stat-value">{subscriptions.length}</p>
+            <p className="dash-stat-delta">Available subscription plans</p>
           </div>
         </section>
 
@@ -95,77 +261,72 @@ const ManagePackages = () => {
             <input
               className="dash-search"
               type="text"
-              placeholder="Search by package name or ID..."
+              placeholder="Search by subscription name or ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-
-            <div className="dash-chips">
-              {statusFilters.map((status) => (
-                <button
-                  key={status}
-                  className={`dash-chip${status === activeStatus ? " is-active" : ""}`}
-                  onClick={() => setActiveStatus(status)}
-                >
-                  {status}
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="dash-table-wrap">
             <table className="dash-table">
               <thead>
                 <tr>
-                  <th>Package ID</th>
-                  <th>Package Name</th>
-                  <th>Included Services</th>
-                  <th>Price</th>
-                  <th>Validity</th>
-                  <th>Status</th>
+                  <th>Subscription ID</th>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th>Recurring Service ID</th>
+                  <th>Interval (Days)</th>
+                  <th>Number of Bookings</th>
                   <th>Actions</th>
                 </tr>
               </thead>
+
               <tbody>
-                {filtered.map((pkg) => (
-                  <tr key={pkg.id}>
-                    <td className="dash-mono">{pkg.id}</td>
-                    <td>{pkg.name}</td>
-                    <td>{pkg.services}</td>
-                    <td className="dash-mono">{pkg.price}</td>
-                    <td className="dash-mono">{pkg.validity}</td>
-                    <td>
-                      <span className={`dash-status dash-status-${statusTone[pkg.status]}`}>
-                        <i />
-                        {pkg.status}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="dash-row-actions">
-                        <button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: pkg })}>Edit</button>
-                        <button className="dash-row-btn is-danger" onClick={() => handleDeactivate(pkg)}>Deactivate</button>
-                      </div>
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: "center", padding: "20px" }}>
+                      Loading subscriptions from database...
                     </td>
                   </tr>
-                ))}
-
-                {filtered.length === 0 && (
+                ) : filtered.length > 0 ? (
+                  filtered.map((sub) => (
+                    <tr key={sub.subscriptionID}>
+                      <td className="dash-mono">{sub.subscriptionID}</td>
+                      <td>{sub.name}</td>
+                      <td>{sub.description}</td>
+                      <td className="dash-mono">{sub.recurringServiceID}</td>
+                      <td className="dash-mono">{sub.timeTillNextService}</td>
+                      <td className="dash-mono">{sub.numberOfBookings}</td>
+                      <td>
+                        <div className="dash-row-actions">
+                          <button
+                            className="dash-row-btn"
+                            onClick={() =>
+                              setModal({ mode: "edit", record: sub })
+                            }
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: "center", padding: "24px", color: "var(--text-secondary)" }}>
-                      No packages match your search.
+                    <td
+                      colSpan={7}
+                      style={{
+                        textAlign: "center",
+                        padding: "24px",
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      No subscriptions found.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </div>
-
-          <div className="dash-pagination">
-            <span>Showing {filtered.length} of {packages.length} packages</span>
-            <div className="dash-pagination-controls">
-              <button className="dash-row-btn">Prev</button>
-              <button className="dash-row-btn">Next</button>
-            </div>
           </div>
         </section>
       </main>
@@ -173,15 +334,27 @@ const ManagePackages = () => {
       {modal && (
         <RecordModal
           mode={modal.mode}
-          title={modal.mode === "create" ? "Add Package" : "Edit Package"}
-          fields={packageFields}
+          title={
+            modal.mode === "create"
+              ? "Add Subscription"
+              : modal.mode === "view"
+              ? "Subscription Details"
+              : "Edit Subscription"
+          }
+          fields={
+            modal.mode === "view"
+              ? viewFieldsWithServices
+              : fieldsWithServices
+          }
           data={modal.record}
           onClose={() => setModal(null)}
-          onSave={handleSave}
+          onSave={modal.mode === "create" ? handleAdd : handleSave}
         />
       )}
+
+      {toast && <div className="dash-toast">{toast}</div>}
     </div>
   );
 };
 
-export default ManagePackages;
+export default ManageSubscriptions;

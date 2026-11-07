@@ -36,8 +36,8 @@ const poolPromise = new sql.ConnectionPool(config)
 
 module.exports = { sql, poolPromise };
 */
-
-const sql = require('mssql');
+/**
+ * const sql = require('mssql');
 
 // Supports both "localhost" and "localhost\SQLEXPRESS" style server names
 const [server, instanceName] = String(process.env.DB_SERVER || 'localhost').split('\\');
@@ -64,3 +64,4 @@ const poolPromise = new sql.ConnectionPool(config)
   .catch((err) => console.error('[DB] Connection failed:', err.message));
 
 module.exports = { poolPromise, sql };
+ */

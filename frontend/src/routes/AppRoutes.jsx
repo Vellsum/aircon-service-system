@@ -28,6 +28,7 @@ import ManagePromotions from "../pages/admin/Managepromotions";
 import ManageAircon from '../pages/admin/ManageAircon';
 import ManagePackages from '../pages/admin/Managepackages';
 import ViewReports from '../pages/admin/Viewreports';
+import ManageAdmins from '../pages/admin/ManageAdmin';
 
 // 2. Technician Module Pages (src/pages/technician/)
 import TechnicianLayout from "../layouts/TechnicianLayout";
@@ -59,6 +60,8 @@ export default function AppRoutes() {
         <Route path="/admin/aircon" element={<ManageAircon />} />
         <Route path="/admin/packages" element={<ManagePackages />} />
         <Route path="/admin/reports" element={<ViewReports />} />
+                <Route path="/admin/admins" element={<ManageAdmins />} />
+
       </Route>
       
       {/* Technician Protected Routes */}
@@ -86,7 +89,10 @@ export default function AppRoutes() {
           <Route path="my-units" element={<CustomerMyUnits />} />
           <Route path="profile" element={<CustomerProfile />} />
           <Route path="service-catalog" element={<CustomerServiceCatalog />} />
+
+
           <Route path="subscriptions" element={<CustomerSubscription />} />
+
           {/* Aliases for old links */}
           <Route path="book" element={<Navigate to="/customer/book-service" replace />} />
           <Route path="services" element={<Navigate to="/customer/service-catalog" replace />} />

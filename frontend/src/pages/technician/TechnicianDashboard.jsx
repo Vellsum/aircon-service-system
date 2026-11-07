@@ -26,7 +26,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
+import { useTechnicianWorkflow, REPORT_REQUIRED_MESSAGE } from '../../context/TechnicianWorkflowContext'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import JobDetailsModal from '../../components/technician/JobDetailsModal'
 import "../../styles/technician.css";
@@ -115,13 +115,28 @@ const getFormattedLiveDate = () => {
   return new Date().toLocaleDateString('en-GB', options);
 };
 
-function storedRatingDisplay(status, value) {
-  if (status === 'loading') return { value: 'Loading…', note: 'Loading stored profile rating' }
-  if (status === 'error') return { value: 'Request failed', note: 'Stored profile rating could not be loaded' }
-  if (status !== 'success' || typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 5) {
-    return { value: 'Unavailable', note: 'Stored profile rating unavailable' }
+function customerRatingDisplay(status, average, count) {
+  const display = (value, note = '', available = false, text = value) => ({ value, note, available, text })
+  if (status === 'loading') return display('Loading customer ratings…')
+  if (status === 'error') return display('Rating unavailable.', 'Customer ratings could not be loaded.')
+  if (status === 'success' && count === 0 && average === null) {
+    return display('No customer ratings yet.', '', true)
   }
-  return { value: value === 0 ? 'Not rated yet' : `${value.toFixed(1)} ★`, note: 'Stored profile rating' }
+  if (status !== 'success' || !Number.isSafeInteger(count) || count <= 0
+    || typeof average !== 'number' || !Number.isFinite(average) || average < 1 || average > 5) {
+    return display('Rating unavailable.', 'Customer rating data is unavailable.')
+  }
+  const value = (
+    <span className="cf-customer-rating-value">
+      {average.toFixed(1)}
+      <svg className="cf-customer-rating-star" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 3.4l2.7 5.6 6.1.85-4.45 4.3 1.1 6.05L12 17.4l-5.45 2.8 1.1-6.05L3.2 9.85l6.1-.85Z" />
+      </svg>
+      <span className="visually-hidden">out of 5</span>
+    </span>
+  )
+  const reviews = `${count} ${count === 1 ? 'review' : 'reviews'}`
+  return display(value, reviews, true, <>{value} · {reviews}</>)
 }
 
 function TechnicianDashboard() {
@@ -183,7 +198,10 @@ function TechnicianDashboard() {
         } else if (!pData.profile || pData.profile.technicianID !== technicianID) {
           update('unavailable')
         } else {
-          update('success', pData.profile.technicianRating)
+          update('success', {
+            customerRatingAverage: pData.profile.customerRatingAverage,
+            customerReviewCount: pData.profile.customerReviewCount,
+          })
         }
       } catch {
         update('error')
@@ -197,7 +215,8 @@ function TechnicianDashboard() {
     : !Number.isSafeInteger(technicianID) || technicianID <= 0 ? 'unavailable'
     : ratingState.technicianID === technicianID && ratingState.token === token && ratingState.identitySource === identitySource
       ? ratingState.status : 'loading'
-  const rating = storedRatingDisplay(ratingStatus, ratingState.value)
+  const rating = customerRatingDisplay(ratingStatus,
+    ratingState.value?.customerRatingAverage, ratingState.value?.customerReviewCount)
 
   const openJobDetails = (job) => {
     jobDetailsTriggerRef.current = document.activeElement
@@ -232,7 +251,8 @@ function TechnicianDashboard() {
       if (selectedJobID === jobID) closeJobDetails()
     } catch (err) {
       console.error('Error updating booking status:', err)
-      setDashboardError(failureMessage)
+      setDashboardError(transition === completeService && err?.code === 'REPORT_REQUIRED'
+        ? REPORT_REQUIRED_MESSAGE : failureMessage)
       return
     } finally {
       actionJobIDsRef.current.delete(jobID)
@@ -248,21 +268,33 @@ function TechnicianDashboard() {
   /* -------------------------------------------------------------------------
    * Start only from context-approved statuses and after the existing schedule gate.
    * ---------------------------------------------------------------------- */
-  const handleStartService = async (jobToStart) => {
-    const normalizedStatus = String(jobToStart.status || '').trim().replace(/\s+/g, ' ').toLowerCase()
-    const canStart = ['upcoming', 'assigned', 'pending'].includes(normalizedStatus)
-    if (!canStart) {
-      setDashboardError('This job cannot be started from its current status.')
-      return
-    }
-    const gate = evaluateJobStart(jobToStart)
-    if (!gate.allowed) {
-      setDashboardError(`"${jobToStart.id}" is ${gate.reason} — Start unlocks then.`)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-      return
-    }
-    await persistJobTransition(jobToStart, startService, 'Service could not be started. Please try again.')
+  //this one decides if a job can start ======================================================================
+
+const handleStartService = async (jobToStart) => {
+  // Only allow jobs with Confirmed status to start
+  if ((jobToStart.status || '').toLowerCase() !== 'confirmed') {
+    setActionError(
+      `Job #BK${jobToStart.job_ID} cannot start because its status is not Confirmed.`
+    )
+    return
   }
+
+  // Existing date/time restriction
+  const gate = evaluateJobStart(jobToStart)
+
+  if (!gate.allowed) {
+    setActionError(
+      `"${jobToStart.id || `#BK${jobToStart.job_ID}`}" is ${gate.reason} — Start unlocks then.`
+    )
+    return
+  }
+
+  await persistJobTransition(
+    jobToStart,
+    startService,
+    'Service could not be started. Please try again.'
+  )
+}
 
   /* -------------------------------------------------------------------------
    * 3. Complete service — 6 Oct 2026: backend requires a service report FIRST
@@ -347,7 +379,7 @@ function TechnicianDashboard() {
       ),
     },
     {
-      label: 'Rating',
+      label: 'Customer rating',
       value: rating.value,
       context: rating.note,
       tone: 'violet',
@@ -591,8 +623,8 @@ function TechnicianDashboard() {
             </div>
             <dl className="cf-performance-list">
               <div>
-                <dt>Profile rating</dt>
-                <dd>{rating.value}<small>{rating.note}</small></dd>
+                <dt>Customer rating</dt>
+                <dd>{rating.text}<small>{rating.available ? 'Customer-submitted booking feedback' : rating.note}</small></dd>
               </div>
               <div>
                 <dt>Completed assignments</dt>
