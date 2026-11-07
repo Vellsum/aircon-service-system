@@ -531,6 +531,25 @@ technician report [done]
 
 4.35pm - all controllers done
 
+5.49pm -  i need to do billie part again cuz he just push only :/
+technician controller - fixed
+tech report controlelr - fixed?
+
+
+//theres an issue with parts log, billies code hasve no parts log in the controllers. just check the controllers
+6.40 -dinner break
+
+8pm - continue
+
+8.05 - found it, github is a bitch
+
+
+
+
+
+
+
+
 
 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
