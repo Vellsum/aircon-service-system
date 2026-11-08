@@ -24,8 +24,8 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/admin/Sidebar";
 import PortalWelcomeBanner from "../../components/common/PortalWelcomeBanner";
 import "../../styles/shared.css";
-
-const API = "http://localhost:5000/api/admin";
+const API = `${import.meta.env.VITE_API_BASE_URL}/api/admin`;
+//const API = "http://localhost:5000/api/admin";
 
 /* ---------- constants ---------- */
 const SESSIONS = ["Morning", "Afternoon"]; // db.sql: timing = morning or afternoon
