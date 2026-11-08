@@ -56,48 +56,73 @@ export default function ManageTechnicians() {
    * 1. Fetch Technicians from Express Backend API
    * Wrapped in useCallback to prevent infinite useEffect re-render loops
    */
-  const fetchTechnicians = useCallback(async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem("token") || "";
-      const headers = { "Content-Type": "application/json" };
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
+const fetchTechnicians = useCallback(async () => {
+  setLoading(true);
 
-      // API call to fetch technician list from Azure SQL database
-      fetch(`${API_BASE}/admin/users/technicians`, { headers });
-      const data = await res.json();
+  try {
+    const token = localStorage.getItem("token") || "";
 
-      if (res.ok && data.success && Array.isArray(data.technicians)) {
-        // Map database response fields into UI model format
-                const formatted = data.technicians.map((t) => {
-          const displayName = t.technician_name || t.username || t.name || `Technician #${t.technician_ID}`;
-          const displayPhone = t.technician_phone || t.phoneNumber || t.phone || "N/A";
+    const headers = {
+      "Content-Type": "application/json",
+    };
 
-          return {
-            technician_ID: t.technician_ID,
-            user_ID: t.user_ID,
-            id: `#TC${String(t.technician_ID).padStart(3, "0")}`,
-            name: displayName,
-            phone: displayPhone,
-            specialty: t.specialty || "Aircon Servicing",
-            status: "Available",
-            jobsDone: t.jobsDone ?? t.totalJobs ?? 0,
-          };
-        });
-        setTechnicians(formatted);
-      } else {
-        setTechnicians([]);
-      }
-    } catch (err) {
-      console.error("Error fetching technicians from backend:", err);
-      setTechnicians([]);
-    } finally {
-      // Always turn off loading spinner/text
-      setLoading(false);
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
     }
-  }, []);
+
+    const res = await fetch(`${API_BASE}/admin/users/technicians`, {
+      method: "GET",
+      headers,
+    });
+
+    const data = await res.json();
+
+    console.log("Technicians API status:", res.status);
+    console.log("Technicians API data:", data);
+
+    if (!res.ok) {
+      throw new Error(data.message || `HTTP ${res.status}`);
+    }
+
+    if (data.success && Array.isArray(data.technicians)) {
+      const formatted = data.technicians.map((t) => {
+        const displayName =
+          t.technician_name ||
+          t.username ||
+          t.name ||
+          `Technician #${t.technician_ID}`;
+
+        const displayPhone =
+          t.technician_phone ||
+          t.phoneNumber ||
+          t.phone ||
+          "N/A";
+
+        return {
+          technician_ID: t.technician_ID,
+          user_ID: t.user_ID,
+          id: `#TC${String(t.technician_ID).padStart(3, "0")}`,
+          name: displayName,
+          phone: displayPhone,
+          specialty: t.specialty || "Aircon Servicing",
+          status: "Available",
+          jobsDone: t.jobsDone ?? t.totalJobs ?? 0,
+        };
+      });
+
+      setTechnicians(formatted);
+    } else {
+      console.error("Unexpected technician API response:", data);
+      setTechnicians([]);
+    }
+  } catch (err) {
+    console.error("Error fetching technicians:", err);
+    setTechnicians([]);
+    showToast(`Failed to load technicians: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   // Fetch technicians once on component mount
   useEffect(() => {
