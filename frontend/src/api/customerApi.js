@@ -1,5 +1,9 @@
-const API_BASE = 'http://localhost:5000/api'; //something tells me when hosting these need to change
+//const API_BASE = 'http://localhost:5000/api'; //something tells me when hosting these need to change
+//const API_BASE = 'https://aircon-service-system.onrender.com/api'
+//const API_BASE = 'http://localhost:5000/api';
+//const API_BASE = 'https://aircon-service-system.onrender.com/api'
 
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
 /*
  *  THIS IS THE API
 THIS IS A CONNECTOR FOR FRONTEND CODE TO CALL METHODS PROVIDED BY BACKEND
@@ -42,31 +46,14 @@ function getCurrentCustomerId() {
 
 //method to get bookings with assigned status
 export const getIncomingBookings =()=> request(`/customer/incoming?customerId=${getCurrentCustomerId()}`);
-export  const purchaseSubscription = async (customerID, planId) => {
-  const token = localStorage.getItem("token") || "";
-
-  const res = await fetch(
-    "http://localhost:5000/api/customer/subscriptions/purchase",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        customerID: helpMyID(),
-        subscriptionID: planId,
-      }),
-    }
-  );
-
-  const data = await res.json();
-
-  if (!res.ok || !data.success) {
-    throw new Error(data.message || "Failed to purchase subscription");
-  }
-
-  return data;
+export const purchaseSubscription = (customerID, planId) => {
+  return request('/customer/subscriptions/purchase', {
+    method: 'POST',
+    body: JSON.stringify({
+      customerID: getCurrentCustomerId(),
+      subscriptionID: planId,
+    }),
+  });
 };
 
 export const chooseRROption=(bookingId,option)=>{
@@ -88,26 +75,19 @@ export const updateIncomingBookingStatus = (bookingId, status) => {
   );
 };
 
-export const getIncomingBookings_VITE = async (customerId) => {
-  const response = await fetch(
-    `/api/customer/incoming?customerId=${encodeURIComponent(customerId)}`
+export const getIncomingBookings_VITE = (customerId) => {
+  return request(
+    `/customer/incoming?customerId=${encodeURIComponent(customerId)}`
   );
-
-  const data = await response.json();
-console.log(data);
-  if (!response.ok) {
-    throw new Error(data.message || "Failed to load incoming bookings");
-  }
-  
-  return data;
 };
 
-
 export const getIncomingBookings_TEST = async (customerId) => {
-  const url =
-    `/api/customer/incoming?customerId=${encodeURIComponent(customerId)}`;
+  const url = `${API_BASE}/customer/incoming?customerId=${encodeURIComponent(customerId)}`;
 
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
+
   const text = await response.text();
 
   console.log("URL:", url);
@@ -119,9 +99,7 @@ export const getIncomingBookings_TEST = async (customerId) => {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error(
-      "The API returned HTML or invalid JSON. Check the URL and backend route."
-    );
+    throw new Error("The API returned HTML or invalid JSON.");
   }
 
   if (!response.ok) {

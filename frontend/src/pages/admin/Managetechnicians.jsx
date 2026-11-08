@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
-
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
 // CSS tone mapping for technician availability badges
 const statusTone = {
   Available: "success",
@@ -66,7 +66,7 @@ export default function ManageTechnicians() {
       }
 
       // API call to fetch technician list from Azure SQL database
-      const res = await fetch("http://localhost:5000/api/admin/users/technicians", { headers });
+      cfetch(`${API_BASE}/admin/users/technicians`, { headers });
       const data = await res.json();
 
       if (res.ok && data.success && Array.isArray(data.technicians)) {
@@ -134,7 +134,7 @@ export default function ManageTechnicians() {
           specialty: String(formData.specialty || "Aircon Servicing").trim(),
         };
 
-        const res = await fetch("http://localhost:5000/api/admin/users/technicians", {
+        const res = await fetch(`${API_BASE}/admin/users/technicians`, {
           method: "POST",
           headers,
           body: JSON.stringify(payload),
@@ -152,7 +152,7 @@ export default function ManageTechnicians() {
     } else if (modal.mode === "edit") {
       try {
         const targetId = modal.record.technician_ID;
-        const res = await fetch(`http://localhost:5000/api/admin/users/technicians/${targetId}`, {
+        const res = await fetch(`${API_BASE}/admin/users/technicians/${targetId}`, {
           method: "PUT",
           headers,
           body: JSON.stringify({
@@ -189,7 +189,7 @@ export default function ManageTechnicians() {
       const headers = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch(`http://localhost:5000/api/admin/users/technicians/${targetId}`, {
+      const res = await fetch(`${API_BASE}/admin/users/technicians/${targetId}`, {
         method: "DELETE",
         headers,
       });

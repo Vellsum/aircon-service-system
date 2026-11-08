@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
 
 // Fields for creating a new admin
 const addAdminFields = [
@@ -48,7 +49,7 @@ const ManageAdmins = () => {
       }
 
       const res = await fetch(
-        "http://localhost:5000/api/admin/users/admins",
+        `${API_BASE}/admin/users/admins`,
         { headers }
       );
 
@@ -83,8 +84,7 @@ const ManageAdmins = () => {
       const token = localStorage.getItem("token") || "";
 
       const res = await fetch(
-        "http://localhost:5000/api/admin/users/admins/editAdmin",
-        {
+`${API_BASE}/admin/users/admins/editAdmin`,        {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -118,8 +118,7 @@ const ManageAdmins = () => {
       const token = localStorage.getItem("token") || "";
 
       const res = await fetch(
-        "http://localhost:5000/api/admin/users/newAdmin/",
-        {
+`${API_BASE}/admin/users/newAdmin/`,        {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

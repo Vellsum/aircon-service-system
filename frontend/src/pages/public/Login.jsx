@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import "../../styles/shared.css";
 import "../../styles/Login.css";
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
 
 const roles = [
   { key: "customer", label: "Customer", icon: "👤" },
@@ -38,8 +39,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
+const response = await fetch(`${API_BASE}/auth/login`, {        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: email,          // Changed from 'username' to 'email' state

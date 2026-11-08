@@ -13,8 +13,8 @@ import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import { useAuth } from '../../context/AuthContext'
-
-const API_BASE_URL = 'http://localhost:5000'
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
+//const API_BASE_URL = 'http://localhost:5000'
 const isPositiveID = (value) => Number.isSafeInteger(value) && value > 0
 
 function formatMaterialsTotal(value) {
@@ -114,9 +114,9 @@ function TechnicianJobHistory() {
     try {
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
-      const res = await fetch(`${API_BASE_URL}/api/technician/reports?techId=${technicianID}`, {
-        headers, signal: request.controller.signal,
-      })
+    const res = await fetch(`${API_BASE}/technician/reports?techId=${technicianID}`, {
+  headers, signal: request.controller.signal,
+})
       if (!res.ok) throw new Error(`API returned ${res.status}`)
       const data = await res.json()
       if (data?.success !== true || !Array.isArray(data.reports)) {

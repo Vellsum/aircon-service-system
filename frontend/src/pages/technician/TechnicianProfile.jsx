@@ -5,7 +5,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext';
-
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
 function IdentityIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -226,8 +226,7 @@ function TechnicianProfile() {
     update('loading');
     (async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/technician/profile?techId=${technicianID}`, {
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+const res = await fetch(`${API_BASE}/technician/profile?techId=${technicianID}`, {          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           signal: controller.signal,
         });
         if (!res.ok) {

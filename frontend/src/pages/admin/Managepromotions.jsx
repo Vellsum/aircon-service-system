@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
 
 // Promotion status styling
 const statusTone = {
@@ -71,7 +72,7 @@ const formatLocalDateString = (dateInput) => {
       }
 
       const res = await fetch(
-        "http://localhost:5000/api/admin/bookings/promo",
+      `${API_BASE}/admin/bookings/promo`,
         { headers }
       );
 console.log("Response status:", res.status);
@@ -121,7 +122,7 @@ console.log("Backend response:", data);
       const token = localStorage.getItem("token") || "";
 
       const res = await fetch(
-        "http://localhost:5000/api/admin/bookings/newPromo",
+       `${API_BASE}/admin/bookings/newPromo`,
         {
           method: "POST",
           headers: {
@@ -163,7 +164,7 @@ console.log("Backend response:", data);
       const token = localStorage.getItem("token") || "";
 
       const res = await fetch(
-        `http://localhost:5000/api/admin/bookings/editpromo`,
+       `${API_BASE}/admin/bookings/editpromo`,
         {
           method: "PUT",
           headers: {
@@ -210,7 +211,7 @@ console.log("Backend response:", data);
       const token = localStorage.getItem("token") || "";
 
       const res = await fetch(
-        `http://localhost:5000/api/admin/promotions/${promo.id}/end`,
+      `${API_BASE}/admin/promotions/${promo.id}/end`,
         {
           method: "PUT",
           headers: {

@@ -9,6 +9,7 @@ import React, {
   useState,
 } from 'react'
 import { useAuth } from './AuthContext'
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
 
 const TechnicianWorkflowContext = createContext(null)
 const DEVELOPMENT_TECHNICIAN_ID = 1
@@ -126,9 +127,10 @@ function TechnicianWorkflowProvider({ children }) {
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
 
-      const res = await fetch(`http://localhost:5000/api/technician/jobs?techId=${technicianID}`, {
-        headers, signal: controller.signal,
-      })
+      const res = await fetch(`${API_BASE}/technician/jobs?techId=${technicianID}`, {
+  headers,
+  signal: controller.signal,
+})
       const data = await res.json()
       if (!isCurrent()) return
 
@@ -217,13 +219,13 @@ function TechnicianWorkflowProvider({ children }) {
         if (token) headers.Authorization = `Bearer ${token}`
 
         const response = await fetch(
-          `http://localhost:5000/api/technician/jobs/${jobID}/status`,
-          {
-            method: 'PUT',
-            headers,
-            body: JSON.stringify({ status: transition.nextStatus }),
-          },
-        )
+  `${API_BASE}/technician/jobs/${jobID}/status`,
+  {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ status: transition.nextStatus }),
+  },
+)
 
         let result = null
         try {
