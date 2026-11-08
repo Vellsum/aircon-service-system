@@ -18,18 +18,16 @@ const PORT = process.env.PORT || 5000;
  */
 
 // Middleware
+// Middleware
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: [
+    'http://localhost:5173',
+    process.env.FRONTEND_URL
+  ].filter(Boolean),
   credentials: true
 }));
+
 app.use(express.json());
-
-// ✅ FIXED Logger
-app.use((req, res, next) => {
-  console.log(`[REQUEST] ${req.method} ${req.url}`);
-  next();
-});
-
 /**
  * below it takes the different scripts from routes n connect them to a name
  */
@@ -77,6 +75,6 @@ app.use('/api/customer', customerRoutes); // the api from frpntend goes here, NO
 
 app.get('/', (req, res) =>! res.json({ message: 'Cool Fix backend active!' }));
 
-app.listen(PORT, () => {
-  console.log(`Cool Fix backend active on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Cool Fix backend active on port ${PORT}`);
 });
