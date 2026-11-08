@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
-
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
 // Subscription fields based on payables.subscription
 const subscriptionFields = [
   {
@@ -65,7 +65,7 @@ const ManageSubscriptions = () => {
       const token = localStorage.getItem("token") || "";
 
       const res = await fetch(
-        "http://localhost:5000/api/admin/bookings/subscriptions",  /// <---  THIS GET ALL FROM TABLE
+      `${API_BASE}/admin/bookings/subscriptions`,  /// <---  THIS GET ALL FROM TABLE
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -98,7 +98,7 @@ const ManageSubscriptions = () => {
       const token = localStorage.getItem("token") || "";
 
       const res = await fetch(
-        "http://localhost:5000/api/admin/bookings/subscriptions/services",/// <---  THIS GET ALL services FROM TABLE
+        `${API_BASE}/admin/bookings/subscriptions/services`,/// <---  THIS GET ALL services FROM TABLE
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -157,7 +157,7 @@ const ManageSubscriptions = () => {
       const token = localStorage.getItem("token") || "";
 
       const res = await fetch(
-        "http://localhost:5000/api/admin/bookings/subscriptions",  /// <---  make new subscription
+       `${API_BASE}/admin/bookings/subscriptions`,  /// <---  make new subscription
         {
           method: "POST",
           headers: {
@@ -197,7 +197,7 @@ const ManageSubscriptions = () => {
       const subscriptionID = modal.record.subscriptionID;
 
       const res = await fetch(
-        `http://localhost:5000/api/admin/bookings/subscriptions/${subscriptionID}`,  // <-- edit subscription
+      `${API_BASE}/admin/bookings/subscriptions/${subscriptionID}`,  // <-- edit subscription
         {
           method: "PUT",
           headers: {

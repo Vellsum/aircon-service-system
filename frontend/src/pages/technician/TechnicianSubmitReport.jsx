@@ -22,8 +22,9 @@ import PartsMaterialsTable from '../../components/technician/PartsMaterialsTable
 import FollowUpSection, {
   FOLLOW_UP_REASON_OPTIONS,
 } from '../../components/technician/FollowUpSection'
-
-const API_BASE_URL = 'http://localhost:5000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE = `${API_BASE_URL}/api`;
+//const API_BASE_URL = 'http://localhost:5000'
 
 const OVERALL_CONDITIONS = ['Excellent', 'Good', 'Fair', 'Poor', 'Requires Follow-Up']
 const FINDING_OPTIONS = [
@@ -300,8 +301,7 @@ function TechnicianSubmitReport() {
     ;(async () => {
       try {
         const token = localStorage.getItem('token') || ''
-        const res = await fetch(`${API_BASE_URL}/api/admin/inventory`, {
-          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+const res = await fetch(`${API_BASE}/admin/inventory`, {          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         })
         const data = await res.json()
         const rows = Array.isArray(data) ? data : (data.items || data.inventory || [])
@@ -466,8 +466,7 @@ function TechnicianSubmitReport() {
     try {
       const payload = buildReportPayload(effectiveReport, selectedJob, inventoryById)
       const token = localStorage.getItem('token') || ''
-      const response = await fetch(`${API_BASE_URL}/api/technician/reports`, {
-        method: 'POST',
+const response = await fetch(`${API_BASE}/technician/reports`, {        method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(payload),
       })

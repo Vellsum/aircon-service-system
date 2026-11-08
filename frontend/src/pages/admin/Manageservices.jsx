@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
-
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
 const addServiceFields = [
   { key: "service_name", label: "Service Name", type: "text", required: true },
   { key: "price", label: "Price ($)", type: "number", required: true },
@@ -41,7 +41,7 @@ const Manageservices = () => {
       const headers = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch("http://localhost:5000/api/admin/payables/services", { headers });
+      const res = await fetch(`${API_BASE}/admin/payables/services`, { headers });
       const data = await res.json();
 
       if (res.ok && data.success && Array.isArray(data.services)) {
@@ -73,7 +73,7 @@ const Manageservices = () => {
 
     if (modal.mode === "create") {
       try {
-        const res = await fetch("http://localhost:5000/api/admin/payables/services", {
+        const res = await fetch(`${API_BASE}/admin/payables/services`, {
           method: "POST",
           headers,
           body: JSON.stringify(formData),
@@ -91,7 +91,7 @@ const Manageservices = () => {
     } else if (modal.mode === "edit") {
       try {
         const targetId = modal.record.service_ID;
-        const res = await fetch(`http://localhost:5000/api/admin/payables/services/${targetId}`, {
+        const res = await fetch(`${API_BASE}/admin/payables/services/${targetId}`, {
           method: "PUT",
           headers,
           body: JSON.stringify(formData),
@@ -114,7 +114,7 @@ const Manageservices = () => {
 
     try {
       const token = localStorage.getItem("token") || "";
-      const res = await fetch(`http://localhost:5000/api/admin/payables/services/${service.service_ID}`, {
+      const res = await fetch(`${API_BASE}/admin/payables/services/${service.service_ID}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

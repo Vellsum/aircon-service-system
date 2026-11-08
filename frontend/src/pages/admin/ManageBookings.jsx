@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
-
-const API = "http://localhost:5000/api/admin"; //the api? wat the bloody fuck is this fucking doign???
+const API = `${import.meta.env.VITE_API_BASE_URL}/api/admin`;
+//const API = "http://localhost:5000/api/admin"; //the api? wat the bloody fuck is this fucking doign???
 const MAX_MONTHS_AHEAD = 2;
 
 const statusTone = {   //dafuq is this used for???

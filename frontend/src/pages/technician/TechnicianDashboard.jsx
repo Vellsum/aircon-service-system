@@ -32,7 +32,7 @@ import JobDetailsModal from '../../components/technician/JobDetailsModal'
 import "../../styles/technician.css";
 import { useAuth } from '../../context/AuthContext'
 import { evaluateJobStart } from '../../utils/jobSchedule'
-
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
 /* ---------------------------------------------------------------------------
  * Helpers — added/updated 6 Oct 2026
  * ------------------------------------------------------------------------- */
@@ -187,7 +187,7 @@ function TechnicianDashboard() {
     ;(async () => {
       try {
         const headers = token ? { Authorization: `Bearer ${token}` } : {}
-        const pRes = await fetch(`http://localhost:5000/api/technician/profile?techId=${technicianID}`, { headers, signal: controller.signal })
+const pRes = await fetch(`${API_BASE}/technician/profile?techId=${technicianID}`, { headers, signal: controller.signal })      
         if (!pRes.ok) {
           update('error')
           return

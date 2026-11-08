@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
-
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
 const statusTone = {
   "In Stock": "success",
   "Low Stock": "warning",
@@ -46,7 +46,7 @@ const fetchPartsLog = useCallback(async () => {
 
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const res = await fetch("http://localhost:5000/api/admin/inventory/parts", {
+    const res = await fetch(`${API_BASE}/admin/inventory/parts`, {
       headers
     });
 
@@ -74,7 +74,7 @@ const fetchPartsLog = useCallback(async () => {
       const headers = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch("http://localhost:5000/api/admin/inventory", { headers });
+      const res = await fetch(`${API_BASE}/admin/inventory`, { headers });
       const data = await res.json();
 
       if (res.ok && data.success && Array.isArray(data.items)) {
@@ -149,7 +149,7 @@ const fetchPartsLog = useCallback(async () => {
 
     if (modal.mode === "create") {
       try {
-        const res = await fetch("http://localhost:5000/api/admin/inventory", {
+        const res = await fetch(`${API_BASE}/admin/inventory`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -171,7 +171,7 @@ const fetchPartsLog = useCallback(async () => {
       try {
         const targetId = formData.itemID || (modal.record && modal.record.itemID);
 
-        const res = await fetch(`http://localhost:5000/api/admin/inventory/${targetId}`, {
+        const res = await fetch(`${API_BASE}/admin/inventory/${targetId}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -199,7 +199,7 @@ const fetchPartsLog = useCallback(async () => {
       const targetId = item.itemID;
       const newStock = item.stock + item.reorderAt + 20;
 
-      const res = await fetch(`http://localhost:5000/api/admin/inventory/${targetId}`, {
+      const res = await fetch(`${API_BASE}/admin/inventory/${targetId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

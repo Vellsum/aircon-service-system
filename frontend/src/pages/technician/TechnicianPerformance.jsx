@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import { useAuth } from '../../context/AuthContext'
-
-var API_BASE_URL = 'http://localhost:5000'
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
+//var API_BASE_URL = 'http://localhost:5000'
 
 var STATUS_ITEMS = [
   { key: 'upcoming', label: 'Upcoming', className: 'is-upcoming' },
@@ -192,8 +192,7 @@ function TechnicianPerformance() {
       try {
         var headers = { 'Content-Type': 'application/json' }
         if (token) headers['Authorization'] = 'Bearer ' + token
-        var res = await fetch(API_BASE_URL + '/api/technician/profile?techId=' + technicianID, {
-          headers, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
+var res = await fetch(`${API_BASE}/technician/profile?techId=${technicianID}`, {          headers, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
         })
         if (!res.ok) {
           update('error')
@@ -226,8 +225,7 @@ function TechnicianPerformance() {
       try {
         const headers = { 'Content-Type': 'application/json' }
         if (token) headers.Authorization = 'Bearer ' + token
-        const response = await fetch(API_BASE_URL + '/api/technician/reports?techId=' + technicianID, {
-          headers, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
+const response = await fetch(`${API_BASE}/technician/reports?techId=${technicianID}`, {          headers, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
         })
         if (!response.ok) { update('error'); return }
         const data = await response.json()

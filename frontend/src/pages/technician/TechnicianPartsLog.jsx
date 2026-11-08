@@ -13,8 +13,8 @@ import Modal from 'react-bootstrap/Modal'
 import JobStatusBadge from '../../components/technician/JobStatusBadge'
 import { useTechnicianWorkflow } from '../../context/TechnicianWorkflowContext'
 import { useAuth } from '../../context/AuthContext'
-
-const API_BASE_URL = 'http://localhost:5000'
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
+//const API_BASE_URL = 'http://localhost:5000'
 const isPositiveID = (value) => Number.isSafeInteger(value) && value > 0
 
 const dateFormatter = new Intl.DateTimeFormat('en-SG', {
@@ -107,10 +107,10 @@ function TechnicianPartsLog() {
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
 
-      const res = await fetch(
-        `${API_BASE_URL}/api/technician/reports/parts-log?techId=${technicianID}`,
-        { headers, signal: request.controller.signal }
-      )
+   const res = await fetch(
+  `${API_BASE}/technician/reports/parts-log?techId=${technicianID}`,
+  { headers, signal: request.controller.signal }
+)
 
       if (!res.ok) throw new Error(`API returned ${res.status}`)
 
