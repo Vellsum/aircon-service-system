@@ -65,43 +65,39 @@ const Register = () => {
       customer_address,
     };
 
-    try {
-const response = await fetch(`${API_BASE}/auth/register`, {        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(registrationData),
-      });
+   try {
+  const response = await fetch(`${API_BASE}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(registrationData),
+  });
 
-const responseText = await response.text();
+  const responseText = await response.text();
+  let data = {};
 
-let data = {};
+  try {
+    data = responseText ? JSON.parse(responseText) : {};
+  } catch (err) {
+    console.error("Non-JSON response from register API:", responseText);
+    throw new Error(
+      `Server returned an invalid response (HTTP ${response.status}). Check the backend logs.`
+    );
+  } //no catching here
 
-try {
-  data = responseText ? JSON.parse(responseText) : {};
+  if (!response.ok) {
+    throw new Error(
+      data.message || `Registration failed (HTTP ${response.status}).`
+    );
+  }
+
+  alert("Registration successful! Please log in.");
+  navigate("/login");
+
 } catch (err) {
-  console.error("Non-JSON response from login API:", responseText);
-
-  throw new Error(
-    `Server returned an invalid response (HTTP ${response.status}). Check the backend logs.`
-  );
+  setError(err.message);
+} finally {
+  setLoading(false);
 }
-
-if (!response.ok) {
-  throw new Error(data.message || `Login failed (HTTP ${response.status}).`);
-}
-
-if (!data.user || !data.token) {
-  throw new Error("Login response is missing user information or authentication token.");
-}
-      if (!response.ok) {
-        throw new Error(data.message || "Registration failed.");
-      }
-
-      navigate("/login");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (

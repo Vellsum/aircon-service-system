@@ -70,13 +70,20 @@ if (!data.user || !data.token) {
   throw new Error("Login response is missing user information or authentication token.");
 }
 
-      // 1. Force normalized lowercase role ('Technician' -> 'technician')
-      const userRole = (data.user.role || data.user.accountType || selectedRole).toLowerCase();
+      const userRole = String(
+  data.user.role || data.user.accountType || ""
+).trim().toLowerCase();
 
-      const authenticatedUser = {
-        ...data.user,
-        role: userRole,
-      };
+if (userRole !== selectedRole) {
+  throw new Error(
+    `You selected ${selectedRole}, but your account is registered as ${userRole || "an unknown role"}.`
+  );
+}
+
+const authenticatedUser = {
+  ...data.user,
+  role: userRole,
+};
 
       // 2. Persist to AuthContext
       login(authenticatedUser, data.token);

@@ -66,7 +66,7 @@ export default function ManageTechnicians() {
       }
 
       // API call to fetch technician list from Azure SQL database
-      cfetch(`${API_BASE}/admin/users/technicians`, { headers });
+      fetch(`${API_BASE}/admin/users/technicians`, { headers });
       const data = await res.json();
 
       if (res.ok && data.success && Array.isArray(data.technicians)) {
