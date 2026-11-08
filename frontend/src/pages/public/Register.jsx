@@ -71,8 +71,27 @@ const response = await fetch(`${API_BASE}/auth/register`, {        method: "POST
         body: JSON.stringify(registrationData),
       });
 
-      const data = await response.json();
+const responseText = await response.text();
 
+let data = {};
+
+try {
+  data = responseText ? JSON.parse(responseText) : {};
+} catch (err) {
+  console.error("Non-JSON response from login API:", responseText);
+
+  throw new Error(
+    `Server returned an invalid response (HTTP ${response.status}). Check the backend logs.`
+  );
+}
+
+if (!response.ok) {
+  throw new Error(data.message || `Login failed (HTTP ${response.status}).`);
+}
+
+if (!data.user || !data.token) {
+  throw new Error("Login response is missing user information or authentication token.");
+}
       if (!response.ok) {
         throw new Error(data.message || "Registration failed.");
       }
