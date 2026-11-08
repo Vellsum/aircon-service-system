@@ -48,11 +48,27 @@ const response = await fetch(`${API_BASE}/auth/login`, {        method: "POST",
         }),
       });
 
-      const data = await response.json();
+     const responseText = await response.text();
 
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed.");
-      }
+let data = {};
+
+try {
+  data = responseText ? JSON.parse(responseText) : {};
+} catch (err) {
+  console.error("Non-JSON response from login API:", responseText);
+
+  throw new Error(
+    `Server returned an invalid response (HTTP ${response.status}). Check the backend logs.`
+  );
+}
+
+if (!response.ok) {
+  throw new Error(data.message || `Login failed (HTTP ${response.status}).`);
+}
+
+if (!data.user || !data.token) {
+  throw new Error("Login response is missing user information or authentication token.");
+}
 
       // 1. Force normalized lowercase role ('Technician' -> 'technician')
       const userRole = (data.user.role || data.user.accountType || selectedRole).toLowerCase();
