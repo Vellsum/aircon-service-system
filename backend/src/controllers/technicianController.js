@@ -99,9 +99,15 @@ async function rollbackTransaction(client, transactionOpen) {
  * ------------------------------------------------------------------------- */
 
 const getAssignedJobs = async (req, res) => {
+  console.log('[Technician] getAssignedJobs was called');
+
+console.log('[Technician] Timing values:', result.rows.map(row => ({
+  booking_ID: row.booking_ID,
+  timing: row.timing
+})));
   try {
     const techId = parseInt(req.query.techId, 10) || 1;
-
+console.log('[DEBUG] SQL returned:', result.rows);
     // 1. Fetch technician name.
     const techResult = await pool.query(
       `
@@ -122,7 +128,7 @@ const getAssignedJobs = async (req, res) => {
       SELECT
         b."booking_ID",
         b."customer_ID",
-        b."technician_ID",b.timing,
+        b."technician_ID",
 
         TO_CHAR(b."date", 'YYYY-MM-DD') AS "cleanDate",
         TO_CHAR(b."time", 'HH24:MI:SS') AS "rawTime",
@@ -130,6 +136,7 @@ const getAssignedJobs = async (req, res) => {
         b.location,
         b.status,
         b.comments,
+        b.timing as timing,
 
         COALESCE(b."isFollowup", FALSE) AS "isFollowup",
 
@@ -186,7 +193,7 @@ const getAssignedJobs = async (req, res) => {
             weekday: 'short',
             day: 'numeric',
             month: 'short',
-            year: 'numeric',timing: row.timing,
+            year: 'numeric',
           });
         }
       } catch {
@@ -206,10 +213,15 @@ const getAssignedJobs = async (req, res) => {
 
         unitType: 'Wall-Mounted Split System',
 
-        date: jobDate,
-        formattedDate,
+date: jobDate,
+formattedDate,
 
-        time: formatTimeDisplay(row.rawTime),
+timing: String(row.timing || '').trim().toLowerCase(),
+time: String(row.timing || '').trim().toLowerCase() === 'morning'
+  ? '9:00 AM'
+  : String(row.timing || '').trim().toLowerCase() === 'afternoon'
+    ? '12:00 PM'
+    : '—',
 
         // Used by the frontend start gate.
         time24: String(row.rawTime || '09:00:00').slice(0, 5),

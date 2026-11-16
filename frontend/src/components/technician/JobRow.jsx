@@ -16,7 +16,9 @@ function JobRow({ job, onView, onPrimaryAction, isActionPending = false, actionR
   //const canStart = ['confirmed'].includes(normalizedStatus)
   const canStart = normalizedStatus === 'confirmed';
   const canContinue = normalizedStatus === 'in progress'
-
+console.log("Job timing:", job.timing, job);
+console.log("Timing value:", job.timing);
+console.log("Complete job:", job);
   // 6 Oct 2026 — date/time gate: decides whether Start is clickable
   const gate = evaluateJobStart(job)
   const startLocked = canStart && !gate.allowed
@@ -81,6 +83,7 @@ function JobRow({ job, onView, onPrimaryAction, isActionPending = false, actionR
       
 
       {/* DATE & TIME */}
+      {/** 
       <td>
         <div className="text-dark fw-semibold">{job.formattedDate || '—'}</div>
         <div className="text-muted small d-flex align-items-center gap-1 mt-0.5">
@@ -90,8 +93,27 @@ function JobRow({ job, onView, onPrimaryAction, isActionPending = false, actionR
           </svg>
           <span>{job.time || '—'}</span>
         </div>
-      </td>
+      </td>*/}
+<td>
+  <div className="text-dark fw-semibold">
+    {job.formattedDate || '—'}
+  </div>
 
+  <div className="text-muted small d-flex align-items-center gap-1 mt-0.5">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 14 14"/>
+    </svg>
+<span>
+  {job.timing === 'morning'
+    ? '9:00 AM'
+    : job.timing === 'afternoon'
+      ? '12:00 PM'
+      : '—'}      {/**  <--- this is undefined timing */}
+</span>
+  </div>
+</td>
       {/**services booked */}
       <td>{job.servicesBooked}</td>
 
