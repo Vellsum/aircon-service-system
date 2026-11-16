@@ -35,7 +35,7 @@ const AVAIL_DAYS = 14;
 const PIPELINE = [
   { key: "pending", label: "Pending", color: "#f59e0b" },
   { key: "assigned", label: "Assigned", color: "#3b82f6" },
-  { key: "confirmed", label: "Confirmed", color: "#14b8a6" },
+  { key: "confirmed", label: "Confirmed", color: "#13d3ed" },
   { key: "in progress", label: "In Progress", color: "#8b5cf6" },
   { key: "completed", label: "Completed", color: "#22c55e" },
 ];
