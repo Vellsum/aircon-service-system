@@ -101,13 +101,9 @@ async function rollbackTransaction(client, transactionOpen) {
 const getAssignedJobs = async (req, res) => {
   console.log('[Technician] getAssignedJobs was called');
 
-console.log('[Technician] Timing values:', result.rows.map(row => ({
-  booking_ID: row.booking_ID,
-  timing: row.timing
-})));
+
   try {
     const techId = parseInt(req.query.techId, 10) || 1;
-console.log('[DEBUG] SQL returned:', result.rows);
     // 1. Fetch technician name.
     const techResult = await pool.query(
       `
@@ -175,6 +171,11 @@ console.log('[DEBUG] SQL returned:', result.rows);
     `;
 
     const result = await pool.query(query, [techId]);
+    console.log('[Technician] Timing values:', result.rows.map(row => ({
+  booking_ID: row.booking_ID,
+  timing: row.timing
+})));
+console.log('[DEBUG] SQL returned:', result.rows);
 
     // Use local date rather than UTC.
     const todayStr = localDateStr();
