@@ -23,7 +23,7 @@
 const pool = require('../config/supabaseDb');
 
 // Set false if time-strictness is too harsh for demos.
-const ENFORCE_START_TIME = true;
+const ENFORCE_START_TIME = false;
 
 /* ---------------------------------------------------------------------------
  * Helpers
