@@ -31,15 +31,21 @@ const ENFORCE_START_TIME = false;
 
 // Local date/time using the backend server timezone.
 function localDateStr(d = new Date()) {
-  const pad = (n) => String(n).padStart(2, '0');
-
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Singapore',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(d);
 }
 
 function localTimeStr(d = new Date()) {
-  const pad = (n) => String(n).padStart(2, '0');
-
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Singapore',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).format(d);
 }
 
 // Format "HH:MM:SS" into "2:00 PM".
@@ -116,7 +122,7 @@ const getAssignedJobs = async (req, res) => {
       SELECT
         b."booking_ID",
         b."customer_ID",
-        b."technician_ID",
+        b."technician_ID",b.timing,
 
         TO_CHAR(b."date", 'YYYY-MM-DD') AS "cleanDate",
         TO_CHAR(b."time", 'HH24:MI:SS') AS "rawTime",
@@ -180,7 +186,7 @@ const getAssignedJobs = async (req, res) => {
             weekday: 'short',
             day: 'numeric',
             month: 'short',
-            year: 'numeric',
+            year: 'numeric',timing: row.timing,
           });
         }
       } catch {

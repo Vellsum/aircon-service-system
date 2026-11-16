@@ -42,20 +42,38 @@ export function evaluateJobStart(job, now = new Date()) {
   const today = getLocalDateStr(now);
   const nowTime = getLocalTimeStr(now);
 
-  const d = job?.date ? String(job.date).slice(0, 10) : null;
-  if (!d) return { allowed: true, reason: '', kind: null };
+  const bookingDate = job?.date
+    ? String(job.date).slice(0, 10)
+    : null;
 
-  // Future date — locked until that day
-  if (d > today) {
-    return { allowed: false, reason: `scheduled for ${d}`, kind: 'future' };
+  // Do not allow starting jobs scheduled for a future date.
+  if (bookingDate && bookingDate > today) {
+    return {
+      allowed: false,
+      reason: `scheduled for ${bookingDate}`,
+      kind: 'future'
+    };
   }
 
-  // Today, but before the booking time
-  if (ENFORCE_START_TIME && d === today) {
-    const t = parseTimeTo24(job.time24) || parseTimeTo24(job.time);
-    if (t && t > nowTime) {
-      return { allowed: false, reason: `scheduled for today at ${t}`, kind: 'later-today' };
-    }
+  // Ignore the old database clock time.
+  // Morning and afternoon jobs are both startable once their
+  // respective periods begin. They remain startable afterwards.
+  const timing = String(job?.timing || '').trim().toLowerCase();
+
+  if (timing === 'morning' && nowTime < '00:00') {
+    return {
+      allowed: false,
+      reason: 'morning period has not started',
+      kind: 'period'
+    };
+  }
+
+  if (timing === 'afternoon' && nowTime < '12:00') {
+    return {
+      allowed: false,
+      reason: 'afternoon period has not started',
+      kind: 'period'
+    };
   }
 
   return { allowed: true, reason: '', kind: null };
