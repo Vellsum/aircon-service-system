@@ -377,14 +377,16 @@ const res = await fetch(`${API_BASE}/technician/profile?techId=${technicianID}`,
             </section>
 
             <aside className="tech-profile-availability" aria-labelledby="profile-availability-title">
-              <header>
+              {/*** <header>
                 <span className="tech-profile-section-icon" aria-hidden="true"><AvailabilityIcon /></span>
                 <div>
                   <span>Data availability</span>
                   <h2 id="profile-availability-title">Contact &amp; Profile Access</h2>
                 </div>
               </header>
-              <dl>
+               * 
+               * 
+               * <dl>
                 <InformationRow label="Phone" value="Not available" unavailable />
                 <InformationRow label="Email" value="Not available" unavailable />
                 <InformationRow
@@ -393,13 +395,19 @@ const res = await fetch(`${API_BASE}/technician/profile?techId=${technicianID}`,
                   unavailable
                 />
               </dl>
+               */}
+             
+              
             </aside>
           </div>
-          <ProfilePreparation
+          {/**
+           *  <ProfilePreparation
             session={preparationSession} profile={profile}
             ready={Boolean(technicianID && token && profile)}
             identityReady={Boolean(technicianID && token)}
           />
+           */}
+         
         </div>
       </div>
     </div>
