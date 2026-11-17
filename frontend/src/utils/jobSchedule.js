@@ -60,7 +60,7 @@ export function evaluateJobStart(job, now = new Date()) {
   // respective periods begin. They remain startable afterwards.
   const timing = String(job?.timing || '').trim().toLowerCase();
 
-  if (timing === 'morning' && nowTime < '00:00') {
+  if (timing === 'morning' && nowTime < '09:00') {
     return {
       allowed: false,
       reason: 'morning period has not started',

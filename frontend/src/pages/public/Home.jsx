@@ -151,7 +151,8 @@ const Home = () => {
       </section>
 
       {/* Testimonials — social proof builds trust before users sign up */}
-      <section className="site-section" id="testimonials">
+      {/**
+       * <section className="site-section" id="testimonials">
         <div className="site-section-head">
           <p className="site-eyebrow">Why Customers Choose Us</p>
           <h2>What Our Customers Say</h2>
@@ -169,6 +170,8 @@ const Home = () => {
           ))}
         </div>
       </section>
+       */}
+      
 
       {/*** Promotions — uncomment when your promo data is final
       <section className="site-section site-promos" id="promotions">

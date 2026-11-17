@@ -81,12 +81,13 @@ function TechnicianLayout() {
           </div>
 
           <div className="topbar-actions cf-topbar-actions">
-            <span className="topbar-duty-status cf-shift-status d-none d-sm-flex bg-light border-secondary-subtle">
+            {/**  <span className="topbar-duty-status cf-shift-status d-none d-sm-flex bg-light border-secondary-subtle">
               <span className="cf-shift-copy">
                 <small>Shift status</small>
                 <strong>Unavailable</strong>
               </span>
-            </span>
+            </span> */}
+          
 
             <button
               type="button"
