@@ -76,8 +76,7 @@ if (!data.user || !data.token) {
 
 if (userRole !== selectedRole) {
   throw new Error(
-    `You selected ${selectedRole}, but your account is registered as ${userRole || "an unknown role"}.`
-  );
+"Invalid username/email or password."  );
 }
 
 const authenticatedUser = {
