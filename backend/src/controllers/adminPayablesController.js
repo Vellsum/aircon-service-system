@@ -113,6 +113,7 @@ exports.updateService = async (req, res) => {
       cleanPrice = parseFloat(price.replace(/[^0-9.]/g, '')) || 0.0;
     }
 
+    //currently a bug here, fixing..., it cannot edit but can add
     const query = `
       UPDATE "payables".service
       SET
