@@ -290,13 +290,17 @@ const res = await fetch(`${API_BASE}/technician/profile?techId=${technicianID}`,
           <h1>Profile</h1>
           <p>View your technician identity, account record and current work summary.</p>
         </div>
-        <div className="tech-profile-read-only" aria-label="Read-only profile">
+        {/**
+         * 
+         *  <div className="tech-profile-read-only" aria-label="Read-only profile">
           <span aria-hidden="true"><IdentityIcon /></span>
           <div>
             <strong>Read-only record</strong>
             <small>Self-service updates are not yet available</small>
           </div>
         </div>
+         */}
+       
       </header>
 
       <div className="tech-profile-layout">
@@ -311,9 +315,12 @@ const res = await fetch(`${API_BASE}/technician/profile?techId=${technicianID}`,
           <div className="tech-profile-identity-meta">
             <span>Technician ID {technicianID ?? 'Unavailable'}</span>
           </div>
-          <p className="tech-profile-identity-note" role="status">
+          {/**
+           * <p className="tech-profile-identity-note" role="status">
             {profileMessage}
           </p>
+           */}
+          
         </aside>
 
         <div className="tech-profile-records">
@@ -376,8 +383,8 @@ const res = await fetch(`${API_BASE}/technician/profile?techId=${technicianID}`,
               </dl>
             </section>
 
-            <aside className="tech-profile-availability" aria-labelledby="profile-availability-title">
-              {/*** <header>
+            {/*** <aside className="tech-profile-availability" aria-labelledby="profile-availability-title">
+              <header>
                 <span className="tech-profile-section-icon" aria-hidden="true"><AvailabilityIcon /></span>
                 <div>
                   <span>Data availability</span>
@@ -395,10 +402,10 @@ const res = await fetch(`${API_BASE}/technician/profile?techId=${technicianID}`,
                   unavailable
                 />
               </dl>
-               */}
+              
              
               
-            </aside>
+            </aside> */}
           </div>
           {/**
            *  <ProfilePreparation
