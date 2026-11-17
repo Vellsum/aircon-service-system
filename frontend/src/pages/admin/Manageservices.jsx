@@ -65,6 +65,7 @@ const Manageservices = () => {
   );
 
   const handleSave = async (formData) => {
+    
     const token = localStorage.getItem("token") || "";
     const headers = {
       "Content-Type": "application/json",
@@ -89,34 +90,42 @@ const Manageservices = () => {
         showToast(`Error: ${err.message}`);
       }
     } else if (modal.mode === "edit") {
-      try {
-            console.log("Edit modal record:", modal.record);
+  try {
+    console.log("Full modal:", modal);
+    console.log("Record:", modal.record);
 
-     //   const targetId = modal.record.service_ID;
-     const targetId = modal.record.service_ID ?? modal.record.service_id;
-     if (!targetId) {
-  console.error("Invalid service record:", modal.record);
-  showToast("Error: Service ID is missing.");
-  return;
-}  
-     // const targetId = modal.record.service_ID;
-console.log("Target service ID:", targetId);
-        const res = await fetch(`${API_BASE}/admin/payables/services/${targetId}`, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify(formData),
-        });
+    const targetId = modal.record?.service_id;
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Failed to update service");
+    console.log("Target service ID:", targetId);
 
-        showToast("Service updated successfully!");
-        setModal(null);
-        fetchServices();
-      } catch (err) {
-        showToast(`Error: ${err.message}`);
-      }
+    if (!targetId) {
+      throw new Error("Service ID is missing from the selected record.");
     }
+
+    const res = await fetch(
+      `${API_BASE}/admin/payables/services/${targetId}`,
+      {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(formData),
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to update service");
+    }
+
+    showToast("Service updated successfully!");
+    setModal(null);
+    fetchServices();
+
+  } catch (err) {
+    console.error("Update service error:", err);
+    showToast(`Error: ${err.message}`);
+  }
+}
   };
 
   const handleRemove = async (service) => {
