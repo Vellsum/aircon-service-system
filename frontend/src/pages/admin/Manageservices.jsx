@@ -93,7 +93,13 @@ const Manageservices = () => {
             console.log("Edit modal record:", modal.record);
 
      //   const targetId = modal.record.service_ID;
-        const targetId = modal.record.service_ID;
+     const targetId = modal.record.service_ID ?? modal.record.service_id;
+     if (!targetId) {
+  console.error("Invalid service record:", modal.record);
+  showToast("Error: Service ID is missing.");
+  return;
+}  
+     // const targetId = modal.record.service_ID;
 console.log("Target service ID:", targetId);
         const res = await fetch(`${API_BASE}/admin/payables/services/${targetId}`, {
           method: "PUT",
