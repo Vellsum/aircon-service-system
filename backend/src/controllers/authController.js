@@ -216,7 +216,7 @@ exports.login = async (req, res) => {
             if (userRoleLower !== reqRoleLower) {
                 return res.status(400).json({
                     success: false,
-                    message: `This account is a ${user.accountType}, but you selected ${requestedRole}.\nPlease log in with the correct role.`
+                    message: `Invalid username or password.`
                 });
             }
         }
