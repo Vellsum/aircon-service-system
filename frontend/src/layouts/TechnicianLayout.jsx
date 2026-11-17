@@ -88,8 +88,8 @@ function TechnicianLayout() {
               </span>
             </span> */}
           
-
-            <button
+              {/**
+               *   <button
               type="button"
               className="topbar-alert-btn cf-topbar-alert"
               title="Notifications unavailable"
@@ -101,6 +101,8 @@ function TechnicianLayout() {
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
             </button>
+               */}
+          
           </div>
         </header>
 

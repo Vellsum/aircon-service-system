@@ -90,7 +90,11 @@ const Manageservices = () => {
       }
     } else if (modal.mode === "edit") {
       try {
+            console.log("Edit modal record:", modal.record);
+
+     //   const targetId = modal.record.service_ID;
         const targetId = modal.record.service_ID;
+console.log("Target service ID:", targetId);
         const res = await fetch(`${API_BASE}/admin/payables/services/${targetId}`, {
           method: "PUT",
           headers,
