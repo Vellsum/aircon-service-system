@@ -761,7 +761,7 @@ const submitReport = async (req, res) => {
           "booking_ID",
           "customer_ID",
           "technician_ID",
-          location
+          location,timing
 
         FROM "new_jobBooking"."Booking"
 
@@ -1058,41 +1058,42 @@ const submitReport = async (req, res) => {
         body.followUpOtherReason ||
         'Follow-up visit';
 
-      const fu = await client.query(
-        `
-          INSERT INTO "new_jobBooking"."Booking"
-          (
-            "customer_ID",
-            "technician_ID",
-            "date",
-            "time",
-            "isFollowup",
-            location,
-            status,
-            comments
-          )
-
-          VALUES (
-            $1,
-            $2,
-            $3::DATE,
-            '09:00:00'::TIME,
-            TRUE,
-            $4,
-            'pending',
-            $5
-          )
-
-          RETURNING "booking_ID"
-        `,
-        [
-          booking.customer_ID,
-          techId,
-          body.followUpDate,
-          booking.location || 'Singapore',
-          `Follow-up visit (${body.followUpPriority || 'Normal'} priority): ${fuReasons}`.slice(0, 500),
-        ]
-      );
+ const fu = await client.query(
+  `
+    INSERT INTO "new_jobBooking"."Booking"
+    (
+      "customer_ID",
+      "technician_ID",
+      "date",
+      "time",
+      timing,
+      "isFollowup",
+      location,
+      status,
+      comments
+    )
+    VALUES (
+      $1,
+      $2,
+      $3::DATE,
+      '09:00:00'::TIME,
+      $4,
+      TRUE,
+      $5,
+      'pending',
+      $6
+    )
+    RETURNING "booking_ID"
+  `,
+  [
+    booking.customer_ID,
+    techId,
+    body.followUpDate,
+    booking.timing,
+    booking.location || 'Singapore',
+    `Follow-up visit (${body.followUpPriority || 'Normal'} priority): ${fuReasons}`.slice(0, 500),
+  ]
+);
 
       followUpBookingId = fu.rows[0].booking_ID;
 
@@ -1115,7 +1116,7 @@ const submitReport = async (req, res) => {
             )
 
             VALUES (
-              'Pending',
+              'pending',
               TRUE,
               NULL,
               $1

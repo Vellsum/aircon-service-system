@@ -1421,7 +1421,7 @@ return res.status(201).json({ success: true, booking_ID: result.rows[0].booking_
             timing,
             "servicesBooked"
           )
-          VALUES ($1, NULL, $2, $3, false, $4, 'Pending', $5, $6)
+          VALUES ($1, NULL, $2, $3, false, $4, 'pending', $5, $6)
           RETURNING "booking_ID" AS "booking_ID"
         `, [customerID, booking.date, booking.actualTime, customer.customer_address, booking.timing, plan.service_name]);
 
