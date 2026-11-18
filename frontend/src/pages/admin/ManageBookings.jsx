@@ -935,6 +935,7 @@ console.log("making the reserve mock booking - managebooking.jsx")
 
 
    const tokenRR = localStorage.getItem("token")
+   console.log("Reserved slot alternatives:", alternativesWithMore);
   const make_reserved = await fetch(endpointRR, {
       method: "PUT",
       headers: {
