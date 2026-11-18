@@ -1079,7 +1079,7 @@ const submitReport = async (req, res) => {
             '09:00:00'::TIME,
             TRUE,
             $4,
-            'Pending',
+            'pending',
             $5
           )
 
