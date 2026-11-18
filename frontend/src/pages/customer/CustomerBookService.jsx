@@ -317,7 +317,13 @@ const selectedServiceNames = services
         estimatedtotalcost: pricing.total,    //the new data of estimated total time n cost
         estimatedtotaltime: totalEstimatedTime
       });
-      setConfirmed({ reference: res.reference, total: pricing.total });
+      console.log("Booking response:", res);
+console.log("Units submitted:", numberOfUnits);
+      setConfirmed({
+  reference: res.booking_ID || res.bookingId || res.reference,
+  numberOfUnits: Number(numberOfUnits),
+  total: pricing.total,
+});
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setSubmitError(err.message || "Could not create the booking. Please try again.");
@@ -388,12 +394,14 @@ const selectedServiceNames = services
           >
             <div className="cust-summary-row">
               <span className="cust-summary-label">Reference</span>
-              <span className="cust-summary-value dash-mono">{confirmed.reference}</span>
+              <span className="cust-summary-value dash-mono">
+                {confirmed.reference}                   {/** <-- booking id */}
+                </span>
             </div>
             <div className="cust-summary-row">
               <span className="cust-summary-label">Units</span>
               <span className="cust-summary-value">
-                {selectedUnits.map((unit) => unit.nickname).join(", ") || "—"}
+                {confirmed.numberOfUnits}   {/** <-- number of units */}
               </span>
             </div>
             <div className="cust-summary-row">
