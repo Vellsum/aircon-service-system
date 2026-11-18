@@ -1073,15 +1073,15 @@ const submitReport = async (req, res) => {
       comments
     )
     VALUES (
-      $1,
+        $1,
       NULL,
-      $3::DATE,
+      $2::DATE,
       '09:00:00'::TIME,
-      $4,
+      $3,
       TRUE,
-      $5,
+      $4,
       'pending',
-      $6
+      $5
     )
     RETURNING "booking_ID"
   `,
