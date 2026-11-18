@@ -331,13 +331,16 @@ const CustomerSubscriptions = () => {
                         <Icon name="checkCircle" size={14} />
                         One-time purchase
                       </span>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
+                     
+                      <div style={{ display: "flex", gap: 8 }}> {/***
+                       *   <button
                           className="dash-btn dash-btn-outline"
                           onClick={() => navigate("/customer/book-service")}
                         >
                           Schedule service
                         </button>
+                       */}
+                      
                         <button
                           className="dash-btn dash-btn-ghost"
                           onClick={() => navigate("/customer/service-catalog")}

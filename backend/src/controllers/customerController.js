@@ -64,7 +64,9 @@ const bookingSelect = () => `
     COALESCE(t.technician_rating, 5) AS technician_rating,
     COALESCE(t."jobsDone", 0) AS "jobsDone",
     ratings."customerRatingAverage", ratings."customerReviewCount",
-    svc.service_name, COALESCE(svc.amount, 0) AS amount,
+
+svc.service_name,
+b."estimateTotalCost" AS amount,
     rep.report_summary
 
   FROM "new_jobBooking"."Booking" b
@@ -89,7 +91,11 @@ const bookingSelect = () => `
       JOIN "new_jobBooking".job j ON j."job_ID" = w."job_ID"
       LEFT JOIN "new_jobBooking"."serviceReport" sr ON sr."reportID" = j."serviceReport"
      WHERE w."booking_ID" = b."booking_ID"
-  ) rep ON true`;
+  ) rep ON true`
+   
+  
+  ;
+   
 
   //helper method to dunno wat --------------------------------------------------------------
 function shapeBooking(row, customerUnits = []) {
@@ -323,6 +329,7 @@ const getDashboard = async (req, res) => {
       `${bookingSelect()} WHERE b."customer_ID" = $1
          AND (b.date < ${TODAY} OR LOWER(b.status) IN ('completed','cancelled'))
          ORDER BY b.date DESC, b.time DESC LIMIT 4`, [cid]);
+         
 
     const unitList = await getCustomerUnits(pool, cid);
     const s = statsResult.rows[0] || {};
@@ -347,6 +354,9 @@ const getDashboard = async (req, res) => {
 
 /* GET /api/customer/bookings — identity comes from the verified login token. */
 const getMyBookings = async (req, res) => {
+    console.log("========== GET MY BOOKINGS REACHED ==========");
+  console.log("Request URL:", req.originalUrl);
+  console.log("Customer:", req.ratingCustomer?.customerID);
   try {
     const customerID = req.ratingCustomer?.customerID;
     if (!Number.isSafeInteger(customerID) || customerID <= 0) {
@@ -355,6 +365,10 @@ const getMyBookings = async (req, res) => {
     if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
     const result = await pool.query(
       `${bookingSelect()} WHERE b."customer_ID" = $1 ORDER BY b.date DESC, b.time DESC`, [customerID]);
+      console.log("DATABASE COST CHECK:", result.rows.map(row => ({
+  booking_ID: row.booking_ID,
+  estimateTotalCost: row.amount
+})));
     const ratings = await pool.query(`
       SELECT r."booking_ID" AS "booking_ID", r.stars, r."technician_ID" AS "technicianID", r."submittedAt" AS "submittedAt"
       FROM "new_jobBooking"."bookingRating" r
@@ -366,6 +380,10 @@ const getMyBookings = async (req, res) => {
     res.status(200).json({ success: true, bookings: (result.rows || []).map((r) => ({
       ...shapeBooking(r, unitList), rating: ratingByBooking.get(r.booking_ID) || null,
     })) });
+    console.log("FINAL API COST CHECK:", shapedBookings.map(b => ({
+  booking_ID: b.booking_ID,
+  amount: b.amount
+})));
   } catch (err) {
     console.error('[Cool Fix] GET Customer Bookings Error:', err.message);
     res.status(500).json({ success: false, message: err.message, bookings: [] });
