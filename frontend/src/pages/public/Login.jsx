@@ -128,7 +128,7 @@ const authenticatedUser = {
             {error && <div className="login-error">{error}</div>}
 
             <div className="dash-form-row">
-              <label className="dash-form-label">Username / Email</label>
+              <label className="dash-form-label">Username</label>
               <input
                 className="dash-form-input"
                 type="text" //change from ëmail to text"

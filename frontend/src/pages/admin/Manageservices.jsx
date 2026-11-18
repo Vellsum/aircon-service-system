@@ -16,7 +16,7 @@ const editServiceFields = [
 ];
 
 const viewServiceFields = [
-  { key: "service_ID", label: "Service ID" },
+  { key: "service_id", label: "Service ID" },
   { key: "service_name", label: "Service Name" },
   { key: "price", label: "Price" },
   { key: "description", label: "Description" },
@@ -133,7 +133,7 @@ const Manageservices = () => {
 
     try {
       const token = localStorage.getItem("token") || "";
-      const res = await fetch(`${API_BASE}/admin/payables/services/${service.service_ID}`, {
+      const res = await fetch(`${API_BASE}/admin/payables/services/${service.service_id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -198,7 +198,7 @@ const Manageservices = () => {
                 ) : filtered.length > 0 ? (
                   filtered.map((s) => (
                     <tr key={s.service_ID}>
-                      <td className="dash-mono">#{s.service_ID}</td>
+                      <td className="dash-mono">#{s.service_id}</td>
                       <td><strong>{s.service_name}</strong></td>
                       <td className="dash-mono">${parseFloat(s.price || 0).toFixed(2)}</td>
                       <td>{s.description || "—"}</td>
