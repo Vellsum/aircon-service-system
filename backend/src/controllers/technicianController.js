@@ -1080,7 +1080,7 @@ const submitReport = async (req, res) => {
       $4,
       TRUE,
       $5,
-      'pending',
+      'confirmed',
       $6
     )
     RETURNING "booking_ID"
