@@ -1087,7 +1087,7 @@ const submitReport = async (req, res) => {
   `,
   [
     booking.customer_ID,
-    techId,
+   // techId,
     body.followUpDate,
     booking.timing,
     booking.location || 'Singapore',
