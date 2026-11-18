@@ -111,14 +111,24 @@ useEffect(() => {
  
 
 
-  useEffect(() => {
-    let alive = true;
-    getDashboard()
-      .then((res) => alive && setData(res))
-      .catch((err) => alive && setError(err.message))
-      .finally(() => alive && setLoading(false));
-    return () => { alive = false; };
-  }, []);
+ useEffect(() => {
+  let alive = true;
+
+  getDashboard()
+    .then((res) => {
+      console.log("FULL DASHBOARD RESPONSE:", res);
+      console.log("NEXT BOOKING:", res?.nextBooking);
+      console.log("BOOKING AMOUNT:", res?.nextBooking?.amount);
+
+      if (alive) setData(res);
+    })
+    .catch((err) => alive && setError(err.message))
+    .finally(() => alive && setLoading(false));
+
+  return () => {
+    alive = false;
+  };
+}, []);
 
   useEffect(() => {
     let alive = true;
@@ -866,10 +876,21 @@ try {
             {nextBooking ? (
               <div className="cust-nextvisit">
                 <div className="cust-nextvisit-top">
-                  <div>
-                    <p className="cust-nextvisit-when">
-                      {formatLongDate(nextBooking.date)} · {nextBooking.time}
+                  <div>{/**
+                   *   <p className="cust-nextvisit-when">
+                      {formatLongDate(nextBooking.date)} · {nextBooking.time} - {nextBooking.timing}
                     </p>
+                   */}
+                  
+                    <p className="cust-nextvisit-when">
+  {formatLongDate(nextBooking.date)} · {
+    nextBooking.timing?.toLowerCase() === "morning"
+      ? "9:00 AM"
+      : nextBooking.timing?.toLowerCase() === "afternoon"
+        ? "12:00 PM"
+        : "Time not specified"
+  }
+</p>
                     {/* ✅ FIXED: pass units so it resolves real units, not mock */}
                     <p className="cust-nextvisit-service">
                       {nextBooking.service_name} · {describeBookingUnits(nextBooking, units)}
@@ -894,6 +915,8 @@ try {
                       <Icon name="receipt" size={16} />
                       <div>
                         <p className="cust-meta-label">Estimated total</p>
+                                            
+
                         <p className="cust-meta-value">{formatMoney(nextBooking.amount)}</p>
                       </div>
                     </div>

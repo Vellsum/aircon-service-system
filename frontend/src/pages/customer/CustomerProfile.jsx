@@ -791,13 +791,18 @@ const CustomerProfile = () => {
               </span>
             </div>
 
-            <button
+                    {/***
+                     * IF I FORGET PASSWORD THEN HOW??
+                     * 
+                     *   <button
               className="dash-btn dash-btn-outline"
               style={{ width: "100%", marginTop: 14 }}
               type="button"
             >
               Change password
             </button>
+                     */}
+          
           </section>
         </div>
       </div>
