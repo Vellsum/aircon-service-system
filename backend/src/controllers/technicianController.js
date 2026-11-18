@@ -1074,7 +1074,7 @@ const submitReport = async (req, res) => {
     )
     VALUES (
       $1,
-      $2,
+      NULL,
       $3::DATE,
       '09:00:00'::TIME,
       $4,
