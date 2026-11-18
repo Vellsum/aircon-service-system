@@ -1074,13 +1074,13 @@ const submitReport = async (req, res) => {
     )
     VALUES (
       $1,
-      $2,
+      NULL,
       $3::DATE,
       '09:00:00'::TIME,
       $4,
       TRUE,
       $5,
-      'confirmed',
+      'pending',
       $6
     )
     RETURNING "booking_ID"
