@@ -1501,23 +1501,18 @@ exports.makeReservedSlots = async (req, res) => {
       });
     }
 
-    // Next three: assisting technicians.
-    for (const alternative of alternativesWithMore) {
-      const assistingId = normalizeId(alternative.assisting);
+    // Add assisting technician placeholders only when an ID is provided.
+for (const alternative of alternativesWithMore) {
+  const assistingId = normalizeId(alternative.assisting);
 
-      if (!assistingId) {
-        return res.status(400).json({
-          success: false,
-          message: "A valid assisting technician ID is required for all three alternatives."
-        });
-      }
-
-      rowsToInsert.push({
-        date: normalizeDateToSql(alternative.date),
-        timing: normalizeTimingSlot(alternative.time),
-        technicianId: assistingId
-      });
-    }
+  if (assistingId) {
+    rowsToInsert.push({
+      date: normalizeDateToSql(alternative.date),
+      timing: normalizeTimingSlot(alternative.time),
+      technicianId: assistingId
+    });
+  }
+}
 
     const values = [];
     const placeholders = [];
