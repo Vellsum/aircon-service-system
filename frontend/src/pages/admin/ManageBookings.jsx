@@ -21,7 +21,7 @@ const statusFilters = [
   "All",
   "confirmed",
   "pending",
-  "Assigned",
+ // "Assigned",
   "Completed",
   "Cancelled",
   "request_reschedule",  "RR_reserved"
@@ -876,7 +876,13 @@ const responseText = await response.text();
 console.log("Alternatives HTTP status:", response.status);
 console.log("Alternatives response body:", responseText);
 
-let result = {};
+let result = {};if (responseText) {
+  try {
+    result = JSON.parse(responseText);
+  } catch {
+    throw new Error(`Invalid server response: ${responseText}`);
+  }
+}
 
 if (responseText) {
   try {
@@ -894,8 +900,11 @@ setModal(null);
 setModalAction("default");
 
 await fetchData();
-  }catch(err){
 
+  }catch(err){
+ console.error("Submitting alternatives failed:", err);
+  showToast(`Error: ${err.message}`);
+  return;
   }
 
 // make the RR reserved mock booking

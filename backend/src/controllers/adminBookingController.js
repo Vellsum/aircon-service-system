@@ -1321,6 +1321,7 @@ exports.rescheduleRequestedBooking = async (req, res) => {
   }
 };
 
+
 /* ==========================================================================
  * SUBMIT THREE RESCHEDULING ALTERNATIVES
  * ======================================================================== */
@@ -1330,6 +1331,15 @@ exports.rescheduleRequestedBooking = async (req, res) => {
  *
  * Saves three alternatives and changes status to request_reschedule.
  */
+function normalizeTimingSlot(value) {
+  const slot = String(value ?? "").trim().toLowerCase();
+
+  if (slot === "morning") return "Morning";
+  if (slot === "afternoon") return "Afternoon";
+
+  return null;
+}
+
 exports.submitBookingAlternatives = async (req, res) => {
   try {
     const bookingId = normalizeId(req.params.bookingId);
@@ -1338,21 +1348,21 @@ exports.submitBookingAlternatives = async (req, res) => {
     if (!bookingId) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid Booking ID.'
+        message: "Invalid Booking ID."
       });
     }
 
     if (!Array.isArray(alternatives) || alternatives.length !== 3) {
       return res.status(400).json({
         success: false,
-        message: 'Exactly three booking alternatives are required.'
+        message: "Exactly three booking alternatives are required."
       });
     }
 
     for (const [index, alternative] of alternatives.entries()) {
       if (
         !normalizeDateToSql(alternative.date) ||
-        !normalizeTimeToSql(alternative.time) ||
+        !normalizeTimingSlot(alternative.time) ||
         !normalizeId(alternative.technician_ID)
       ) {
         return res.status(400).json({
@@ -1364,17 +1374,17 @@ exports.submitBookingAlternatives = async (req, res) => {
 
     const values = [
       normalizeDateToSql(alternatives[0].date),
-      normalizeTimeToSql(alternatives[0].time),
+      normalizeTimingSlot(alternatives[0].time),
       normalizeId(alternatives[0].technician_ID),
       normalizeId(alternatives[0].assisting),
 
       normalizeDateToSql(alternatives[1].date),
-      normalizeTimeToSql(alternatives[1].time),
+      normalizeTimingSlot(alternatives[1].time),
       normalizeId(alternatives[1].technician_ID),
       normalizeId(alternatives[1].assisting),
 
       normalizeDateToSql(alternatives[2].date),
-      normalizeTimeToSql(alternatives[2].time),
+      normalizeTimingSlot(alternatives[2].time),
       normalizeId(alternatives[2].technician_ID),
       normalizeId(alternatives[2].assisting),
 
@@ -1419,18 +1429,19 @@ exports.submitBookingAlternatives = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Booking alternatives submitted successfully.'
+      message: "Booking alternatives submitted successfully."
     });
   } catch (err) {
-    console.error('[submitBookingAlternatives] Error:', err);
+    console.error("[submitBookingAlternatives] Error:", err);
 
     return res.status(500).json({
       success: false,
-      message: 'Failed to submit booking alternatives.',
+      message: "Failed to submit booking alternatives.",
       error: err.message
     });
   }
 };
+
 
 /* ==========================================================================
  * CREATE RESERVED RESCHEDULING SLOTS
@@ -1452,7 +1463,7 @@ exports.makeReservedSlots = async (req, res) => {
     if (!customerId) {
       return res.status(400).json({
         success: false,
-        message: 'A valid customer ID is required.'
+        message: "A valid customer ID is required."
       });
     }
 
@@ -1462,14 +1473,14 @@ exports.makeReservedSlots = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: 'Exactly three alternatives are required.'
+        message: "Exactly three alternatives are required."
       });
     }
 
     for (const [index, alternative] of alternativesWithMore.entries()) {
       if (
         !normalizeDateToSql(alternative.date) ||
-        !normalizeTimeToSql(alternative.time) ||
+        !normalizeTimingSlot(alternative.time) ||
         !normalizeId(alternative.technician_ID)
       ) {
         return res.status(400).json({
@@ -1485,17 +1496,26 @@ exports.makeReservedSlots = async (req, res) => {
     for (const alternative of alternativesWithMore) {
       rowsToInsert.push({
         date: normalizeDateToSql(alternative.date),
-        timing: normalizeTimeToSql(alternative.time),
+        timing: normalizeTimingSlot(alternative.time),
         technicianId: normalizeId(alternative.technician_ID)
       });
     }
 
     // Next three: assisting technicians.
     for (const alternative of alternativesWithMore) {
+      const assistingId = normalizeId(alternative.assisting);
+
+      if (!assistingId) {
+        return res.status(400).json({
+          success: false,
+          message: "A valid assisting technician ID is required for all three alternatives."
+        });
+      }
+
       rowsToInsert.push({
         date: normalizeDateToSql(alternative.date),
-        timing: normalizeTimeToSql(alternative.time),
-        technicianId: normalizeId(alternative.assisting)
+        timing: normalizeTimingSlot(alternative.time),
+        technicianId: assistingId
       });
     }
 
@@ -1509,11 +1529,11 @@ exports.makeReservedSlots = async (req, res) => {
         customerId,
         row.date,
         row.timing,
-        'RR reserving...',
-        'RESERVED SLOT',
+        "RR reserving...",
+        "RESERVED SLOT",
         row.technicianId,
-        'RR_reserved',
-        '12:00:00',
+        "RR_reserved",
+        "12:00:00",
         0
       );
 
@@ -1544,7 +1564,7 @@ exports.makeReservedSlots = async (req, res) => {
         "time",
         "numberOfUnits"
       )
-      VALUES ${placeholders.join(', ')}
+      VALUES ${placeholders.join(", ")}
       RETURNING "booking_ID"
     `;
 
@@ -1552,15 +1572,15 @@ exports.makeReservedSlots = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Reserved slots created successfully.',
+      message: "Reserved slots created successfully.",
       booking_IDs: result.rows.map(row => row.booking_ID)
     });
   } catch (err) {
-    console.error('[makeReservedSlots] Error:', err);
+    console.error("[makeReservedSlots] Error:", err);
 
     return res.status(500).json({
       success: false,
-      message: 'Failed to create reserved slots.',
+      message: "Failed to create reserved slots.",
       error: err.message
     });
   }
