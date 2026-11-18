@@ -945,6 +945,15 @@ console.log("making the reserve mock booking - managebooking.jsx")
         customer_ID:  Number(record.customer_ID),}),
     });
 console.log("able to call method")
+const reserveText = await make_reserved.text();
+
+console.log("Reserve URL:", endpointRR);
+console.log("Reserve HTTP status:", make_reserved.status);
+console.log("Reserve response:", reserveText);
+console.log("Reserve payload:", {
+  alternativesWithMore,
+  customer_ID: Number(record.customer_ID),
+});
 
 
 };//end of fucking method
