@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import "../../styles/shared.css";
 import "../../styles/Home.css"; // Local style import
 
+//191126 - weijie cleaned codes
+
 //the dummy datas all here currently====================================================================
 
 const services = [
@@ -44,6 +46,7 @@ const Home = () => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
+  //return actual html ==========================================================================================
   return (
     <div>
       <nav className="site-nav">
@@ -73,6 +76,7 @@ const Home = () => {
         </div>
       </nav>
 
+{/** main banner ------------------------------------------------------------------- */}
       <section className="site-hero">
         <p className="site-hero-eyebrow">TRUSTED AIRCON SPECIALISTS IN SINGAPORE</p>
         <h1>Cool Comfort, Fixed Right.</h1>
@@ -96,6 +100,7 @@ const Home = () => {
         </div>
       </section>
     
+    {/**page content ----------------------------------------------------------------------------------------- */}
       <section className="site-section" id="about">
         <div className="site-about">
           <div>
@@ -150,47 +155,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Testimonials — social proof builds trust before users sign up */}
-      {/**
-       * <section className="site-section" id="testimonials">
-        <div className="site-section-head">
-          <p className="site-eyebrow">Why Customers Choose Us</p>
-          <h2>What Our Customers Say</h2>
-          <p>Real feedback from homes and businesses we keep cool.</p>
-        </div>
-        <div className="site-services">
-          {testimonials.map((t) => (
-            <div className="site-service-card" key={t.name}>
-              <div className="site-service-icon">⭐⭐⭐⭐⭐</div>
-              <p style={{ fontStyle: "italic" }}>"{t.quote}"</p>
-              <h3 style={{ fontSize: "1rem" }}>
-                {t.name} <span style={{ fontWeight: 400, opacity: 0.7 }}>— {t.role}</span>
-              </h3>
-            </div>
-          ))}
-        </div>
-      </section>
-       */}
-      
-
-      {/*** Promotions — uncomment when your promo data is final
-      <section className="site-section site-promos" id="promotions">
-        <div className="site-section-head">
-          <p className="site-eyebrow">Limited Time</p>
-          <h2>Ongoing Promotions</h2>
-          <p>Save on your next booking with one of our current offers.</p>
-        </div>
-        <div className="site-promo-grid">
-          {promotions.map((promo) => (
-            <div className="site-promo-card" key={promo.code}>
-              <span className="site-promo-code">{promo.code}</span>
-              <h3>{promo.title}</h3>
-              <p>{promo.desc}</p>
-              <p className="site-promo-validity">{promo.validity}</p>
-            </div>
-          ))}
-        </div>
-      </section> */}
 
       <div className="site-cta">
         <h2>Ready to book your next service?</h2>
@@ -213,6 +177,7 @@ const Home = () => {
             <p>Reliable aircon servicing, repairs, and installation you can trust.</p>
           </div>
 
+{/**footer ----------------------------------------------------------------------------------------------------------------- */}
           <div>
             <h4>Contact</h4>
             <ul>

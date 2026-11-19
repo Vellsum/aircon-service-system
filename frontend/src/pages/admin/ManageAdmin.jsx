@@ -196,18 +196,6 @@ const ManageAdmins = () => {
                         <strong>{admin.admin_name}</strong>
                       </td>
 
-{/** <td>
-                        <div className="dash-row-actions">
-                          <button
-                            className="dash-row-btn"
-                            onClick={() =>
-                              setModal({ mode: "edit", record: admin })
-                            }
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      </td>*/}
                       
                     </tr>
                   ))

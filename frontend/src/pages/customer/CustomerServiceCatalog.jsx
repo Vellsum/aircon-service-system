@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AirconUnitArt, Icon, SnowfieldBackdrop } from "../../components/customer/CustomerIcons";
 import { formatMoney } from "../../data/customer/customerSelectors";
 import { getPlans, getPromotions, getServices,purchaseSubscription } from "../../api/customerApi";
+// 191126 - weijie cleaned the codes
 
 //I AM NOW THE PURCHASE SUBSCRIPTION PAGE=======================================================
 
@@ -125,68 +126,6 @@ const handlePurchase = async (plan) => {
           <AirconUnitArt width={210} />
         </div>
       </section>
-
-      {/* Individual services — real data from payables.service ---------------------------------------------------------------------------------------------------------------------
-      <section className="cust-panel">
-        <div className="cust-panel-head">
-          <div>
-            <h2>Individual services</h2>
-            <p>Book a one-off visit — pay only for what you need.</p>
-          </div>
-          <div className="dash-chips">
-            {categories.map((entry) => (
-              <button
-                key={entry}
-                className={`dash-chip${category === entry ? " is-active" : ""}`}
-                onClick={() => setCategory(entry)}
-              >
-                {entry}
-              </button>
-            ))}
-          </div>
-        </div>
-      
-     <div className="cust-choice-grid">
-          {visible.map((service) => (
-            <article className="cust-choice" key={service.service_id} style={{ cursor: "default" }}>
-              <span className="cust-choice-icon">
-                <Icon name={service.icon || "snowflake"} size={19} />
-              </span>
-              <h3 className="cust-choice-title">{service.service_name}</h3>
-              <p className="cust-choice-desc">{service.description}</p>
-
-              <ul className="cust-perks" style={{ margin: "4px 0 8px" }}>
-                {(service.includes || []).slice(0, 3).map((line) => (
-                  <li className="cust-perk" key={line}>
-                    <Icon name="check" size={13} strokeWidth={2.6} />
-                    {line}
-                  </li>
-                ))}
-              </ul>
-
-              <div className="cust-choice-foot">
-                <span className="cust-price">
-                  {formatMoney(service.price)}
-                  <span className="cust-price-unit">{service.unit_label}</span>
-                </span>
-                <span className="cust-duration">
-                  <Icon name="clock" size={12} />
-                  {service.duration_mins} min
-                </span>
-              </div>
-
-              <button
-                className="dash-btn dash-btn-primary"
-                style={{ width: "100%", marginTop: 4 }}
-                onClick={() => navigate(`/customer/book?service=${service.service_id}`)}
-              >
-                Book this service
-              </button>
-            </article>
-          ))}
-        </div>
-      
-      </section>*/}
       
             {/* Maintenance plans — real data from payables.subscription
             USES REAL DATA ------------------------------------------------------------------------------------------------------------------------------------ */}
@@ -255,7 +194,7 @@ onClick={() => handlePurchase(plan)}              >
       </section>
 
       {/* Promotions — real data from payables.promotions ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/}
-     {/**ITS NOW REAL DATA, actually always was */} <section className="cust-panel">
+     <section className="cust-panel">
         <div className="cust-panel-head">
           <div>
             <h2>Current promotions</h2>

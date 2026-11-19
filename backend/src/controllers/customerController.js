@@ -735,19 +735,6 @@ const createBooking = async (req, res) => {
 
     try {
   console.log("Booking request body:", req.body);
-//console.log("Estimated cost:", req.body.estimatedTotalCost);
-//console.log("Estimated time:", req.body.estimatedTotalTime);
-/**
- * console.log("Booking values:", {
-    numberOfUnits,
-    time,
-    comments,
-    estimatedtotalcost,
-    estimatedtotaltime
-});
- */
-
-
         //Extract data from the request
         const { customer_ID, //always have this
             //service id? nah we need junction table
@@ -759,22 +746,6 @@ const createBooking = async (req, res) => {
                 //promocode cannot really, its a frontend calculation thing
                 estimatedtotalcost, 
                 estimatedtotaltime,services} = req.body; //these things take name from frontend 
-                /**
-                 * console.log("Required booking fields:", {
-    customer_ID,
-    date,
-    time,
-    location
-});
-        if (!customer_ID || !date || !time || !location) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Please provide customer_ID, date, time, and location.' 
-            });
-        }
-dfssd
-                 */
-
 
         // technician_ID is set to NULL until assigned by Admin
         const result = await pool.query(`
@@ -808,156 +779,7 @@ dfssd
         console.error('Error creating booking:', err);
         res.status(500).json({ success: false, error: err.message });
     }
-
-
-
-  /**the ai slop original
-   * 
-   * 
-   * 
-   * try {
-    if (!pool) return res.status(500).json({ success: false, message: 'Database offline' });
-    const customer = await resolveCustomer(pool, parseInt(req.query.customerId, 10) || 1);
-    if (!customer) return res.status(404).json({ success: false, message: 'Customer profile not found' });
-
-    const { serviceIds, serviceId, numberOfUnits, date, time, location, comments, promoCode } = req.body || {};
-
-    // Accept an array of services OR a single id (backwards compatible)
-    const ids = Array.isArray(serviceIds)
-      ? serviceIds.map(Number).filter(Boolean)
-      : (serviceId ? [Number(serviceId)] : []);
-    const units = Math.min(Math.max(parseInt(numberOfUnits, 10) || 1, 1), 10);
-
-    if (ids.length === 0 || !date || !time || !location)
-      return res.status(400).json({ success: false, message: 'serviceIds, date, time and location are required' });
-
-    // ---- Normalize date to strict YYYY-MM-DD (SQL-safe for DATE/DATETIME columns) ----
-    const normalizeDate = (value) => {
-      const s = String(value || '').trim();
-      // Already ISO (e.g. "2026-10-25" or "2026-10-25T00:00:00.000Z"): take the date part
-      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-      // Singapore-style DD/MM/YYYY (e.g. "25/10/2026")
-      const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (dmy) {
-        const dd = parseInt(dmy[1], 10), mm = parseInt(dmy[2], 10);
-        if (dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12) {
-          return `${dmy[3]}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
-        }
-        return null;
-      }
-      // Last resort: let JS parse ("Oct 25 2026", etc.)
-      const d = new Date(s);
-      if (!Number.isNaN(d.getTime())) {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-      }
-      return null;
-    };
-
-    // ---- Normalize time to 24h HH:MM:SS (SQL-safe for TIME columns) ----
-    const normalizeTime = (value) => {
-      const s = String(value || '').trim().toLowerCase();
-      // Some pickers send a period label ("Morning") instead of a clock time — map it
-      if (/\bmorning\b/.test(s)) return '09:00:00';
-      if (/\bnoon\b/.test(s)) return '12:00:00';
-      if (/\bafternoon\b/.test(s)) return '14:00:00';
-      if (/\bevening\b/.test(s)) return '18:00:00';
-      if (/\bnight\b/.test(s)) return '20:00:00';
-      // "9:00 am", "09:00 pm", "9:00:30 am"
-      let m = s.match(/^(\d{1,2})[:.](\d{2})(?::(\d{2}))?\s*(am|pm)\.?$/);
-      if (m) {
-        let h = parseInt(m[1], 10) % 12;
-        if (m[4] === 'pm') h += 12;
-        return `${String(h).padStart(2, '0')}:${m[2]}:${m[3] || '00'}`;
-      }
-      // "09:00", "9:00", "09:00:00"
-      m = s.match(/^(\d{1,2})[:.](\d{2})(?::(\d{2}))?$/);
-      if (m) {
-        const h = parseInt(m[1], 10);
-        if (h > 23) return null;
-        return `${String(h).padStart(2, '0')}:${m[2]}:${m[3] || '00'}`;
-      }
-      // "0900" or "090000"
-      m = s.match(/^(\d{2})(\d{2})(\d{2})?$/);
-      if (m) {
-        const h = parseInt(m[1], 10), mm = parseInt(m[2], 10);
-        if (h > 23 || mm > 59) return null;
-        return `${m[1]}:${m[2]}:${m[3] || '00'}`;
-      }
-      return null;
-    };
-// this is customer controller, this goes to db instead of booking controller
-    const cleanDate = normalizeDate(date);
-    const cleanTime = normalizeTime(time);
-    if (!cleanDate)
-      return res.status(400).json({ success: false, message: `Invalid date received: "${date}". Expected e.g. 2026-10-25.` });
-    if (!cleanTime)
-      return res.status(400).json({ success: false, message: `Invalid time received: "${time}". Expected e.g. "9:00 AM" or "09:00".` });
-    console.log(`[Cool Fix] Booking date/time normalized: "${date}" -> ${cleanDate}, "${time}" -> ${cleanTime}`);
-
-    // Unit count goes into comments so the technician sees it on the job
-    const finalComments = units > 1
-      ? `${comments ? String(comments) + ' | ' : ''}[${units} aircon units]`
-      : (comments ? String(comments) : null);
-
-    const inserted = await pool.request()
-      .input('cid', sql.Int, customer.customer_ID)
-      .input('date', sql.VarChar(10), cleanDate)
-      .input('time', sql.VarChar(8), cleanTime)
-      .input('location', sql.VarChar(100), String(location))
-      .input('status', sql.VarChar(100), 'Pending')
-      .input('comments', sql.VarChar(500), finalComments)
-      .query(`INSERT INTO [new_jobBooking].[Booking] (customer_ID, [date], [time], location, [status], comments)
-              OUTPUT INSERTED.booking_ID VALUES (@cid, @date, @time, @location, @status, @comments)`);
-    const bookingId = inserted.rows[0].booking_ID;
-
-    // One job per service per unit → dashboard amount (SUM of job prices) matches the frontend estimate
-    let jobCount = 0;
-    try {
-      for (const sid of ids) {
-        for (let u = 0; u < units; u++) {
-          const jobRes = await pool.request()
-            .input('status', sql.VarChar(100), 'Pending')
-            .input('serviceId', sql.Int, sid)
-            .query(`INSERT INTO [new_jobBooking].[job] (job_status, isFollowup, serviceID)
-                    OUTPUT INSERTED.job_ID VALUES (@status, 0, @serviceId)`);
-          await pool.request().input('jobId', sql.Int, jobRes.rows[0].job_ID).input('bookingId', sql.Int, bookingId)
-            .query(`INSERT INTO [new_jobBooking].[work] (job_ID, booking_ID) VALUES (@jobId, @bookingId)`);
-          jobCount++;
-        }
-      }
-    } catch (linkErr) {
-      console.error('[Cool Fix] job/work link skipped:', linkErr.message);
-    }
-
-    if (promoCode) {
-      try {
-        const promoRes = await pool.request().input('code', sql.VarChar(255), String(promoCode).toUpperCase())
-          .query(`SELECT promo_id FROM [payables].[promotions] WHERE promoCode = code`);
-        if (promoRes.rows.length) {
-          await pool.request()
-            .input('customerID', sql.Int, customer.customer_ID)
-            .input('promoID', sql.Int, promoRes.rows[0].promo_id)
-            .input('serviceID', sql.Int, ids[0])
-            .query(`INSERT INTO [payables].[purchases] (customerID, promoID, serviceID) VALUES (@customerID, @promoID, @serviceID)`);
-        }
-      } catch (promoErr) { console.error('[Cool Fix] promo log skipped:', promoErr.message); }
-    }
-
-    return res.status(201).json({ success: true, booking_ID: bookingId, jobs_created: jobCount,
-      reference: `BK-${new Date().getFullYear()}-${String(bookingId).padStart(3, '0')}` });
-  } catch (err) {
-    console.error('[Cool Fix] POST Customer Booking Error:', err.message,
-      '| received date =', req.body && req.body.date, '| received time =', req.body && req.body.time);
-    res.status(500).json({ success: false, message: err.message });
-  }
-   * 
-   * 
-   */
-  
-};
+};//end of create booking
 
 /* ---------- PUT /api/customer/bookings/:bookingId/cancel?customerId=# ---------- */
 const cancelBooking = async (req, res) => {
@@ -1468,6 +1290,7 @@ return res.status(201).json({ success: true, booking_ID: result.rows[0].booking_
 };
 
 module.exports = {clone2,clone3,cloneBooking, pickRR1,pickRR2,pickRR3, chooseRROption, getDashboard, getMyBookings, rateBooking, getMyUnits, registerUnit, 
-  getServices, getPlans, getMySubscriptions, getPromotions, getAddresses, createBooking, cancelBooking, getProfile,
-   updateProfile,getINCOMING,updateIncomingBookingStatus,
-  getOtherAddresses,updateOtherAddress ,makeNewExtraAddress,purchaseSubscription};
+                  getServices, getPlans, getMySubscriptions, getPromotions, getAddresses, createBooking, cancelBooking, getProfile,
+                  updateProfile,getINCOMING,updateIncomingBookingStatus,
+                  getOtherAddresses,updateOtherAddress ,makeNewExtraAddress,purchaseSubscription
+};

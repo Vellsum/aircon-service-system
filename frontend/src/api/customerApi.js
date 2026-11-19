@@ -1,19 +1,5 @@
-//const API_BASE = 'http://localhost:5000/api'; //something tells me when hosting these need to change
-//const API_BASE = 'https://aircon-service-system.onrender.com/api'
-//const API_BASE = 'http://localhost:5000/api';
-//const API_BASE = 'https://aircon-service-system.onrender.com/api'
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
-/*
- *  THIS IS THE API
-THIS IS A CONNECTOR FOR FRONTEND CODE TO CALL METHODS PROVIDED BY BACKEND
-WHEN CALLING METHOD, THEY JUST PUT THE DATA IN THESE METHOD ARGUMENTS
-
-THESE METHODS WHEN CALLED, SEND POST REQUEST TO BACKEND NODE  (cd backend, npm start, of localhost 5000)
-
- * 
- */
-
 
 function getAuthHeaders() {
   const token = localStorage.getItem('token') || localStorage.getItem('aircon_token') || '';
@@ -23,26 +9,13 @@ function getAuthHeaders() {
 // Same pattern as TechnicianDashboard: read id from localStorage "user"
 function getCurrentCustomerId() {
   
-     try {
+  try {
     const stored = JSON.parse(localStorage.getItem('user') || '{}');
     return stored.customer_ID || stored.customerId || stored.id || stored.user_ID || 1;
-   // console.log('customer id: '+stored.customer_ID);
-  } catch {
-    return 1;
-  }
-}
-/**
- * 
- *   function getCurrentCustomerId() {
-  try { //chatgpt adviced
-    const stored = JSON.parse(localStorage.getItem('user') || '{}');
-    return stored.customer_ID ?? stored.customerId ?? null;
-  } catch {
-    return null;
-  }
+  } 
+  catch { return 1; }
 }
 
- */
 
 //method to get bookings with assigned status
 export const getIncomingBookings =()=> request(`/customer/incoming?customerId=${getCurrentCustomerId()}`);
@@ -109,44 +82,6 @@ export const getIncomingBookings_TEST = async (customerId) => {
   return data;
 };
 
-
-/**
- * 
- * export const getIncomingBookings = async () => {
-  const res = await fetch(
-    `${API_BASE}/customer/bookings/assigned`,
-    {
-      method: "GET",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  );
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(
-      data.message || "Failed to load assigned bookings"
-    );
-  }
-
-  return data;
-};
- */
-
-//the request method that goes to routes n controller, return data. below methods call this with their argumemt as path for routes to decide which controller to use
-/**
- * 
- *async function request(path) {
-  const res = await fetch(`${API_BASE}${path}`, { headers: getAuthHeaders() });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || !body.success) throw new Error(body.message || `Request failed (${res.status})`);
-  return body;
-}
- */
-
 async function request(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -196,14 +131,12 @@ export async function rateBooking(bookingId, stars) {
   }
   return body;
 }
-export const getMySubscriptions = () => request(`/customer/subscriptions?customerId=${getCurrentCustomerId()}`);
 
+export const getMySubscriptions = () => request(`/customer/subscriptions?customerId=${getCurrentCustomerId()}`);
 export const getServices = () => request(`/customer/services`);
 export const getPromotions = () => request(`/customer/promotions`);
-
 export const getPlans = () => request(`/customer/plans`);
 export const getAddresses = () => request(`/customer/addresses?customerId=${getCurrentCustomerId()}`);
-
 export const getOtherAddresses=()=>request(`/customer/otherAddresses?customerId=${getCurrentCustomerId()}`);
 
 export const makeNewExtraAddress_=(input,id)=>{
@@ -213,16 +146,14 @@ export const makeNewExtraAddress_=(input,id)=>{
   });
 }
 
-export const updateOtherAddress = (input,address_ID) =>{ // console.log(input)
- //console.log(address_ID)
-
+export const updateOtherAddress = (input,address_ID) =>{ 
   request(`/customer/editExtraAddress`, {
     method: "PUT",
     body: JSON.stringify({input, address_ID} ),
   });}
 
 
-//the 3 picks for RR
+//the 3 picks for RR===============================================================================================
 export const pickRR1 = (bookingId) =>  {
     console.log("reached rr1 api")
 
@@ -233,6 +164,7 @@ export const pickRR1 = (bookingId) =>  {
     }
    );
   };
+
 export const pickRR2 = (bookingId) =>  {
     console.log("reached rr2 api")
 
@@ -243,6 +175,7 @@ export const pickRR2 = (bookingId) =>  {
     }
    );
   };
+
 export const pickRR3 = (bookingId) =>  {
     console.log("reached rr3 api")
 
@@ -263,6 +196,7 @@ return request(`/customer/bookings/${encodeURIComponent(bookingId)}/clone`,
     }
    );
 }
+
 export const clone2=(bookingId)=>{
       console.log("reached cloning2 api")
 return request(`/customer/bookings/${encodeURIComponent(bookingId)}/clone2`,
@@ -272,6 +206,7 @@ return request(`/customer/bookings/${encodeURIComponent(bookingId)}/clone2`,
     }
    );
 }
+
 export const clone3=(bookingId)=>{
       console.log("reached cloning2 api")
 return request(`/customer/bookings/${encodeURIComponent(bookingId)}/clone3`,
@@ -281,17 +216,7 @@ return request(`/customer/bookings/${encodeURIComponent(bookingId)}/clone3`,
     }
    );
 }
-//export const pickRR2 = () => request(`/customer/bookings?customerId=${getCurrentCustomerId()}/RR2`);
-//export const pickRR3 = () => request(`/customer/bookings?customerId=${getCurrentCustomerId()}/RR3`);
 
-/**
- * 
- * the method will call a fetch() that takes the api route as the argument
- * server.js hears this 
- * 
- * 
- * this script does not deal with data themselves
- */
 // Create a new booking for the current customer
 export async function createBooking(payload) { //this method that is called by frontend is /customer
   const res = await fetch(`${API_BASE}/customer/bookings?customerId=${getCurrentCustomerId()}`, {

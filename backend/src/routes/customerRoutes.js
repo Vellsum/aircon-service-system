@@ -49,9 +49,7 @@ router.get('/otherAddresses', customerController.getOtherAddresses); ///for the 
 router.put("/editExtraAddress", customerController.updateOtherAddress)
 router.put("/makeNewExtraAddress",customerController.makeNewExtraAddress)
 
-//customer approve/reject
-//const validateBooking = customerController. updateIncomingBookingStatus;
-//router.put("/bookings/:bookingId/status", validateBooking);
+
 const authenticateToken = require('./authMiddleware');
 //the RR options
 router.put("/bookings/:bookingId/RR1",authenticateToken, customerController.pickRR1)
@@ -65,25 +63,7 @@ router.put("/bookings/:bookingId/status",authenticateToken, customerController.u
 router.put("/bookings/:bookingId/choose/:option", authenticateToken,customerController.chooseRROption)
 router.get('/incoming', getINCOMING);
 
-
-
-//sbscruptions===========
-
-
-router.post(
-  "/subscriptions/purchase",
-  customerController.purchaseSubscription
-);
-
-
-
-
-
-
-
-
-
+router.post(  "/subscriptions/purchase",  customerController.purchaseSubscription);
 
 module.exports = router;
 
-//module.exports.updateIncomingBookingStatus = updateIncomingBookingStatus;

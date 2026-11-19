@@ -1,23 +1,5 @@
-/* ============================================================
-   AdminDashboard.jsx — REVIEW FIXES 28 Oct 2026
-   1. [FIX] Summary endpoint wiring — old code checked
-      sJson.success + sJson.summary.byMonth, which never matched
-      the controller (it returns ok + revenue.monthly). Now reads
-      the real shape; year-view prefers server quarterly.
-   2. [FIX] Ratings — merged from summary.techRatings (guaranteed
-      source) because /bookings/technicians may not return the
-      new technician_rating column. Fallback kept.
-   3. [FIX] normStatus upgraded: underscores/hyphens → spaces +
-      aliases, so 'in_progress'/'Request_Reschedule' style values
-      no longer fall into pipeline "Other". Matches controller.
-   4. [FIX] "Evening" session removed — db.sql defines timing as
-      morning/afternoon only; the column was always-empty.
-      Unknown timings counted in the footnote instead.
-   5. [FIX] Free-count clamped at 0 (stray technician IDs).
-   6. [FIX] Smart S$ formatting (no more "S$0.4k").
-   Everything else (stats, pipeline, recent, queue, grid,
-   calendar) unchanged from the 28 Oct "fully live" version.
-   ============================================================ */
+// 191126 - weijie cleaned the codes
+
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -25,9 +7,8 @@ import Sidebar from "../../components/admin/Sidebar";
 import PortalWelcomeBanner from "../../components/common/PortalWelcomeBanner";
 import "../../styles/shared.css";
 const API = `${import.meta.env.VITE_API_BASE_URL}/api/admin`;
-//const API = "http://localhost:5000/api/admin";
 
-/* ---------- constants ---------- */
+/* ---------- constants ---------------------------------------------------------------------------------------------------- */
 const SESSIONS = ["Morning", "Afternoon"]; // db.sql: timing = morning or afternoon
 const BUSY_BLOCKERS = ["completed", "cancelled"]; // statuses that do NOT hold a slot
 const AVAIL_DAYS = 14;
@@ -52,7 +33,7 @@ const statusTone = {
   "rr reserved": "accent",
 };
 
-/* ---------- helpers ---------- */
+/* ---------- helpers -------------------------------------------------------------------------------------------------------------- */
 const normStatus = (s) => {
   const k = String(s || "").trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
   const alias = {
@@ -97,7 +78,7 @@ function buildCalendarCells(anchor) {
   return cells;
 }
 
-/* ---------- component ---------- */
+/* ---------- component -------------------------------------------------------------------------------- */
 const AdminDashboard = () => {
   const navigate = useNavigate();
 
@@ -260,7 +241,7 @@ const AdminDashboard = () => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  /* ---------- derived ---------- */
+  /* ---------- derived ------------------------------------------------------------------------------------------ */
   const techNameById = useMemo(() => {
     const map = {};
     technicians.forEach((t) => { map[t.id] = t.name; });
@@ -371,6 +352,7 @@ const AdminDashboard = () => {
     { label: "Pending Bookings", value: stats.pendingBookings, delta: "Requires Action", tone: "warning", icon: "⏳" },
   ];
 
+  //actual html ======================================================================================================================
   return (
     <div className="dash">
       <Sidebar active="Dashboard" />

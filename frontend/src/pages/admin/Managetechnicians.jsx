@@ -249,18 +249,7 @@ const fetchTechnicians = useCallback(async () => {
             <p className="dash-stat-label">Total Technicians</p>
             <p className="dash-stat-value">{technicians.length}</p>
             <p className="dash-stat-delta">Registered on the platform</p>
-          </div>
-          {/** <div className="dash-stat dash-stat-cyan">
-            <p className="dash-stat-label">Available Now</p>
-            <p className="dash-stat-value">{technicians.filter((t) => t.status === "Available").length}</p>
-            <p className="dash-stat-delta">Ready for new jobs</p>
-          </div>
-          <div className="dash-stat dash-stat-success">
-            <p className="dash-stat-label">On Job</p>
-            <p className="dash-stat-value">{technicians.filter((t) => t.status === "On Job").length}</p>
-            <p className="dash-stat-delta">Currently servicing</p>
-          </div> */}
-         
+          </div>         
         </section>
 
         <section className="dash-panel">
@@ -272,18 +261,6 @@ const fetchTechnicians = useCallback(async () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-
-{/**   <div className="dash-chips">
-              {statusFilters.map((status) => (
-                <button
-                  key={status}
-                  className={`dash-chip${status === activeStatus ? " is-active" : ""}`}
-                  onClick={() => setActiveStatus(status)}
-                >
-                  {status}
-                </button>
-              ))}
-            </div>*/}
           
           </div>
 
@@ -323,9 +300,7 @@ const fetchTechnicians = useCallback(async () => {
                       </td>
                       <td>
                         <div className="dash-row-actions">
-                          <button className="dash-row-btn" onClick={() => setModal({ mode: "view", record: tech })}>View</button>
-          {/**<button className="dash-row-btn" onClick={() => setModal({ mode: "edit", record: tech })}>Edit</button>
-                          <button className="dash-row-btn is-danger" onClick={() => handleRemove(tech)}>Remove</button> */}                
+                          <button className="dash-row-btn" onClick={() => setModal({ mode: "view", record: tech })}>View</button>                
                         </div>
                       </td>
                     </tr>

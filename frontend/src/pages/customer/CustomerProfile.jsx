@@ -1,4 +1,4 @@
-
+// 191126 - weijie cleaned the codes
 import React, { useEffect, useState } from "react";
 import { Icon } from "../../components/customer/CustomerIcons";
 import { useAuth } from "../../context/AuthContext";
@@ -11,10 +11,7 @@ import {
   makeNewExtraAddress_,
 } from "../../api/customerApi";
 
-// --------------------------------------------------
-// ADDRESS HELPERS
-// --------------------------------------------------
-
+// ADDRESS HELPERS  =============================================================================================================
 const emptyAddress = {
   block_number: "",
   street_name: "",
@@ -24,18 +21,15 @@ const emptyAddress = {
 };
 
 const parseAddress = (address = "") => {
-  const parts = String(address)
-    .split(",")
-    .map((part) => part.trim());
+  const parts = String(address) .split(",") .map((part) => part.trim());
 
   const postalIndex = parts.findIndex((part) => /^\d{6}$/.test(part));
 
-  const postal_code =
-    postalIndex !== -1 ? parts[postalIndex] : "";
-
-  const remaining = parts.filter(
-    (_, index) => index !== postalIndex
-  );
+  const postal_code =postalIndex !== -1 ? parts[postalIndex] : "";
+    
+  const remaining = parts.filter( (_, index) => index !== postalIndex );
+   
+ 
 
   return {
     block_number: remaining[0] || "",
@@ -77,10 +71,7 @@ const getInitials = (name = "") =>
     .slice(0, 2)
     .toUpperCase();
 
-// --------------------------------------------------
-// REUSABLE ADDRESS INPUTS
-// --------------------------------------------------
-
+// REUSABLE ADDRESS INPUTS ==========================================================================================================================================================================================================================
 const AddressInputs = ({ address, onChange }) => {
   const fields = [
     {
@@ -113,6 +104,7 @@ const AddressInputs = ({ address, onChange }) => {
     },
   ];
 
+  //actual html, for address inputs =================================================================
   return (
     <>
       {fields.map((field) => (
@@ -138,10 +130,7 @@ const AddressInputs = ({ address, onChange }) => {
   );
 };
 
-// --------------------------------------------------
-// CUSTOMER PROFILE
-// --------------------------------------------------
-
+// CUSTOMER PROFILE==================================================================================================================================
 const CustomerProfile = () => {
   const { user } = useAuth();
 
@@ -170,21 +159,13 @@ const CustomerProfile = () => {
 
   // Extra address form states
   const [editingAddressId, setEditingAddressId] = useState(null);
-  const [extraAddressForm, setExtraAddressForm] = useState({
-    ...emptyAddress,
-  });
+  const [extraAddressForm, setExtraAddressForm] = useState({    ...emptyAddress, });
 
-  const [newExtraAddressForm, setNewExtraAddressForm] = useState({
-    ...emptyAddress,
-  });
+  const [newExtraAddressForm, setNewExtraAddressForm] = useState({    ...emptyAddress,  });
+  const [showNewAddressForm, setShowNewAddressForm] =  useState(false);
+  
 
-  const [showNewAddressForm, setShowNewAddressForm] =
-    useState(false);
-
-  // --------------------------------------------------
-  // INPUT HANDLERS
-  // --------------------------------------------------
-
+  // INPUT HANDLERS =======================================================
   const updateField = (key) => (event) => {
     setForm((current) => ({
       ...current,
@@ -214,9 +195,8 @@ const CustomerProfile = () => {
     }, 3000);
   };
 
-  // --------------------------------------------------
-  // LOAD PROFILE AND ADDRESSES
-  // --------------------------------------------------
+  // LOAD PROFILE AND ADDRESSES==============================================================================================================
+
 
   const refreshOtherAddresses = async () => {
     const result = await getOtherAddresses();
@@ -275,10 +255,7 @@ const CustomerProfile = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --------------------------------------------------
-  // SAVE MAIN PROFILE
-  // --------------------------------------------------
-
+  // SAVE MAIN PROFILE ========================================================================================
   const save = async (event) => {
     event.preventDefault();
 
@@ -316,9 +293,7 @@ const CustomerProfile = () => {
     }
   };
 
-  // --------------------------------------------------
-  // ADD EXTRA ADDRESS
-  // --------------------------------------------------
+  // ADD EXTRA ADDRESS =======================================================================================
 
   const makeNewExtraAddress = async () => {
     const input = combineAddress(newExtraAddressForm);
@@ -361,9 +336,7 @@ const CustomerProfile = () => {
     }
   };
 
-  // --------------------------------------------------
-  // EDIT EXTRA ADDRESS
-  // --------------------------------------------------
+  // EDIT EXTRA ADDRESS ====================================================================================
 
   const handleEdit = (address) => {
     const addressText = getAddressText(address);
@@ -755,13 +728,7 @@ const CustomerProfile = () => {
               >
                 {form.customer_name || "Customer"}
               </h2>
-                {/** <span
-                className="cust-badge tone-success"
-                style={{ marginTop: 12 }}
-              >
-                <Icon name="star" size={12} />
-                {account.loyalty_points} loyalty points
-              </span> */}
+              
              
             </div>
           </section>
@@ -791,24 +758,13 @@ const CustomerProfile = () => {
               </span>
             </div>
 
-                    {/***
-                     * IF I FORGET PASSWORD THEN HOW??
-                     * 
-                     *   <button
-              className="dash-btn dash-btn-outline"
-              style={{ width: "100%", marginTop: 14 }}
-              type="button"
-            >
-              Change password
-            </button>
-                     */}
+                 
           
           </section>
         </div>
       </div>
 
-      {/* TOAST MESSAGE */}
-
+      {/* TOAST MESSAGE  -------------------------------------------------------------------------*/}
       {toast && (
         <div className="cust-toast">
           <Icon name="checkCircle" size={16} />
