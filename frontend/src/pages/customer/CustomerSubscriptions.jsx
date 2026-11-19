@@ -1,15 +1,12 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  AirconUnitArt,
-  EmptyStateArt,
-  Icon,
-  SnowfieldBackdrop,
-} from "../../components/customer/CustomerIcons";
+import {  AirconUnitArt,  EmptyStateArt,  Icon,  SnowfieldBackdrop,} from "../../components/customer/CustomerIcons";
 import { formatMoney } from "../../data/customer/customerSelectors";
 import { useAuth } from "../../context/AuthContext";
 import { getMySubscriptions } from "../../api/customerApi";
+// 191126 - weijie cleaned the codes
 
+//whole component======================================================================================
 const CustomerSubscriptions = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -81,6 +78,7 @@ const CustomerSubscriptions = () => {
     );
   }
 
+  //actual html ============================================================================================================
   return (
     <>
       {/* Banner Section */}
@@ -437,8 +435,8 @@ const CustomerSubscriptions = () => {
           </section>
         </div>
       </div>
-    </>
-  );
-};
+    </> //end of html fragment
+  );//end of html returning
+};//end of component
 
 export default CustomerSubscriptions;

@@ -3,10 +3,9 @@ import Sidebar from "../../components/admin/Sidebar";
 import RecordModal from "../../components/admin/RecordModal";
 import "../../styles/shared.css";
 const API = `${import.meta.env.VITE_API_BASE_URL}/api/admin`;
-//const API = "http://localhost:5000/api/admin"; //the api? wat the bloody fuck is this fucking doign???
 const MAX_MONTHS_AHEAD = 2;
 
-const statusTone = {   //dafuq is this used for???
+const statusTone = {   
   Confirmed: "success",
   Pending: "warning",
   Assigned: "accent",
@@ -33,7 +32,6 @@ const columns = [
   { key: "customer_name", label: "Customer" },
   { key: "technician_name", label: "Technician" },
   { key: "booking_date", label: "Date" },
-// {key: "processedTime", label: "Time"},          //removed from below
   {key: "isFollowup", label: "is it follow up?"},
   {key: "customerAddress", label: "Location"},
   { key: "status", label: "Status" },
@@ -70,8 +68,7 @@ const isOpen = (booking) => !["Completed", "Cancelled"].includes(booking.status)
 const isTooFarAhead = (booking, limit) => Boolean(booking.booking_date) && booking.booking_date > limit;
 
 
-//this part handles the modal? =======================================================================================
-//this is actually the component
+//this is actually the component=======================================================================================
 const AssignTechnician = () => {
   const [bookings, setBookings] = useState([]);
   const [technicians, setTechnicians] = useState([]);
@@ -112,14 +109,13 @@ const AssignTechnician = () => {
             const rawId = b.booking_ID || b.id || 0;
             return {
               booking_ID: rawId,
-              id: `#BK${String(rawId).padStart(3, "0")}`, //wateve rdafuw booking id
+              id: `#BK${String(rawId).padStart(3, "0")}`, 
 
               customer_name: b.customer_name || "Guest Customer", //the controllers convert their id to names for us
               technician_ID: b.technician_ID ? String(b.technician_ID) : "",
               technician_name: b.technician_name || "Unassigned",
               booking_date: formatLocalDateString(b.booking_date),
               status: b.status || "Pending",
-            //  processedTime: b.time,
               isFollowup: b.isFollowup,
               customerAddress: b.location,
                 status: b.status,
@@ -196,14 +192,7 @@ const timingOptions = [
 
   const isReassign = modal?.mode === "assign" && Boolean(modal.record.technician_ID);
 
-  // When reassigning, the current technician is not offered again
-  /**IT IS BELOW  THIS KEY VALUE PAIRS THAT HOLDS THE TECHNICIAN OPTIONS.
-   * so sum, u would need below method to call an api to get only technicians that r free, for that date n time
-   */
-//bro, below gets all the  technicians but if we want one that filters by date time need to make another one of these or something, depends on ur api
-/*** old one
- * 
- *  */  
+
 const technicianOptions = technicians
     .map((t) => ({
       label: t.technician_name || t.username,
@@ -212,9 +201,7 @@ const technicianOptions = technicians
     .filter((o) => !isReassign || o.value !== modal.record.technician_ID);
 
 
-    //still deciding.....
-    //new above method that is being called by dropdown selectors
-
+   
 
 const getAvailableTechnicianOptions = ( //lets use this
   date,
@@ -417,16 +404,7 @@ key: "NO_U",
     ]
   : []),
 
-  /**   the original am pm time 
-   *  {
-    key: "newTime",
-    label: isRescheduleRequested
-      ? "New Booking Time"
-      : "Booking Time",
-    type: "time",
-    required: isRescheduleRequested,
-    readOnly: !isRescheduleRequested,
-  },*/
+
  
 
   ...(isReassign
@@ -782,27 +760,14 @@ else {
       body: JSON.stringify(requestBody),
     });
 
-
-
-
-
-
-
-
-
   } 
  
-  
-
-
 };
 
-  //end of shit===================================
 
 
 
 // Action : Admin proposes three alternative date/time options
-
 const handleProposeAlternatives = async (formData) => {
   const record = modal.record;
 
@@ -957,7 +922,7 @@ console.log("Reserve payload:", {
 });
 
 
-};//end of fucking method
+};//end of  method
 
 
   const sortIndicator = (key) => (key === sortKey ? (sortDir === "asc" ? " ▲" : " ▼") : "");
@@ -1040,7 +1005,6 @@ console.log("Reserve payload:", {
          {/**customer */}                   <td><strong>{booking.customer_name}</strong></td>
               {/**technician */}              <td>{booking.technician_name}</td>
           {/** date */}                  <td className="dash-mono">{booking.booking_date || "Pending"}</td>
-        {/** processed time*/}     {/**<td className="dash-mono"> */}  {/*{booking.processedTime}*/}{/** </td>*/}
          {/**is followup */} <td> {String(booking.isFollowup) }</td>     {/**not showing properly */}
          {/**location */} <td> {booking.customerAddress}</td>
          {/**status */}                    <td>  <span className={`dash-status dash-status-${statusTone[booking.status] || "accent"}`}>  <i />    {booking.status}  </span> </td>
@@ -1127,24 +1091,21 @@ console.log("Reserve payload:", {
           title={
             modal.mode === "assign" ? isReassign
           
-                ? "Reassign Technician": "Assign Technician"  : "Booking Details"
-                
-            
+                ? "Reassign Technician": "Assign Technician"  : "Booking Details"     
           }
           fields={modal.mode === "assign" ? assignFields : viewFields}
-data={modal.mode === "assign" ? assignData : modal.record}      getTechnicianOptions={getAvailableTechnicianOptions}
-          onClose={() => {
-  setModal(null);
-  setModalAction("default");
-}}
-onSave={handleAssign}
-onProposeAlternatives={(nextAction) =>
-  setModalAction(nextAction === "default" ? "default" : "propose")
-}action={modalAction}
-onSaveAlternatives={handleProposeAlternatives}
+            data={modal.mode === "assign" ? assignData : modal.record}      getTechnicianOptions={getAvailableTechnicianOptions}
+                      onClose={() => {
+              setModal(null);
+              setModalAction("default");
+            }}
+            onSave={handleAssign}
+            onProposeAlternatives={(nextAction) =>
+              setModalAction(nextAction === "default" ? "default" : "propose")
+            }action={modalAction}
+            onSaveAlternatives={handleProposeAlternatives}
 
-          // onProposeAlternatives={(formData) =>      handleProposeAlternatives(formData)  }
-            //method for admin to suggest dates
+
   
         />
       )}

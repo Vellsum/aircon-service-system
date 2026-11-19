@@ -3,7 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import "../../styles/shared.css";
 import "../../styles/Login.css";
-const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`; 
+
+//191126 - weijie cleaned codes
+
 
 const roles = [
   { key: "customer", label: "Customer", icon: "👤" },
@@ -17,6 +20,7 @@ const roleDestinations = {
   admin: "/admin/dashboard",
 };
 
+//method when user click login, validate ------------------------------------------------------------------
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -38,68 +42,68 @@ const Login = () => {
 
     setLoading(true);
 
-    try {
-const response = await fetch(`${API_BASE}/auth/login`, {        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: email,          // Changed from 'username' to 'email' state
-          password: password,
-          role: selectedRole,       // Changed from 'activeRole' to 'selectedRole' state
-        }),
-      });
+    //start of main try block
+    try {const response = await fetch(`${API_BASE}/auth/login`, { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: email,          // Changed from 'username' to 'email' state
+        password: password,
+        role: selectedRole,       // Changed from 'activeRole' to 'selectedRole' state
+      }),
+    }); //end of post header content, no catching
 
      const responseText = await response.text();
 
-let data = {};
+      let data = {};
 
-try {
-  data = responseText ? JSON.parse(responseText) : {};
-} catch (err) {
-  console.error("Non-JSON response from login API:", responseText);
+      try { data = responseText ? JSON.parse(responseText) : {};  }
+      catch (err) {
+        console.error("Non-JSON response from login API:", responseText);
 
-  throw new Error(
-    `Server returned an invalid response (HTTP ${response.status}). Check the backend logs.`
-  );
-}
+        throw new Error(  `Server returned an invalid response (HTTP ${response.status}). Check the backend logs.` );
+        
+        
+      } //end of catch
 
-if (!response.ok) {
-  throw new Error(data.message || `Login failed (HTTP ${response.status}).`);
-}
-
-if (!data.user || !data.token) {
-  throw new Error("Login response is missing user information or authentication token.");
-}
+      if (!response.ok) {  throw new Error(data.message || `Login failed (HTTP ${response.status}).`); }
+    
+      if (!data.user || !data.token) { throw new Error("Login response is missing user information or authentication token.");  }
+     
+  
 
       const userRole = String(
-  data.user.role || data.user.accountType || ""
-).trim().toLowerCase();
+        data.user.role || data.user.accountType || ""
+        ).trim().toLowerCase();
 
-if (userRole !== selectedRole) {
-  throw new Error(
-"Invalid username/email or password."  );
-}
+    if (userRole !== selectedRole) {    throw new Error( "Invalid username/email or password."  );  }
+  
+   
+  
 
-const authenticatedUser = {
-  ...data.user,
-  role: userRole,
-};
+    const authenticatedUser = {
+      ...data.user,
+      role: userRole,
+    };
 
-      // 2. Persist to AuthContext
-      login(authenticatedUser, data.token);
+    // 2. Persist to AuthContext
+    login(authenticatedUser, data.token);
 
-      // 3. Navigate explicitly to the corresponding destination
-      const targetDestination = roleDestinations[userRole] || "/technician/dashboard";
-      navigate(targetDestination, { replace: true });
+    // 3. Navigate explicitly to the corresponding destination
+    const targetDestination = roleDestinations[userRole] || "/technician/dashboard";
+    navigate(targetDestination, { replace: true });
 
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };// end of handle submit
 
+  //return actual html ===================================================================================
   return (
+    
     <div className="login-page">
+      {/**header ------------------------------------------- */}
       <div className="login-card">
         <div className="login-header">
           <div className="login-brand">
@@ -109,6 +113,7 @@ const authenticatedUser = {
           <p>Log in to continue</p>
         </div>
 
+        {/** inner form ---------------------------------------------- */}
         <div className="login-body">
           <form onSubmit={handleSubmit}>
             <p className="login-role-label">I am logging in as:</p>
@@ -126,7 +131,7 @@ const authenticatedUser = {
             </div>
 
             {error && <div className="login-error">{error}</div>}
-
+              {/** username ---------------------------------------------------------- */}
             <div className="dash-form-row">
               <label className="dash-form-label">Username</label>
               <input
@@ -138,6 +143,7 @@ const authenticatedUser = {
               />
             </div>
 
+            {/** password --------------------------------------------------------- */}
             <div className="dash-form-row">
               <label className="dash-form-label">Password</label>
               <input
@@ -149,6 +155,7 @@ const authenticatedUser = {
               />
             </div>
 
+            {/** login button ------------------------------------------------------ */}
             <button
               type="submit"
               className="dash-btn dash-btn-primary login-submit"
@@ -160,18 +167,19 @@ const authenticatedUser = {
             </button>
           </form>
 
-          {/* Registration Prompt for Customers */}
+          {/* Registration Prompt for Customers ---------------------------------------------*/}
           <p className="login-footer-note" style={{ marginTop: "1rem" }}>
             Don't have an account? <Link to="/register">Register here</Link>
           </p>
 
+          {/** back ------------------------------------------ */}
           <p className="login-footer-note">
             <Link to="/">← Back to homepage</Link>
           </p>
         </div>
       </div>
     </div>
-  );
-};
+  ); //end of return
+}; //end of component
 
 export default Login;

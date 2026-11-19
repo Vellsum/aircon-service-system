@@ -22,8 +22,7 @@ const promoFields = [
   { key: "discount", label: "Discount", type: "number", required: true },
   { key: "promo_start", label: "Start Date", type: "date", required: true },
   { key: "promo_end", label: "End Date", type: "date", required: true },
- // { key: "serviceList", label: "Service List ID", type: "number" },
- // { key: "packageList", label: "Package List ID", type: "number" },
+
 ];
 
 // Fields for viewing promotion details
@@ -56,7 +55,6 @@ const formatLocalDateString = (dateInput) => {
 };
 
   // GET: Load promotions
-  // TODO: API - Confirm GET endpoint and response property.
   const fetchPromotions = useCallback(async () => {
     setLoading(true);
 
@@ -114,7 +112,6 @@ console.log("Backend response:", data);
   });
 
   // POST: Create a new promotion
-  // TODO: API - Confirm POST endpoint and required request fields.
   const handleAdd = async (formData) => {
     if (modal?.mode !== "create") return;
 
@@ -253,62 +250,9 @@ console.log("Backend response:", data);
           </button>
         </header>
 
-        {/* Promotion statistics */}
-        {/**  <section className="dash-stats">
-          <div className="dash-stat dash-stat-accent">
-            <p className="dash-stat-label">Total Promotions</p>
-            <p className="dash-stat-value">{promotions.length}</p>
-            <p className="dash-stat-delta">All-time created</p>
-          </div>
-
-          <div className="dash-stat dash-stat-success">
-            <p className="dash-stat-label">Active Now</p>
-            <p className="dash-stat-value">
-              {promotions.filter((p) => p.status === "Active").length}
-            </p>
-            <p className="dash-stat-delta">Live and redeemable</p>
-          </div>
-
-          <div className="dash-stat dash-stat-cyan">s
-            <p className="dash-stat-label">Total Redemptions</p>
-            <p className="dash-stat-value">
-              {promotions.reduce(
-                (sum, p) => sum + (Number(p.used) || 0),
-                0
-              )}
-            </p>
-            <p className="dash-stat-delta">Across all codes</p>
-          </div>
-        </section>*/}
-       
+ 
 
         <section className="dash-panel">
-          {/** <div className="dash-filterbar">
-           <input
-              className="dash-search"
-              type="text"
-              placeholder="Search by code or description..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            /> */}
-            
-
-{/***  <div className="dash-chips">
-              {statusFilters.map((status) => (
-                <button
-                  key={status}
-                  className={`dash-chip${
-                    status === activeStatus ? " is-active" : ""
-                  }`}
-                  onClick={() => setActiveStatus(status)}
-                >
-                  {status}
-                </button>
-              ))}
-            </div>
-           
-          </div>*/}
-
           <div className="dash-table-wrap">
             <table className="dash-table">
               <thead>
@@ -349,29 +293,8 @@ console.log("Backend response:", data);
                       <td className="dash-mono">{promo.promoCode}</td>
                    
                       <td className="dash-mono">{promo.discount}</td>
-                {/** <td className="dash-mono">{promo.validFrom}</td>
-                      <td className="dash-mono">{promo.validTo}</td>    
-                 
-
+          
                       <td>
-                        <span
-                          className={`dash-status dash-status-${
-                            statusTone[promo.status] || "warning"
-                          }`}
-                        >
-                          <i />
-                          {promo.status}
-                        </span>
-                      </td>*/}  
-
-                      <td>{/*** <button
-                            className="dash-row-btn"
-                            onClick={() =>
-                              setModal({ mode: "view", record: promo })
-                            }
-                          >
-                            View
-                          </button> */}
                         <div className="dash-row-actions">
                          
 
@@ -383,13 +306,7 @@ console.log("Backend response:", data);
                           >
                             Edit
                           </button>
-                              {/**  <button
-                            className="dash-row-btn is-danger"
-                            onClick={() => handleEnd(promo)}
-                            disabled={promo.status === "Expired"}
-                          >
-                            End
-                          </button> */}
+                             
                         
                         </div>
                       </td>
@@ -412,22 +329,6 @@ console.log("Backend response:", data);
               </tbody>
             </table>
           </div>
-
-          {/*** <div className="dash-pagination">
-            <span>
-              Showing {filtered.length} of {promotions.length} promotions
-            </span>
-
-            <div className="dash-pagination-controls">
-              <button className="dash-row-btn" disabled>
-                Prev
-              </button>
-              <button className="dash-row-btn" disabled>
-                Next
-              </button>
-            </div>
-          </div> */}
-
          
         </section>
       </main>

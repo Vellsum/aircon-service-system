@@ -1,9 +1,12 @@
+//191126 - weijie cleaned codes
 
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "../../styles/shared.css";
 import "../../styles/Login.css";
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
+
+//component =================================================================================
 const Register = () => {
   const navigate = useNavigate();
 
@@ -65,41 +68,35 @@ const Register = () => {
       customer_address,
     };
 
-   try {
-  const response = await fetch(`${API_BASE}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(registrationData),
-  });
+    try {
+      const response = await fetch(`${API_BASE}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(registrationData),
+       }); //end of handle submit function
 
-  const responseText = await response.text();
-  let data = {};
+      const responseText = await response.text();
+      let data = {};
 
-  try {
-    data = responseText ? JSON.parse(responseText) : {};
-  } catch (err) {
-    console.error("Non-JSON response from register API:", responseText);
-    throw new Error(
-      `Server returned an invalid response (HTTP ${response.status}). Check the backend logs.`
-    );
-  } //no catching here
+      try {data = responseText ? JSON.parse(responseText) : {}; }
+      catch (err) {
+        console.error("Non-JSON response from register API:", responseText);
+        throw new Error(   `Server returned an invalid response (HTTP ${response.status}). Check the backend logs.` );
+      } //no catching here
 
-  if (!response.ok) {
-    throw new Error(
-      data.message || `Registration failed (HTTP ${response.status}).`
-    );
-  }
+      if (!response.ok) {   throw new Error(data.message || `Registration failed (HTTP ${response.status}).`);}
 
-  alert("Registration successful! Please log in.");
-  navigate("/login");
+      alert("Registration successful! Please log in.");
+      navigate("/login");
 
-} catch (err) {
-  setError(err.message);
-} finally {
-  setLoading(false);
-}
-  };
+    } //end of try block
+    catch (err) {setError(err.message);} 
+    finally {setLoading(false);}
+  
 
+  }; //end of handle submit method
+
+  //actual html =======================================================================
   return (
     <div className="login-page">
       <div className="login-card">
@@ -225,7 +222,7 @@ const Register = () => {
         </form>
       </div>
     </div>
-  );
-};
+  ); //end of html
+}; //end of component
 
 export default Register;

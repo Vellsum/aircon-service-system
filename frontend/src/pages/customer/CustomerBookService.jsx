@@ -2,20 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "../../components/customer/CustomerIcons";
 import { TIME_SLOTS } from "../../data/customer/customerMockData";
-import {
-  findPromotion,
-  findService,
-  formatLongDate,
-  formatMoney,
-  priceBooking,
-} from "../../data/customer/customerSelectors";
-import {
-  createBooking,
-  getAddresses,
-  getMyUnits,
-  getPromotions,
-  getServices,helpMyID,getOtherAddresses,
-} from "../../api/customerApi"; // WE CALL CUSTOMER API EXPORTED METHODS
+import {  findPromotion,  findService,  formatLongDate,  formatMoney,  priceBooking,} from "../../data/customer/customerSelectors";
+
+import {  createBooking,  getAddresses,  getMyUnits,  getPromotions,  getServices,helpMyID,getOtherAddresses,} from "../../api/customerApi"; // WE CALL CUSTOMER API EXPORTED METHODS
+
+//191126 - weijie cleaned codes
+
 const PROMO_TONES = ["accent", "success", "warning"];
 
 const STEPS = [ //steps to do here
@@ -48,7 +40,7 @@ function slotStartTime(label) {
 //the component itself =====================================================================================
 const CustomerBookService = () => {
   const navigate = useNavigate();
-    const [error, setError] = useState("");
+  const [error, setError] = useState("");
   
   const [numberOfUnits, setNumOfUnits]=useState(); //change unit selection to just how many, number of units from 1-3
   const [searchParams] = useSearchParams();
@@ -68,10 +60,10 @@ const CustomerBookService = () => {
 
   //estimated total time n cost
   const [estimatedtotaltime, setestimatedtotatltime]=useState("");
-    const [estimatedtotalcost, setestimatedtotatlcost]=useState("");
+  const [estimatedtotalcost, setestimatedtotatlcost]=useState("");
 
-    //customer id
-    const [customerid,setcustomerid]=useState(""); //where dafuq do i find the customer id??
+  //customer id
+  const [customerid,setcustomerid]=useState(""); 
 
   const [addressId, setAddressId] = useState(null);
   const [notes, setNotes] = useState("");
@@ -79,7 +71,7 @@ const CustomerBookService = () => {
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [promoError, setPromoError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");   //which fucking var is the data?
+  const [submitError, setSubmitError] = useState("");   
   const [confirmed, setConfirmed] = useState(null);
 
   // Live data
@@ -91,28 +83,28 @@ const CustomerBookService = () => {
   const [loadError, setLoadError] = useState("");
 
   /* Real data — services, plans and promotions all from the database */
-    useEffect(() => {
-      let alive = true;
-      const load = async () => {
-        try {
-          const [svcRes, planRes, promoRes] = await Promise.all([
-            getServices(),
-            getPlans(),
-            getPromotions(),
-          ]);
-          if (!alive) return;
-          setServices(svcRes?.services || []);
-          setPlans(planRes?.plans || []);
-          setPromotions(promoRes?.promotions || []);
-        } catch (err) {
-          if (alive) setError(err.message || "Server error");
-        } finally {
-          if (alive) setLoading(false);
-        }
-      };
-      load();
-      return () => { alive = false; };
-    }, []);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const [svcRes, planRes, promoRes] = await Promise.all([
+          getServices(),
+          getPlans(),
+          getPromotions(),
+        ]);
+        if (!alive) return;
+        setServices(svcRes?.services || []);
+        setPlans(planRes?.plans || []);
+        setPromotions(promoRes?.promotions || []);
+      } catch (err) {
+        if (alive) setError(err.message || "Server error");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    load();
+    return () => { alive = false; };
+  }, []);
 
   //when component mounts...
   useEffect(() => {
@@ -120,7 +112,6 @@ const CustomerBookService = () => {
       let my_id;
         my_id=helpMyID();
         console.log(my_id);
-      //watever the fuck logic here
 
 
       setcustomerid(my_id);
@@ -188,55 +179,47 @@ return () => {
   alive = false;
 };
       
-  }, []);
+  }, []); //end of use effect
 
   const service = useMemo(() => findService(serviceId, services), [serviceId, services]);
-  //const slot = TIME_SLOTS.find((entry) => entry.id === slotId) || null;
   const slot = slotId || null;
 
-
-const address =
-  addresses.find((entry) => entry.selectionId === addressId) || null;
-
+  const address =  addresses.find((entry) => entry.selectionId === addressId) || null;
 
   const selectedUnits = units.filter((unit) => unitIds.includes(unit.installed_ID));
   
-  //we have this pricing method?
-const pricing = useMemo(() => {
-  const unitCount = Number(numberOfUnits) || 0;
-  const selectedServices = services.filter((s) =>
-    serviceIds.includes(s.service_id)
-  );
+  //private method
+  const pricing = useMemo(() => {
+    const unitCount = Number(numberOfUnits) || 0;
+    const selectedServices = services.filter((s) =>    serviceIds.includes(s.service_id)  );
 
-  const subtotal = selectedServices.reduce(
-    (acc, svc) => acc + (Number(svc.price) * unitCount), 0
-  );
+    const subtotal = selectedServices.reduce(  (acc, svc) => acc + (Number(svc.price) * unitCount), 0  );
 
-  let discount = 0;
 
-  if (step === 5 && appliedPromo) {
-    const discountType = appliedPromo.discount_type;
-    const discountValue = Number(appliedPromo.discount_value) || 0;
 
-    if (discountType === "percent") {
-      discount = subtotal * (discountValue / 100);
-    } else {
-      discount = discountValue;
+    let discount = 0;
+
+    if (step === 5 && appliedPromo) {
+      const discountType = appliedPromo.discount_type;
+      const discountValue = Number(appliedPromo.discount_value) || 0;
+
+      if (discountType === "percent") {      discount = subtotal * (discountValue / 100); } 
+      else {      discount = discountValue; }
+
     }
-  }
 
-  const total = Math.max(0, subtotal - discount);
+    const total = Math.max(0, subtotal - discount);
 
-  return { subtotal, discount, total };
-}, [serviceIds, services, numberOfUnits, appliedPromo, step]);
+    return { subtotal, discount, total };
+  }, [serviceIds, services, numberOfUnits, appliedPromo, step]);
 
-      //method for total estimated time, var kept
-      const totalEstimatedTime = useMemo(() => {
-      const unitCount = Number(numberOfUnits) || 0;
-      const selectedServices = services.filter((s) => serviceIds.includes(s.service_id));
-      const baseMinutes = selectedServices.reduce((acc, svc) => acc + (svc.duration_mins || 0), 0);
-      return baseMinutes * unitCount;
-    }, [serviceIds, services, numberOfUnits]);
+  //method for total estimated time, var kept
+  const totalEstimatedTime = useMemo(() => {
+    const unitCount = Number(numberOfUnits) || 0;
+    const selectedServices = services.filter((s) => serviceIds.includes(s.service_id));
+    const baseMinutes = selectedServices.reduce((acc, svc) => acc + (svc.duration_mins || 0), 0);
+    return baseMinutes * unitCount;
+  }, [serviceIds, services, numberOfUnits]);
 
   // Each step gates the "Continue" button until it has what it needs. this part decides if user input is enough to go to the next step
   const stepComplete = {
@@ -258,10 +241,9 @@ const discountLabel = (promo) =>
       </section>
     );
   }
+  
   //method to link set amount to database or something, replaces below method
-const setNumberUnits= (amount)=>{
-//wtf??? did that pussy scott wrote this shit?
-};
+  const setNumberUnits= (amount)=>{ };
 
   const toggleUnit = (installedId) => {
     setUnitIds((current) =>
@@ -288,16 +270,13 @@ const setNumberUnits= (amount)=>{
 
   {/** this is the method to take all the data in this frontend to  backend */}
 
-  //limpeh needs to change this to give newer data but backend also need to touch
-const submitBooking = async () => {    
+  // needs to change this to give newer data but backend also need to touch
+  const submitBooking = async () => {    
     if (serviceIds.length === 0 || !date || !slot || !address) return;
     setSubmitting(true);
     setSubmitError("");
     try {
 
-          // Save the final calculated values
-  //  setEstimatedTotalTime(totalEstimatedTime);
-    //setEstimatedTotalCost(pricing.total); 
 const selectedServiceNames = services
   .filter((service) => serviceIds.includes(service.service_id))
   .map((service) => service.service_name)
@@ -305,9 +284,7 @@ const selectedServiceNames = services
 
       const res = await createBooking({
         customer_ID: helpMyID(),//it should be customer id, not service id
-       // serviceIds: serviceIds,     
-         services: selectedServiceNames, // ADD THIS
-
+        services: selectedServiceNames, // ADD THIS
         numberOfUnits: numberOfUnits,  //number of units to update in controller
         date,
         time: slot,  //morning or afternooon thats going into timing column
@@ -318,7 +295,7 @@ const selectedServiceNames = services
         estimatedtotaltime: totalEstimatedTime
       });
       console.log("Booking response:", res);
-console.log("Units submitted:", numberOfUnits);
+      console.log("Units submitted:", numberOfUnits);
       setConfirmed({
   reference: res.booking_ID || res.bookingId || res.reference,
   numberOfUnits: Number(numberOfUnits),
@@ -334,7 +311,7 @@ console.log("Units submitted:", numberOfUnits);
     }
   };
 
-  /* ------------------------------------------------ loading / error states */
+  /*  loading / error states ----------------------------------------------------------------------------------------*/
   if (loading) {
     return (
       <section className="cust-panel" style={{ padding: 48, textAlign: "center" }}>
@@ -355,7 +332,7 @@ console.log("Units submitted:", numberOfUnits);
     );
   }
 
-  /* ------------------------------------------------ confirmation screen */
+  /*  confirmation screen ------------------------------------------------*/
   if (confirmed) {
     return (
       <section className="cust-panel" style={{ maxWidth: 560, margin: "40px auto" }}>
@@ -435,7 +412,8 @@ console.log("Units submitted:", numberOfUnits);
 const handleChange = (e) => {
     setNumOfUnits(e.target.value);
   };
-  /* ---------------------------------------------------------- the wizard */
+
+  /*  the wizard, actual html -----------------------------------------------------------------------*/
   return (
     <>
       <div className="cust-page-head">
@@ -536,7 +514,6 @@ const handleChange = (e) => {
 
 
           {/* Step 2 —  number units ------------------------------------------------*/}
-   {/* Step 2 —  number units, original */}
           {step === 2 && (
             <section className="cust-panel">
               <div className="cust-panel-head">
@@ -550,53 +527,20 @@ const handleChange = (e) => {
                     min="1"
                     max="6"    
                     step="1"
-      /><p>You entered: {numberOfUnits}</p>
-      {/**we do a max of 6 first so when overload, just 1 extra technician assisting */}
+                  /><p>You entered: {numberOfUnits}</p>
+                  {/**we do a max of 6 first so when overload, just 1 extra technician assisting */}
 
-      {/**now with clause for 3+ units*/}
-      {Number(numberOfUnits) > 3 && (
-  <div className="cust-panel">
-Note: An additional technician will be provided for more than 3 aircons.  
-A maximum of 6 aircons is permitted.  
-  </div>
-)}
+                {/**now with clause for 3+ units*/}
+                {Number(numberOfUnits) > 3 && (
+            <div className="cust-panel">
+          Note: An additional technician will be provided for more than 3 aircons.  
+          A maximum of 6 aircons is permitted.  
+            </div>
+          )}
                 </div>
               </div></section> )}
 
 
-          {/** most recent, replaced with original to allow 3+ aircon
-           *   {step === 2 && (
-            <section className="cust-panel">
-              <div className="cust-panel-head">
-                <div>
-                    <h2>How many units need attention?</h2>
-                    <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-                      {[1, 2, 3].map((num) => {
-                        const isSelected = Number(numberOfUnits) === num;
-                        return (
-                          <button
-                            type="button"
-                            key={num}
-                            className={`dash-btn ${isSelected ? "dash-btn-primary" : "dash-btn-outline"}`}
-                            style={{ flex: 1, padding: "12px 0" }}
-                            onClick={() => setNumOfUnits(num)}
-                          >
-                            {num} unit{num !== 1 ? "s" : ""}
-                          </button>
-                        );
-                      })}
-                    </div>
-    
-                  <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)" }}>
-                    You selected: {numberOfUnits || "None"}
-                  </p>
-                </div>
-              </div>
-            </section>
-          )} 
-           */}
-        
-          {/**end of step 2, select number of units   */}
 
 
 
@@ -668,19 +612,19 @@ A maximum of 6 aircons is permitted.
 
               <div className="cust-choice-grid" style={{ marginBottom: 18 }}>
               {addresses.map((entry) => (
-  <button
-    type="button"
-    key={entry.selectionId}
-    className={`cust-choice${
-      addressId === entry.selectionId ? " is-selected" : ""
-    }`}
-    onClick={() => setAddressId(entry.selectionId)}
-  >
-    {addressId === entry.selectionId && (
-      <span className="cust-choice-tick">
-        <Icon name="check" size={12} strokeWidth={3} />
-      </span>
-    )}
+              <button
+                type="button"
+                key={entry.selectionId}
+                className={`cust-choice${
+                  addressId === entry.selectionId ? " is-selected" : ""
+                }`}
+                onClick={() => setAddressId(entry.selectionId)}
+              >
+                {addressId === entry.selectionId && (
+                  <span className="cust-choice-tick">
+                    <Icon name="check" size={12} strokeWidth={3} />
+                  </span>
+                )}
                     {addressId === entry.address_ID && (
                       <span className="cust-choice-tick">
                         <Icon name="check" size={12} strokeWidth={3} />
@@ -769,52 +713,39 @@ A maximum of 6 aircons is permitted.
 
         
             {/* Promo code — Step 5 only */}
-<div className="cust-promo-entry">
-  <input
-    type="text"
-    placeholder="Promo code"
-    value={promoInput}
-    onChange={(event) => setPromoInput(event.target.value)}
-    onKeyDown={(event) => event.key === "Enter" && applyPromo()}
-    aria-label="Promo code"
-  />
-  <button
-    type="button"
-    className="dash-btn dash-btn-outline"
-    onClick={applyPromo}
-  >
-    Apply
-  </button>
-</div>
+            <div className="cust-promo-entry">
+              <input
+                type="text"
+                placeholder="Promo code"
+                value={promoInput}
+                onChange={(event) => setPromoInput(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && applyPromo()}
+                aria-label="Promo code"
+              />
+              <button
+                type="button"
+                className="dash-btn dash-btn-outline"
+                onClick={applyPromo}
+              >
+                Apply
+              </button>
+            </div>
 
-{appliedPromo && (
-  <p className="cust-promo-msg is-ok">
-    {appliedPromo.title} applied.
-  </p>
-)}
+            {appliedPromo && (
+              <p className="cust-promo-msg is-ok">
+                {appliedPromo.title} applied.
+              </p>
+            )}
 
-{promoError && (
-  <p className="cust-promo-msg is-bad">{promoError}</p>
-)}
+            {promoError && (
+              <p className="cust-promo-msg is-bad">{promoError}</p>
+            )}
           
-              {/**
-              {service && (
-                <div style={{ marginTop: 20 }}>
-                  <p className="cust-meta-label">What's included</p>
-                  <ul className="cust-perks" style={{ marginTop: 8 }}>
-                    {service.includes.map((line) => (
-                      <li className="cust-perk" key={line}>
-                        <Icon name="check" size={14} strokeWidth={2.6} />
-                        {line}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )} */}
+         
             </section>
           )}
 
-          {/* Wizard controls */}
+          {/* Wizard controls =================================================================================================== */}
           <div className="cust-wizard-nav">
             <button
               className="dash-btn dash-btn-outline"
@@ -849,7 +780,9 @@ A maximum of 6 aircons is permitted.
             </p>
           )}
         </div>
-{/* Live summary */}
+
+
+          {/* Live summary =========================================================================================*/}
         <aside className="cust-summary">
           <div className="cust-summary-head">
             <h3>Booking summary</h3>
@@ -882,9 +815,10 @@ A maximum of 6 aircons is permitted.
 
                       
             {serviceIds.length > 0 && numberOfUnits && (
-              <>                      {/** estimated total cost -------------------- */}
+              <>                     
+               {/** estimated total cost ---------------------------------------------------------------------------------------------------- */}
 
-                                    {/**how about we send estimate total time n cost on the final confirm booking button */}
+              {/**how about we send estimate total time n cost on the final confirm booking button */}
                {services
     .filter((s) => serviceIds.includes(s.service_id))
     .map((svc) => {
@@ -901,45 +835,16 @@ A maximum of 6 aircons is permitted.
         </div>
       );
     })}
-                {/**  {services
-                  .filter((s) => serviceIds.includes(s.service_id))
-                  .map((svc) => {
-                    const unitCount = Number(numberOfUnits) || 0;
-                    const itemTotal = svc.price * unitCount;
-                   // setestimatedtotatlcost(svc.price * unitCount);
-                    return (
-                      <div key={svc.service_id} className="cust-summary-row">
-                        <span className="cust-summary-label">
-                          {svc.service_name} ({formatMoney(svc.price)} × {unitCount})
-                        </span>
-                        <span className="cust-summary-value dash-mono">
-                          {formatMoney(itemTotal)} 
-                        </span>
-                      </div>
-                    );
-                  })} */}
-              
+                
 
-                      {/** estimated total time -------------------- */}
-                        {/* estimated total time , ai code*/}
+                      {/** estimated total time ------------------------------------------------------------------------------------------------------------------------ */}
                         <div className="cust-summary-row">
                           <span className="cust-summary-label">Total Estimated Time</span>
                           <span className="cust-summary-value">
                             {totalEstimatedTime} mins
                           </span>
                         </div>
-                        {/** the estimated total is not a var number here */}
-                      {/**      <div className="cust-summary-row">
-                  <span className="cust-summary-label">Total Estimated Time</span>
-                  <span className="cust-summary-value">
                     
-                
-                    {services
-                      .filter((s) => serviceIds.includes(s.service_id))
-                      .reduce((acc, svc) => acc + (svc.duration_mins || 0), 0) * (Number(numberOfUnits) || 0)}
-                    {estimatedtotalcost} mins
-                  </span>
-                </div> ***/}
           
 
                 {appliedPromo && (
@@ -955,27 +860,6 @@ A maximum of 6 aircons is permitted.
               </>
             )}
 
-{/** <div className="cust-promo-entry">
-              <input
-                type="text"
-                placeholder="Promo code"
-                value={promoInput}
-                onChange={(event) => setPromoInput(event.target.value)}
-                onKeyDown={(event) => event.key === "Enter" && applyPromo()}
-                aria-label="Promo code"
-              />
-              <button className="dash-btn dash-btn-outline" onClick={applyPromo}>
-                Apply
-              </button>
-            </div>*/}
-            
-            {/** {appliedPromo && (
-              <p className="cust-promo-msg is-ok">
-                {appliedPromo.title} applied.
-              </p>
-            )}
-            {promoError && <p className="cust-promo-msg is-bad">{promoError}</p>} */}
-           
           </div>
 
           <div className="cust-summary-total">
@@ -989,7 +873,8 @@ A maximum of 6 aircons is permitted.
       </div>
 
        {/* Promotions — real data from payables.promotions ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/}
-           {/**ITS NOW REAL DATA, actually always was */} <section className="cust-panel">
+           {/**ITS NOW REAL DATA, actually always was */}
+            <section className="cust-panel">
               <div className="cust-panel-head">
                 <div>
                   <h2>Current promotions</h2>
@@ -1015,8 +900,8 @@ A maximum of 6 aircons is permitted.
                 ))}
               </div>
             </section>
-    </>
-  );
-};
+    </> //end of overall return fragment
+  ); //end of return
+};//end of component
 
 export default CustomerBookService;
